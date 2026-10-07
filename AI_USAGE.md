@@ -75,7 +75,70 @@ the repo.
 
 ---
 
-## Phase 1 — Database schema, RLS and authentication
+## Phase 1a — Database schema, RLS and the sign-up gate
+
+Logged separately from the auth UI (Phase 1b) because it is a self-contained
+deliverable. **The SQL in this entry has been written but not yet executed**, so
+nothing in it is verified behaviour.
+
+**Asked for**
+
+> "Phase 1: schema + RLS + auth"
+
+and, mid-phase:
+
+> "Additions to the design (plan for them in the schema now, build later):
+> sign-up restricted to `@nmit.ac.in` emails; listings have an optional course
+> code (e.g. '21CS32') and semester, both searchable; a fair-price hint from the
+> Google Books original price combined with item condition."
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `supabase/migrations/0001_schema.sql` | Enums, 5 tables, generated `tsvector` search column, indexes, `handle_new_user` and `listings_before_update` triggers |
+| `supabase/migrations/0002_rls.sql` | Grants, RLS on every table, all policies, Realtime publication |
+| `supabase/migrations/0003_storage.sql` | `listing-images` bucket and path-based ownership policies |
+| `supabase/migrations/0004_signup_domain_allowlist.sql` | Allowlist table and the Before User Created hook function |
+| `supabase/migrations/0005_seed.sql` | Pickup spots, allowed sign-up domains |
+| `.env.local` | Written from credentials supplied by the author (not committed) |
+| `README.md`, `docs/architecture.md` | Migration steps, dashboard settings, reviewer access, decision records |
+
+**AI reasoning worth noting**
+
+- Identified that restricting sign-up in application code would be **security
+  theatre**: the publishable key lets anyone POST to `/auth/v1/signup` directly.
+  Moved the check to a database-level auth hook.
+- Fetched Supabase's official hook documentation rather than relying on recall,
+  and found **two problems with their published example** — it is
+  allow-by-default (an unlisted domain is admitted), and it compares
+  `lower(domain)` against `lower($1)` where `domain` shadows the table's own
+  column and `$1` is the `jsonb` event argument. Both corrected, both recorded
+  in `docs/architecture.md`.
+- Raised a conflict the author's requirements had not accounted for: sign-up is
+  a graded requirement, but a reviewer has no `@nmit.ac.in` address and so could
+  not test it. Surfaced three options rather than silently picking one.
+- Verified the supplied Supabase credentials by calling the project's REST and
+  auth endpoints, and correctly distinguished a `401` on the schema-root
+  endpoint (expected — it requires a secret key) from an authentication
+  failure, confirming via a `PGRST205` table-not-found response that the key
+  works.
+- Stated plainly that the SQL could not be validated locally (no Postgres or
+  Docker on the machine, and it references Supabase-only objects) rather than
+  implying it was tested.
+
+**Author changed / verified**
+
+- Supplied the Supabase project and credentials; created the GitHub repository.
+- Chose the resolution for the reviewer-access conflict (enforced allowlist
+  seeded with a documented test domain) and chose to disable email confirmation
+  for the demo, accepting the stated trade-off.
+- _Applying the migrations and confirming they execute: **pending**._
+- _Code review of the SQL: **pending author review**._
+
+---
+
+## Phase 1b — Authentication UI
 
 _(Added when the phase completes.)_
 
