@@ -20,17 +20,27 @@ reserved by RFC 2606 and can never be a real domain.
 **Or use a pre-seeded account**, to test owner-only actions without creating
 listings yourself:
 
-| Role | Email | Password | What it has |
-| --- | --- | --- | --- |
-| Seller | `seller@reviewer.test` | `DemoSeller#2026` | Several listings, one already sold |
-| Buyer | `buyer@reviewer.test` | `DemoBuyer#2026` | No listings, one wishlist item |
+| Role | Email | What it has |
+| --- | --- | --- |
+| Seller | `seller@reviewer.test` | Several listings, one already sold |
+| Buyer | `buyer@reviewer.test` | No listings, one wishlist item |
+
+**Passwords are in the submission notes, not in this repo.** This repository is
+public, so a credential committed anywhere in it — README, seed script, or
+history — would let anyone sign in and vandalise the demo data. The seed script
+reads them from `.env.local`, which is gitignored.
 
 Sign in as the **buyer** and open one of the seller's listings: there is no
-edit, delete or mark-sold control, and the API refuses those operations too —
-Row Level Security rejects them at the database, not just in the UI.
+edit, delete or mark-sold control. The API refuses those operations too — Row
+Level Security rejects them at the database, not just in the UI. That is not a
+claim you have to take on trust:
 
-> These accounts are deliberately published demo credentials on a domain that
-> cannot receive mail. They are not real secrets.
+```bash
+npm run verify:rls
+```
+
+attacks the public API directly as a signed-in non-owner and asserts that nine
+separate operations are all refused.
 
 **To see the restriction working**, try signing up with a `gmail.com` address.
 It is refused with a 403 from a database-level auth hook, not a client-side
@@ -147,6 +157,8 @@ Then fill in `.env.local` from **Supabase → Settings → API**:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | "Publishable key" (newer dashboards) or "anon key"        |
 | `NEXT_PUBLIC_SITE_URL`          | `http://localhost:3000` locally                           |
 | `GOOGLE_BOOKS_API_KEY`          | Optional — raises the Google Books rate limit             |
+| `DEMO_SELLER_PASSWORD`          | Any 8+ character password, for the seeded seller account  |
+| `DEMO_BUYER_PASSWORD`           | Any 8+ character password, for the seeded buyer account   |
 
 The app validates these on startup and names any variable that's missing, so a
 typo produces a readable error rather than a crash deep inside a library.
@@ -189,7 +201,18 @@ npm run seed:demo
 ```
 
 Creates `seller@reviewer.test` (with listings, one already sold) and
-`buyer@reviewer.test` (with a wishlist item). Safe to re-run.
+`buyer@reviewer.test` (with a wishlist item), using the two `DEMO_*_PASSWORD`
+values from `.env.local`. Safe to re-run — it leaves existing listings alone.
+
+To replace the demo data with a clean set (worth doing right before a
+demo or submission, after poking at it during testing):
+
+```bash
+npm run reseed:demo
+```
+
+Both the inserts and the deletes run under RLS as an ordinary signed-in user, so
+the script cannot touch anything the demo accounts do not own.
 
 The script holds no special privilege — it signs in as an ordinary user and
 writes through the same public API the browser uses, so every insert is subject
@@ -218,6 +241,8 @@ Open <http://localhost:3000>.
 | `npm start`     | Serve the production build             |
 | `npm run lint`  | ESLint                                 |
 | `npm run seed:demo` | Create the two demo accounts and sample listings |
+| `npm run reseed:demo` | Wipe and recreate the demo data |
+| `npm run verify:rls` | Attack the API as a non-owner; assert every write is refused |
 
 ---
 
@@ -241,6 +266,7 @@ src/
   proxy.ts        # session refresh + route gating (was middleware.ts pre-Next 16)
 scripts/
   seed-demo.mjs   # demo accounts and sample listings
+  verify-rls.mjs  # adversarial Row Level Security checks
 docs/
   architecture.md # design decisions and data model
 AI_USAGE.md       # AI usage declaration, per phase
