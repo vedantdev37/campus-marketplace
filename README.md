@@ -17,6 +17,21 @@ Built for the GDG NMIT Round 2 full-stack challenge.
 
 ---
 
+## Reviewing this submission
+
+Sign-up is restricted by email domain, so a reviewer without an `@nmit.ac.in`
+address can register with **any address ending in `@reviewer.test`** — for
+example `reviewer@reviewer.test`, any password. `.test` is reserved by RFC 2606
+and can never be a real domain, and email confirmation is off for the demo, so
+the account is usable immediately.
+
+To see the restriction actually working, try signing up with a `gmail.com`
+address: it is refused with a 403 from a database-level hook, not a client-side
+check. The reasoning is in
+[`docs/architecture.md`](docs/architecture.md#restricting-sign-up-to-nmitacin).
+
+---
+
 ## Tech stack
 
 | Concern         | Choice                                               |
@@ -118,9 +133,36 @@ typo produces a readable error rather than a crash deep inside a library.
 
 ### 4. Apply the database schema
 
-_(Migration steps land in Phase 1.)_
+Open **Supabase → SQL Editor** and run each file in `supabase/migrations/`
+**in numerical order**, one at a time, checking each succeeds before the next:
 
-### 5. Run it
+| # | File | What it creates |
+| --- | --- | --- |
+| 1 | `0001_schema.sql` | Enums, tables, indexes, full-text search, triggers |
+| 2 | `0002_rls.sql` | Grants, Row Level Security, policies, Realtime publication |
+| 3 | `0003_storage.sql` | `listing-images` bucket and its object policies |
+| 4 | `0004_signup_domain_allowlist.sql` | Email-domain gate for sign-up |
+| 5 | `0005_seed.sql` | Pickup spots and the allowed sign-up domains |
+
+They are written to be re-runnable, so running one twice is harmless.
+
+### 5. Three dashboard settings
+
+The migrations cannot set these; they must be done in the dashboard.
+
+1. **Enable the sign-up gate.** Authentication → Hooks → **Before User
+   Created** → Postgres function → `public.hook_restrict_signup_by_email_domain`.
+   Until this is enabled the function exists but is never called, and sign-up is
+   open to any domain.
+2. **Turn off email confirmation** (demo only). Authentication → Sign In /
+   Providers → Email → disable **Confirm email**. Sign-up then works without an
+   inbox round-trip. *Trade-off: nobody has to prove they own the address they
+   register, so the domain gate becomes the only check on who gets in. A real
+   deployment should leave confirmation on.*
+3. **Enable Realtime** for the `listings` table if `0002` printed a notice
+   about the `supabase_realtime` publication being missing — then re-run `0002`.
+
+### 6. Run it
 
 ```bash
 npm run dev

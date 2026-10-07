@@ -95,7 +95,9 @@ itself is being assessed.
 
 ---
 
-## Data model (proposed — Phase 1)
+## Data model
+
+Implemented in `supabase/migrations/0001_schema.sql`.
 
 ### `profiles`
 Mirrors `auth.users`, holding the public-facing fields. Supabase keeps
@@ -158,7 +160,9 @@ doesn't need reshaping if it gets built.
 
 ---
 
-## Security model (proposed — Phase 1)
+## Security model
+
+Implemented in `supabase/migrations/0002_rls.sql` and `0003_storage.sql`.
 
 RLS is enabled on **every** table, with no permissive fallback policy.
 
@@ -184,16 +188,65 @@ them without signed-URL round trips.
 
 ### Restricting sign-up to `@nmit.ac.in`
 
-This needs enforcement **at the database or auth layer, not in the app.** The
-publishable key allows anyone to call Supabase's signup endpoint directly, so a
-check that lives only in a Server Action is bypassable by hand-crafting one
-request.
+Enforced by a **Supabase "Before User Created" auth hook** backed by a
+`signup_allowed_domains` table (`supabase/migrations/0004_...`).
 
-Planned: a constraint/trigger at the auth layer rejecting non-`@nmit.ac.in`
-addresses, with zod validation in the form purely for fast feedback. The exact
-mechanism (Supabase "before user created" auth hook vs. a trigger on
-`auth.users`) is to be confirmed against current Supabase capabilities before
-implementing — this is noted as unverified rather than assumed.
+**Why not in application code.** The publishable key lets anyone POST directly
+to `/auth/v1/signup`. A domain check inside a Server Action is bypassable with
+one hand-crafted request, so it would be decoration. The hook runs inside the
+database on the auth service's own insert path, which cannot be routed around.
+zod still validates the field in the form, purely for fast feedback.
+
+**Two deliberate deviations from Supabase's published example:**
+
+1. **Deny by default.** The official sample keeps both an `allow` and a `deny`
+   list and *permits* an address when neither matches. That is allow-by-default:
+   forget to deny a domain and it gets in. This implementation is a pure
+   allowlist, so the failure mode is a legitimate user being refused rather than
+   an illegitimate one admitted.
+2. **A bug fix.** The official sample compares `lower(domain)` against
+   `lower($1)`, where `domain` collides with the table's own column name and
+   `$1` is the `jsonb` event argument, not the extracted domain. The local
+   variable here is prefixed (`v_domain`) to avoid the shadowing.
+
+The function is `security definer` with `search_path` pinned empty, so it can
+read the allowlist regardless of caller while being immune to search-path
+hijacking — which is why every identifier inside it is schema-qualified.
+`execute` is granted only to `supabase_auth_admin` and revoked from `anon` and
+`authenticated`: a client-callable hook would be an oracle for probing which
+domains are permitted.
+
+**Reviewer access.** Sign-up is itself a graded requirement, and a reviewer has
+no campus address. The allowlist therefore also contains `reviewer.test`
+(reserved by RFC 2606, so it can never be a real domain). This keeps the gate
+genuinely enforced and *demonstrable* — a `gmail.com` attempt returns 403 —
+while leaving the required flow testable. The row is marked for deletion in a
+real deployment.
+
+### Email confirmation is off for the demo
+
+A conscious trade-off, not an oversight. With confirmation on, every test
+account needs a real inbox, which makes the walkthrough video slow and blocks
+reviewers. With it off, nobody proves they own the address they register, so the
+domain gate becomes the only control on who gets in. Acceptable for an assessed
+demo; a real deployment should leave confirmation on, at which point the campus
+domain restriction also starts meaning something stronger.
+
+---
+
+## Open items
+
+These are stated as unverified rather than assumed:
+
+- The migrations have not been executed yet. There is no local Postgres or
+  Docker on the development machine, and the SQL references Supabase-only
+  objects (`auth.users`, `storage.buckets`, `supabase_auth_admin`,
+  `supabase_realtime`), so it could not be validated locally. First real
+  verification is applying it to the project.
+- Whether the `supabase_realtime` publication exists by default on a fresh
+  project, or whether Realtime must be enabled in the dashboard first. The
+  migration handles both by catching the missing-publication case and emitting a
+  notice.
 
 ---
 
