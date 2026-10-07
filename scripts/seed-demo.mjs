@@ -1,31 +1,38 @@
 /**
- * Seeds two demo accounts and some listings, so the app can be reviewed
- * without anyone having to create data by hand.
+ * Seeds two demo accounts and some listings, so the app can be reviewed without
+ * anyone having to create data by hand.
  *
- * Run it with:
- *   npm run seed:demo
+ *   npm run seed:demo      # create accounts, insert listings if there are none
+ *   npm run reseed:demo    # wipe the demo listings and wishlist, then re-insert
+ *
+ * Run `reseed:demo` right before submitting, so reviewers get clean data no
+ * matter what was clicked during testing.
  *
  * WHY IT USES THE PUBLISHABLE KEY
  * This script holds no special privilege. It signs in as an ordinary user and
- * writes through the same public API the browser uses, so every insert is
- * subject to Row Level Security. That makes a successful run meaningful: it
+ * writes through the same public API the browser uses, so every statement is
+ * subject to Row Level Security - including the deletes, which can only remove
+ * rows the signed-in user owns. That makes a successful run meaningful: it
  * demonstrates the policies permit what they should. A service-role key would
- * bypass RLS and prove nothing - which is also why the project does not have
- * one.
+ * bypass RLS and prove nothing, which is also why this project has none.
+ *
+ * WHERE THE PASSWORDS COME FROM
+ * DEMO_SELLER_PASSWORD and DEMO_BUYER_PASSWORD in .env.local, which is
+ * gitignored. They are deliberately NOT in this file: it lives in a public
+ * repo, so a literal here would be as exposed as one in the README.
  *
  * PREREQUISITES
  *   1. All migrations in supabase/migrations/ applied.
- *   2. The Before User Created hook enabled (otherwise sign-up is ungated).
+ *   2. The Before User Created hook enabled.
  *   3. Email confirmation turned off, so sign-up returns a session directly.
- *
- * Safe to re-run: existing accounts are signed into rather than recreated, and
- * listings are only inserted if the seller has none.
  */
 
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const RESET = process.argv.includes("--reset");
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error(
@@ -36,20 +43,43 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 }
 
 /**
- * Published demo credentials on an RFC 2606 reserved domain that cannot receive
- * mail. Documented in the README. Not secrets.
+ * The passwords these accounts were originally created with, before they were
+ * moved into the environment.
+ *
+ * They were committed to a public repo, so they must be treated as known to
+ * anyone. They are kept here for exactly one purpose: signing in once to rotate
+ * the password to the environment value. After the first run they stop working,
+ * and this constant becomes dead weight that can be deleted.
  */
+const BURNED_PASSWORDS = {
+  "seller@reviewer.test": "DemoSeller#2026",
+  "buyer@reviewer.test": "DemoBuyer#2026",
+};
+
 const SELLER = {
   email: "seller@reviewer.test",
-  password: "DemoSeller#2026",
+  password: process.env.DEMO_SELLER_PASSWORD,
   fullName: "Ananya Rao",
 };
 
 const BUYER = {
   email: "buyer@reviewer.test",
-  password: "DemoBuyer#2026",
+  password: process.env.DEMO_BUYER_PASSWORD,
   fullName: "Rohit Menon",
 };
+
+for (const [name, account] of [
+  ["DEMO_SELLER_PASSWORD", SELLER],
+  ["DEMO_BUYER_PASSWORD", BUYER],
+]) {
+  if (!account.password || account.password.length < 8) {
+    console.error(
+      `${name} is missing or too short in .env.local.\n` +
+        "Set both demo passwords there (8+ characters) and re-run.",
+    );
+    process.exit(1);
+  }
+}
 
 /** `pickupSpot` is matched by name against the seeded pickup_spots rows. */
 const SELLER_LISTINGS = [
@@ -130,7 +160,6 @@ function fail(message, error) {
   if (error) {
     console.error(`  ${error.message ?? error}`);
 
-    // PGRST205 = table missing from the schema cache.
     if (error.code === "PGRST205" || /schema cache/i.test(error.message ?? "")) {
       console.error(
         "\n  It looks like the migrations have not been applied yet.\n" +
@@ -156,7 +185,10 @@ function newClient() {
   });
 }
 
-/** Signs up, or signs in if the account already exists. Returns a client. */
+/**
+ * Signs up, or signs in if the account exists, rotating the password off the
+ * burned value when necessary. Returns a signed-in client.
+ */
 async function ensureAccount({ email, password, fullName }) {
   const supabase = newClient();
 
@@ -167,40 +199,99 @@ async function ensureAccount({ email, password, fullName }) {
   });
 
   if (!signUpError && signUpData.session) {
-    console.log(`  created  ${email}`);
+    console.log(`  created   ${email}`);
     return supabase;
-  }
-
-  const alreadyExists =
-    signUpError?.code === "user_already_exists" ||
-    signUpError?.code === "email_exists";
-
-  if (signUpError && !alreadyExists) {
-    fail(`could not sign up ${email}`, signUpError);
   }
 
   if (!signUpError && !signUpData.session) {
     fail(
       `signing up ${email} returned no session - email confirmation is still on. ` +
-        "Turn off 'Confirm email' in Supabase -> Authentication -> Sign In / Providers -> Email.",
+        "Turn it off in Supabase -> Authentication -> Sign In / Providers -> Email.",
     );
   }
 
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const alreadyExists =
+    signUpError?.code === "user_already_exists" || signUpError?.code === "email_exists";
 
-  if (signInError) {
-    fail(`account ${email} exists but the demo password did not work`, signInError);
+  if (signUpError && !alreadyExists) {
+    fail(`could not sign up ${email}`, signUpError);
   }
 
-  console.log(`  existing ${email}`);
+  // Existing account: try the current password first.
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (!signInError) {
+    console.log(`  signed in ${email}`);
+    return supabase;
+  }
+
+  // Fall back to the password this account was created with before the
+  // rotation, then change it immediately so the burned value stops working.
+  const burned = BURNED_PASSWORDS[email];
+
+  if (!burned) {
+    fail(`account ${email} exists but the configured password did not work`, signInError);
+  }
+
+  const { error: legacyError } = await supabase.auth.signInWithPassword({
+    email,
+    password: burned,
+  });
+
+  if (legacyError) {
+    fail(
+      `account ${email} exists but neither the configured nor the original ` +
+        "password worked. Reset it in the Supabase dashboard, or delete the user and re-run.",
+      legacyError,
+    );
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({ password });
+
+  if (updateError) {
+    fail(`could not rotate the password for ${email}`, updateError);
+  }
+
+  console.log(`  rotated   ${email}  (was using the committed password)`);
   return supabase;
 }
 
+/**
+ * Removes the demo data.
+ *
+ * Deleting the seller's listings also clears any wishlist rows and inquiries
+ * pointing at them, through the ON DELETE CASCADE foreign keys - so one delete
+ * is enough and there are no orphans to tidy up.
+ *
+ * These deletes run under RLS as the seller, so they physically cannot remove
+ * another user's listings even if the filter were wrong.
+ */
+async function resetDemoData(sellerClient, sellerId, buyerClient, buyerId) {
+  const { error: listingsError } = await sellerClient
+    .from("listings")
+    .delete()
+    .eq("seller_id", sellerId);
+
+  if (listingsError) {
+    fail("could not delete the seller's listings", listingsError);
+  }
+
+  if (buyerId) {
+    const { error: wishlistError } = await buyerClient
+      .from("wishlist_items")
+      .delete()
+      .eq("user_id", buyerId);
+
+    if (wishlistError) {
+      fail("could not clear the buyer's wishlist", wishlistError);
+    }
+  }
+
+  console.log("  cleared existing demo listings and wishlist");
+}
+
 async function main() {
-  console.log("\nSeeding demo data\n");
+  console.log(`\nSeeding demo data${RESET ? " (reset)" : ""}\n`);
 
   console.log("Accounts:");
   const sellerClient = await ensureAccount(SELLER);
@@ -209,8 +300,16 @@ async function main() {
   const { data: sellerAuth } = await sellerClient.auth.getUser();
   const sellerId = sellerAuth?.user?.id;
 
+  const { data: buyerAuth } = await buyerClient.auth.getUser();
+  const buyerId = buyerAuth?.user?.id;
+
   if (!sellerId) {
     fail("could not read the seller's user id after signing in");
+  }
+
+  if (RESET) {
+    console.log("\nReset:");
+    await resetDemoData(sellerClient, sellerId, buyerClient, buyerId);
   }
 
   // --- Pickup spots -----------------------------------------------------
@@ -236,7 +335,10 @@ async function main() {
   }
 
   if ((count ?? 0) > 0) {
-    console.log(`\nListings: seller already has ${count}, leaving them alone.`);
+    console.log(
+      `\nListings: seller already has ${count}, leaving them alone.` +
+        "\n  (use `npm run reseed:demo` to replace them)",
+    );
   } else {
     const rows = SELLER_LISTINGS.map(({ pickupSpot, ...listing }) => ({
       ...listing,
@@ -275,9 +377,6 @@ async function main() {
   }
 
   // --- Buyer wishlist ---------------------------------------------------
-  const { data: buyerAuth } = await buyerClient.auth.getUser();
-  const buyerId = buyerAuth?.user?.id;
-
   const { data: available, error: availableError } = await buyerClient
     .from("listings")
     .select("id, title")
@@ -303,9 +402,9 @@ async function main() {
     console.log(`\nWishlist: buyer saved "${available[0].title}"`);
   }
 
-  console.log("\nDone.\n");
-  console.log("  Seller:  seller@reviewer.test / DemoSeller#2026");
-  console.log("  Buyer:   buyer@reviewer.test  / DemoBuyer#2026\n");
+  console.log("\nDone.");
+  console.log("  seller@reviewer.test / buyer@reviewer.test");
+  console.log("  Passwords: DEMO_SELLER_PASSWORD and DEMO_BUYER_PASSWORD in .env.local\n");
 }
 
 main().catch((error) => fail("unexpected error", error));
