@@ -84,13 +84,14 @@ check — see
 ### Core requirements
 - [x] Email/password sign-up and login, restricted to `@nmit.ac.in` addresses
 - [ ] Create a listing (name, description, price, category, image)
-- [ ] Browse, search and filter listings
-- [ ] Listing detail view
-- [ ] Owner-only edit / delete / mark-as-sold
-- [ ] Sold listings visually distinct from available ones
-- [ ] "My Listings" page
-- [ ] Loading, empty and error states throughout
-- [ ] Validation on both client and server
+- [x] Browse, search and filter listings
+- [x] Listing detail view
+- [x] Owner-only mark-as-sold and delete (enforced by RLS — see `npm run verify:rls`)
+- [ ] Owner-only edit
+- [x] Sold listings visually distinct from available ones
+- [x] "My Listings" page
+- [x] Loading, empty and error states (create/edit pages still to come)
+- [x] Validation on both client and server (listing form schemas written, form pending)
 
 ### Campus-specific additions
 - [ ] Optional **course code** (e.g. `21CS32`) and **semester** on a listing,

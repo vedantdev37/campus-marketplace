@@ -209,7 +209,92 @@ trigger and the seed script are all unexercised.
 
 ---
 
-## Phase 2 — Listings CRUD
+## Phase 2a — Browse, detail view and owner actions
+
+Logged separately because creating and editing listings (Phase 2b) is not built
+yet. **This entry covers read paths plus mark-sold and delete only.**
+
+**Asked for**
+
+> "Continue Phase 2 and stop at 10:50 with everything committed and pushed"
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `src/lib/types/listing.ts` | Enums as const tuples, unions derived, display labels, condition value factors |
+| `src/lib/validation/listing.ts` | zod schemas mirroring every database CHECK |
+| `src/lib/listings.ts` | Read queries with filters and full-text search |
+| `src/lib/listing-filters.ts` | URL search params → validated filters |
+| `src/lib/pricing.ts` | Rupee formatting and the fair-price hint |
+| `src/lib/storage.ts` | Public image URLs and upload paths |
+| `src/components/listings/listing-card.tsx` | Grid card with the sold treatment |
+| `src/components/listings/browse-filters.tsx` | Filter form (no JavaScript) |
+| `src/components/listings/owner-actions.tsx` | Mark-sold and delete controls |
+| `src/app/listings/page.tsx` | Browse, with two distinct empty states |
+| `src/app/listings/[id]/page.tsx` | Detail view with the fair-price hint |
+| `src/app/listings/mine/page.tsx` | My Listings, sold items in their own section |
+| `src/app/listings/actions.ts` | Owner-only Server Actions |
+| `scripts/verify-rls.mjs` | Adversarial RLS checks (9 assertions) |
+
+**AI reasoning worth noting**
+
+- **Found a bug that a green build hid.** `seller:profiles(full_name)` fails at
+  runtime - PostgREST can reach `profiles` from `listings` by three paths
+  (directly, and via `wishlist_items` and `inquiries`), so the embed is
+  ambiguous. Both `next build` and `tsc` pass regardless, because the select
+  string is opaque to them. Found only by running the query against the real
+  database. An earlier code comment had asserted the join *was* unambiguous;
+  that comment was wrong and was corrected.
+- **A blocked write under RLS does not raise an error.** The row falls outside
+  the policy, so zero rows match. Both the Server Actions and the verification
+  script check the affected row count, not just the error - treating "no error"
+  as success would report a refused operation as done, and would have made the
+  RLS test suite pass vacuously.
+- **Argued that application-level ownership checks are still worth having** even
+  though RLS enforces ownership, because these actions run with the user's own
+  token: omitting `.eq("seller_id", ...)` would make policy correctness, now and
+  after every future migration, the only thing between a crafted request and
+  another user's data.
+- Chose a no-JavaScript GET form for filters, so a filtered view is shareable and
+  the back button works, rather than rebuilding filtering client-side on top of
+  the server-side filtering RLS already requires.
+- Marked sold listings three ways at once (desaturated photo, dimmed card, SOLD
+  pill) so the distinction does not depend on perceiving a contrast difference.
+
+**Verified by testing**
+
+- `next build`, `tsc --noEmit`, `eslint` clean.
+- Against the live database: full-text search on a plain word, a course code and
+  an author name all return rows; punctuation-only input returns zero rows
+  without erroring (confirming the `websearch` parser choice); category filtering
+  works; both joins resolve.
+- `npm run verify:rls` - 9 of 9 assertions pass.
+- `npm run seed:demo` and `npm run reseed:demo` both succeed, which also proves
+  the migrations, the domain allowlist, the profile trigger and the `sold_at`
+  trigger all work.
+
+**Not verified**
+
+- **No page has been opened in a browser.** Browse, detail, My Listings and the
+  owner controls have never been rendered or clicked - only built and
+  type-checked. Layout, the sold treatment and the mark-sold/delete round trip
+  are all unconfirmed visually.
+- Creating and editing listings, and image upload, are not implemented.
+
+**Author changed / verified**
+
+- Applied all five migrations, enabled the auth hook, disabled email
+  confirmation.
+- Required demo credentials be removed from the public repo, which prompted the
+  rotation and the environment-variable approach.
+- Deploying to Vercel, from their own account via the dashboard.
+- _Visual and interaction testing of Phase 2a: **pending**._
+- _Code review of the above files: **pending author review**._
+
+---
+
+## Phase 2b — Creating and editing listings
 
 _(Added when the phase completes.)_
 
