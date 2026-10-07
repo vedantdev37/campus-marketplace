@@ -1,0 +1,157 @@
+import Link from "next/link";
+
+import {
+  CATEGORIES,
+  CATEGORY_LABELS,
+  CONDITIONS,
+  CONDITION_LABELS,
+  type ListingFilters,
+  type PickupSpot,
+} from "@/lib/types/listing";
+
+const SELECT_CLASS =
+  "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm";
+
+/**
+ * Browse filters as a plain GET form.
+ *
+ * Deliberately a Server Component with no JavaScript: the form submits to the
+ * same route and the filters live in the URL. That buys several things for free
+ * which a client-side filter would have to rebuild - a filtered view is
+ * shareable and bookmarkable, the back button works, and it all functions before
+ * (or without) JS. The server already has to filter for RLS reasons anyway, so
+ * doing it in the browser as well would be duplicate logic.
+ */
+export function BrowseFilters({
+  filters,
+  pickupSpots,
+}: {
+  filters: ListingFilters;
+  pickupSpots: PickupSpot[];
+}) {
+  const hasAnyFilter =
+    Boolean(filters.search) ||
+    Boolean(filters.category) ||
+    Boolean(filters.condition) ||
+    Boolean(filters.pickupSpotId) ||
+    Boolean(filters.semester) ||
+    Boolean(filters.courseCode) ||
+    Boolean(filters.includeSold);
+
+  return (
+    <form method="get" className="flex flex-col gap-3">
+      <div className="flex gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={filters.search ?? ""}
+          placeholder="Search titles, authors, course codes…"
+          aria-label="Search listings"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2.5 text-base"
+        />
+        <button
+          type="submit"
+          className="shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+        >
+          Search
+        </button>
+      </div>
+
+      <details className="rounded-lg border border-border bg-surface" open={hasAnyFilter}>
+        <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+          Filters
+        </summary>
+
+        <div className="grid grid-cols-1 gap-3 border-t border-border p-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Category
+            <select name="category" defaultValue={filters.category ?? ""} className={SELECT_CLASS}>
+              <option value="">Any</option>
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {CATEGORY_LABELS[category]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Condition
+            <select name="condition" defaultValue={filters.condition ?? ""} className={SELECT_CLASS}>
+              <option value="">Any</option>
+              {CONDITIONS.map((condition) => (
+                <option key={condition} value={condition}>
+                  {CONDITION_LABELS[condition]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Pickup spot
+            <select name="spot" defaultValue={filters.pickupSpotId ?? ""} className={SELECT_CLASS}>
+              <option value="">Anywhere on campus</option>
+              {pickupSpots.map((spot) => (
+                <option key={spot.id} value={spot.id}>
+                  {spot.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Semester
+            <select name="semester" defaultValue={filters.semester?.toString() ?? ""} className={SELECT_CLASS}>
+              <option value="">Any</option>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((semester) => (
+                <option key={semester} value={semester}>
+                  Semester {semester}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Course code
+            <input
+              type="text"
+              name="course"
+              defaultValue={filters.courseCode ?? ""}
+              placeholder="e.g. 21CS32"
+              className={SELECT_CLASS}
+            />
+          </label>
+
+          <label className="flex items-center gap-2 self-end text-sm">
+            <input
+              type="checkbox"
+              name="sold"
+              value="1"
+              defaultChecked={Boolean(filters.includeSold)}
+              className="size-4"
+            />
+            Include sold items
+          </label>
+
+          <div className="flex gap-2 sm:col-span-2">
+            <button
+              type="submit"
+              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            >
+              Apply filters
+            </button>
+
+            {hasAnyFilter ? (
+              <Link
+                href="/listings"
+                className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-surface-muted"
+              >
+                Clear
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </details>
+    </form>
+  );
+}
