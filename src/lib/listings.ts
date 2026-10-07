@@ -17,13 +17,19 @@ import type { Listing, ListingFilters, PickupSpot } from "@/lib/types/listing";
 /**
  * The two joins every card and detail view needs.
  *
- * `profiles` resolves unambiguously because `listings` has exactly one foreign
- * key to it (`seller_id`); if a second were added, this would need the explicit
- * constraint name.
+ * The seller join MUST name its foreign key explicitly. A bare
+ * `seller:profiles(full_name)` fails at runtime with "more than one
+ * relationship was found for 'listings' and 'profiles'": PostgREST can reach
+ * profiles from listings by three paths - directly via seller_id, and
+ * indirectly through wishlist_items and inquiries, which both reference the two
+ * tables. Naming the constraint removes the ambiguity.
+ *
+ * Worth noting that `next build` and `tsc` both pass without this: the select
+ * string is opaque to them, so the failure only appears when a query runs.
  */
 const LISTING_SELECT = `
   *,
-  seller:profiles(full_name),
+  seller:profiles!listings_seller_id_fkey(full_name),
   pickup_spot:pickup_spots(id, name)
 `;
 
