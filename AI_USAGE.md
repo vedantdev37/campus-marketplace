@@ -138,7 +138,78 @@ and, mid-phase:
 
 ---
 
-## Phase 1b — Authentication UI
+## Phase 1b — Authentication
+
+**Asked for**
+
+> "Go with Phase 1b. Also: add a clear note at the top of the README that
+> evaluators can sign up with any @reviewer.test email, and plan two seeded demo
+> accounts (seller with listings, buyer) for testing owner-only actions."
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `src/proxy.ts` | Session refresh and route gating |
+| `src/lib/supabase/server.ts`, `browser.ts` | Per-request server client, browser client |
+| `src/lib/auth.ts` | `getSessionUser` / `requireSessionUser` — the Data Access Layer |
+| `src/lib/validation/auth.ts` | zod schemas shared by form and Server Action |
+| `src/lib/navigation.ts` | Open-redirect-safe `?next=` handling |
+| `src/app/(auth)/actions.ts` | `signUpAction`, `signInAction`, `signOutAction` |
+| `src/app/(auth)/` | Route group, login and sign-up pages |
+| `src/components/auth/` | Login and sign-up forms (client-side validation) |
+| `src/components/ui/` | `TextField`, `SubmitButton`, `Alert` |
+| `src/app/globals.css` | Design tokens, light and dark |
+| `src/app/listings/` | Protected placeholder, `loading.tsx` skeleton |
+| `src/app/error.tsx` | Route-level error boundary |
+| `scripts/seed-demo.mjs` | Demo accounts and sample listings |
+
+**AI reasoning worth noting**
+
+Three issues came from reading the installed packages' own documentation rather
+than from recall, and all three would have been silent failures:
+
+1. **Next.js 16 renamed `middleware.ts` to `proxy.ts`** (and the exported
+   function to `proxy`). Every Supabase guide still says `middleware.ts`. Such a
+   file would simply never execute, and the only symptom would be users being
+   logged out at random, because nothing would refresh their tokens. Found in
+   the bundled Next 16 upgrade guide; confirmed afterwards by the build output
+   listing `ƒ Proxy (Middleware)`.
+2. **`@supabase/ssr` 0.12's `setAll` takes a second `headers` argument**
+   carrying `Cache-Control: private, no-store`. Its own type documentation states
+   that omitting it lets a CDN cache a response containing auth cookies and
+   serve *one user's session token to a different user*. Vercel sits behind such
+   a CDN. Most published examples call `setAll(cookiesToSet)` and drop it.
+3. **`getClaims()` rather than `getUser()`** for session reads — local signature
+   verification instead of a network call to the auth server on every render,
+   with the trade-off stated rather than glossed over.
+
+It also chose a single generic message for failed logins so registered campus
+addresses cannot be enumerated, kept the password out of returned form state,
+and validated the `?next=` parameter in two places (including the
+protocol-relative `//host` and backslash forms) to avoid turning login into an
+open redirect.
+
+**Verified by testing** (not merely asserted): `next build`, `tsc --noEmit` and
+`eslint` all clean; and against a running dev server — `/`, `/login`, `/signup`
+return 200, `/listings` returns 307 to `/login?next=%2Flistings` while signed
+out, `?next=https://evil.example` is rejected, and `?next=/listings` is
+preserved.
+
+**Not yet verified:** no sign-up has been performed against the real database,
+because the migrations have not been applied. The domain gate, the profile
+trigger and the seed script are all unexercised.
+
+**Author changed / verified**
+
+- Directed the phase and specified the reviewer-access and demo-account
+  requirements.
+- _Applying migrations and running the auth flow end to end: **pending**._
+- _Code review of the above files: **pending author review**._
+
+---
+
+## Phase 2 — Listings CRUD
 
 _(Added when the phase completes.)_
 
