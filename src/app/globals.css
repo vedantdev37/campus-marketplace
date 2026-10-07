@@ -1,22 +1,66 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens.
+ *
+ * Every colour is declared once here and exposed to Tailwind through
+ * @theme inline, so `bg-surface` or `text-muted` resolve to these variables
+ * rather than hard-coded hexes scattered through components. Dark mode then
+ * only has to redefine the variables - no component needs a `dark:` variant
+ * for colour.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --primary: #1d4ed8;
+  --primary-hover: #1a3fb8;
+  --primary-foreground: #ffffff;
+  --danger: #b91c1c;
+  --danger-surface: #fef2f2;
+  --success: #15803d;
+  --success-surface: #f0fdf4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b1120;
+    --foreground: #e8eef8;
+    --surface: #111a2e;
+    --surface-muted: #1a2438;
+    --border: #243049;
+    --muted: #94a3b8;
+    --primary: #5b8cfa;
+    --primary-hover: #7ba2fb;
+    --primary-foreground: #0b1120;
+    --danger: #f87171;
+    --danger-surface: #2a1414;
+    --success: #4ade80;
+    --success-surface: #0f2419;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -24,4 +68,14 @@ body {
   color: var(--foreground);
   /* Use the Geist font loaded in layout.tsx, not Arial. */
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * A single visible focus style for every interactive element. Keyboard users
+ * get a clear ring; mouse users do not see it on click, because :focus-visible
+ * does that distinction for us.
+ */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
