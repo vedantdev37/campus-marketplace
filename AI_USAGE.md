@@ -294,6 +294,48 @@ yet. **This entry covers read paths plus mark-sold and delete only.**
 
 ---
 
+## Deployment — first production release
+
+**Asked for**
+
+> "The app is live at https://nmit-campus-marketplace.vercel.app … Quickly verify the live URL (home, login,
+> protected route redirect). Add the live URL to the README."
+
+**Done by the author, not AI**
+
+The Vercel project was created and deployed from the author's own Vercel account
+through the dashboard, with GitHub connected so pushes to `main` auto-deploy.
+Environment variables were set on Vercel, and the Supabase Site URL and Redirect
+URLs were updated. The author confirmed on the live site that `@reviewer.test`
+sign-up succeeds and `gmail.com` is refused.
+
+AI was explicitly instructed not to use the Vercel connector for this project. An
+earlier attempt to create the project through it had returned 403, and the
+instruction stands regardless.
+
+**Verified by AI against the live deployment**
+
+- `/`, `/login`, `/signup` all return 200.
+- `/listings` returns 307 to `/login?next=%2Flistings`, and `/listings/mine` to
+  `/login?next=%2Flistings%2Fmine` — so `src/proxy.ts` is running in production,
+  which is the thing most likely to have been silently broken by the Next 16
+  `middleware` → `proxy` rename.
+- `?next=https://evil.example` is rejected on the live site (no hidden input
+  rendered) while `?next=/listings` is preserved, so the open-redirect guard
+  holds in production and not only locally.
+- The reviewer banner renders on the live home page.
+
+**Not verified**
+
+- The `Cache-Control: private, no-store` headers that `setAll` supplies are only
+  emitted on a response that actually writes auth cookies, which an anonymous
+  request does not trigger. The code path is implemented but has not been
+  observed in production.
+- No authenticated page has been rendered in a browser by AI. Browse, detail, My
+  Listings and the mark-sold/delete round trip remain visually unconfirmed.
+
+---
+
 ## Phase 2b — Creating and editing listings
 
 _(Added when the phase completes.)_

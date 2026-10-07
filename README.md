@@ -10,6 +10,8 @@ Built for the GDG NMIT Round 2 full-stack challenge.
 
 ## ⭐ Evaluating this project? Start here
 
+**Live app: <https://nmit-campus-marketplace.vercel.app>**
+
 **Sign up with any email ending in `@reviewer.test`** — for example
 `reviewer@reviewer.test`, with any password of 8+ characters. No inbox needed.
 
@@ -51,7 +53,7 @@ check — see
 
 ## Links
 
-- **Live:** _(not deployed yet — added in Phase 2)_
+- **Live:** <https://nmit-campus-marketplace.vercel.app>
 - **Repo:** <https://github.com/vedantdev37/campus-marketplace>
 - **Walkthrough video:** _(added before submission)_
 - **Technical write-up:** [`docs/architecture.md`](docs/architecture.md)
