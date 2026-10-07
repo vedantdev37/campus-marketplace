@@ -1,0 +1,10 @@
+# Normalise line endings so a Windows checkout doesn't produce CRLF-only diffs.
+* text=auto eol=lf
+
+# Binary assets: never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.svg text eol=lf
