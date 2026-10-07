@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { OwnerActions } from "@/components/listings/owner-actions";
 import { requireSessionUser } from "@/lib/auth";
 import { getListing } from "@/lib/listings";
 import { fairPriceHint, formatPrice } from "@/lib/pricing";
@@ -106,13 +107,11 @@ export default async function ListingDetailPage({
           </dl>
 
           {isOwner ? (
-            // Ownership decides only what is *shown* here. Edit, delete and
-            // mark-sold are re-checked in their Server Actions and enforced by
-            // RLS, so hiding these controls is a convenience, never the
-            // protection - see scripts/verify-rls.mjs.
-            <p className="mt-5 rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-muted">
-              This is your listing. Edit, mark-sold and delete controls land next.
-            </p>
+            // Ownership decides only what is *shown* here. Each action re-checks
+            // the session and scopes its query by seller_id, and RLS refuses the
+            // row regardless - so hiding these controls is a convenience, never
+            // the protection. See scripts/verify-rls.mjs.
+            <OwnerActions listingId={listing.id} status={listing.status} />
           ) : null}
         </div>
       </div>
