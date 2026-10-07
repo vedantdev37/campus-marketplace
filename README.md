@@ -6,29 +6,49 @@ spot on campus.
 
 Built for the GDG NMIT Round 2 full-stack challenge.
 
+---
+
+## ⭐ Evaluating this project? Start here
+
+**Sign up with any email ending in `@reviewer.test`** — for example
+`reviewer@reviewer.test`, with any password of 8+ characters. No inbox needed.
+
+Sign-up is restricted to campus email domains, so `@reviewer.test` is seeded
+into the allowlist specifically so the sign-up flow can be assessed. `.test` is
+reserved by RFC 2606 and can never be a real domain.
+
+**Or use a pre-seeded account**, to test owner-only actions without creating
+listings yourself:
+
+| Role | Email | Password | What it has |
+| --- | --- | --- | --- |
+| Seller | `seller@reviewer.test` | `DemoSeller#2026` | Several listings, one already sold |
+| Buyer | `buyer@reviewer.test` | `DemoBuyer#2026` | No listings, one wishlist item |
+
+Sign in as the **buyer** and open one of the seller's listings: there is no
+edit, delete or mark-sold control, and the API refuses those operations too —
+Row Level Security rejects them at the database, not just in the UI.
+
+> These accounts are deliberately published demo credentials on a domain that
+> cannot receive mail. They are not real secrets.
+
+**To see the restriction working**, try signing up with a `gmail.com` address.
+It is refused with a 403 from a database-level auth hook, not a client-side
+check — see
+[`docs/architecture.md`](docs/architecture.md#restricting-sign-up-to-nmitacin).
+
+---
+
+## Links
+
 - **Live:** _(not deployed yet — added in Phase 2)_
-- **Repo:** _(added once the remote exists)_
+- **Repo:** <https://github.com/vedantdev37/campus-marketplace>
 - **Walkthrough video:** _(added before submission)_
 - **Technical write-up:** [`docs/architecture.md`](docs/architecture.md)
 - **AI usage declaration:** [`AI_USAGE.md`](AI_USAGE.md)
 
 > **Status:** in development. This README is kept accurate as features land —
 > anything listed under "Planned" is not built yet.
-
----
-
-## Reviewing this submission
-
-Sign-up is restricted by email domain, so a reviewer without an `@nmit.ac.in`
-address can register with **any address ending in `@reviewer.test`** — for
-example `reviewer@reviewer.test`, any password. `.test` is reserved by RFC 2606
-and can never be a real domain, and email confirmation is off for the demo, so
-the account is usable immediately.
-
-To see the restriction actually working, try signing up with a `gmail.com`
-address: it is refused with a 403 from a database-level hook, not a client-side
-check. The reasoning is in
-[`docs/architecture.md`](docs/architecture.md#restricting-sign-up-to-nmitacin).
 
 ---
 
@@ -52,7 +72,7 @@ check. The reasoning is in
 ## Features
 
 ### Core requirements
-- [ ] Email/password sign-up and login, restricted to `@nmit.ac.in` addresses
+- [x] Email/password sign-up and login, restricted to `@nmit.ac.in` addresses
 - [ ] Create a listing (name, description, price, category, image)
 - [ ] Browse, search and filter listings
 - [ ] Listing detail view
@@ -162,7 +182,22 @@ The migrations cannot set these; they must be done in the dashboard.
 3. **Enable Realtime** for the `listings` table if `0002` printed a notice
    about the `supabase_realtime` publication being missing — then re-run `0002`.
 
-### 6. Run it
+### 6. Seed the demo accounts
+
+```bash
+npm run seed:demo
+```
+
+Creates `seller@reviewer.test` (with listings, one already sold) and
+`buyer@reviewer.test` (with a wishlist item). Safe to re-run.
+
+The script holds no special privilege — it signs in as an ordinary user and
+writes through the same public API the browser uses, so every insert is subject
+to Row Level Security. A successful run is therefore evidence the policies allow
+what they should. A service-role key would bypass RLS and prove nothing, which
+is also why this project does not have one.
+
+### 7. Run it
 
 ```bash
 npm run dev
@@ -182,6 +217,7 @@ Open <http://localhost:3000>.
 | `npm run build` | Production build                       |
 | `npm start`     | Serve the production build             |
 | `npm run lint`  | ESLint                                 |
+| `npm run seed:demo` | Create the two demo accounts and sample listings |
 
 ---
 
@@ -189,9 +225,22 @@ Open <http://localhost:3000>.
 
 ```
 src/
-  app/            # App Router routes, layouts and pages
+  app/
+    (auth)/       # /login and /signup, plus their Server Actions
+    listings/     # browse (protected)
+    error.tsx     # route-level error boundary
+  components/
+    auth/         # login and sign-up forms (client)
+    ui/           # TextField, SubmitButton, Alert
   lib/
+    auth.ts       # session access (the Data Access Layer)
     env.ts        # zod-validated environment variables
+    navigation.ts # open-redirect-safe destination handling
+    supabase/     # server and browser clients
+    validation/   # zod schemas shared by client and server
+  proxy.ts        # session refresh + route gating (was middleware.ts pre-Next 16)
+scripts/
+  seed-demo.mjs   # demo accounts and sample listings
 docs/
   architecture.md # design decisions and data model
 AI_USAGE.md       # AI usage declaration, per phase
