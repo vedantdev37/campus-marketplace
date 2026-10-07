@@ -38,7 +38,15 @@ export default async function ListingsPage({
           <h1 className="text-2xl font-semibold tracking-tight">Browse</h1>
           <p className="mt-0.5 text-xs text-muted">{user.email}</p>
         </div>
-        <SignOutButton />
+        <div className="flex items-center gap-2">
+          <Link
+            href="/listings/mine"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface-muted"
+          >
+            My listings
+          </Link>
+          <SignOutButton />
+        </div>
       </header>
 
       <div className="mt-5">
