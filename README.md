@@ -10,7 +10,7 @@ Built for the GDG NMIT Round 2 full-stack challenge.
 - **Repo:** _(added once the remote exists)_
 - **Walkthrough video:** _(added before submission)_
 - **Technical write-up:** [`docs/architecture.md`](docs/architecture.md)
-- **AI usage declaration:** [`docs/ai-usage.md`](docs/ai-usage.md)
+- **AI usage declaration:** [`AI_USAGE.md`](AI_USAGE.md)
 
 > **Status:** in development. This README is kept accurate as features land —
 > anything listed under "Planned" is not built yet.
@@ -36,8 +36,8 @@ Built for the GDG NMIT Round 2 full-stack challenge.
 
 ## Features
 
-### Core
-- [ ] Email/password sign-up and login
+### Core requirements
+- [ ] Email/password sign-up and login, restricted to `@nmit.ac.in` addresses
 - [ ] Create a listing (name, description, price, category, image)
 - [ ] Browse, search and filter listings
 - [ ] Listing detail view
@@ -47,16 +47,28 @@ Built for the GDG NMIT Round 2 full-stack challenge.
 - [ ] Loading, empty and error states throughout
 - [ ] Validation on both client and server
 
-### Planned differentiators
+### Campus-specific additions
+- [ ] Optional **course code** (e.g. `21CS32`) and **semester** on a listing,
+      both searchable — so you can find the exact book your course needs.
 - [ ] **ISBN barcode scan → autofill.** Point the camera at a textbook's
-      barcode; the Google Books API fills in title, author, cover image and
-      list price.
-- [ ] **Realtime sold updates.** A listing marked sold greys out for everyone
-      currently viewing, without a refresh.
-- [ ] **Campus pickup spots.** Each listing names a handover point (library,
-      main gate, canteen…); browse can be filtered by spot.
-- [ ] **Wishlist with sold alerts.** Save a listing; get told when something you
-      saved is sold.
+      barcode; the Google Books API fills in title, author and cover image.
+- [ ] **Fair-price hint.** Compares the asking price against the book's
+      original price from Google Books, adjusted for the stated condition, so
+      buyers can see whether a price is reasonable.
+
+### Bonus features, in priority order
+Built in this order, as time allows. Anything not reached is left unbuilt rather
+than half-built.
+
+1. [ ] **Realtime sold updates.** A listing marked sold greys out for everyone
+       currently viewing it, without a refresh.
+2. [ ] **Campus pickup spots.** Each listing names a handover point (library,
+       main gate, canteen…); browse can be filtered by spot.
+3. [ ] **Wishlist with sold alerts.** Save a listing; get told when something
+       you saved is sold.
+4. [ ] **Buyer–seller inquiry messaging.** Ask the seller a question about a
+       listing.
+5. [ ] **Push notifications.** Only if time genuinely allows.
 
 ---
 
@@ -140,7 +152,7 @@ src/
     env.ts        # zod-validated environment variables
 docs/
   architecture.md # design decisions and data model
-  ai-usage.md     # AI usage declaration
+AI_USAGE.md       # AI usage declaration, per phase
 supabase/
   migrations/     # SQL schema and RLS policies
 ```
