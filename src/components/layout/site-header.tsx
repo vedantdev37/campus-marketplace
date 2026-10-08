@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { signOutAction } from "@/app/(auth)/actions";
+import { UnreadPill, UnreadProvider } from "@/components/chat/unread";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { NavLink } from "@/components/layout/nav-link";
 import type { SessionUser } from "@/lib/auth";
@@ -30,13 +31,19 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
         </Link>
 
         {user ? (
-          <>
+          // Shares one unread count between the desktop link, the phone menu
+          // and the menu button.
+          <UnreadProvider userId={user.id}>
             {/* Desktop: links sit in the middle of the bar. */}
             <nav aria-label="Main" className="mx-auto hidden items-center gap-6 md:flex">
               <NavLink href="/listings" exact>
                 Browse
               </NavLink>
               <NavLink href="/listings/mine">My listings</NavLink>
+              <NavLink href="/inbox">
+                Inbox
+                <UnreadPill />
+              </NavLink>
             </nav>
 
             <div className="ml-auto flex items-center gap-2 md:ml-0">
@@ -65,6 +72,10 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
                 <Link href="/listings/mine" className="flex h-11 items-center rounded-lg px-3 text-base font-medium text-ink hover:bg-surface-soft">
                   My listings
                 </Link>
+                <Link href="/inbox" className="flex h-11 items-center rounded-lg px-3 text-base font-medium text-ink hover:bg-surface-soft">
+                  Inbox
+                  <UnreadPill />
+                </Link>
                 <form action={signOutAction}>
                   <button
                     type="submit"
@@ -75,7 +86,7 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
                 </form>
               </MobileMenu>
             </div>
-          </>
+          </UnreadProvider>
         ) : (
           <div className="ml-auto flex items-center gap-2">
             <Link

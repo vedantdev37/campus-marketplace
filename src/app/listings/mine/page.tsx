@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { MessagesLiveRefresh } from "@/components/chat/messages-live-refresh";
 import { ListingCard } from "@/components/listings/listing-card";
 import { ListingLiveRefresh } from "@/components/listings/listing-live-refresh";
 import { requireSessionUser } from "@/lib/auth";
+import { getInbox } from "@/lib/chat";
 import { getMyListings } from "@/lib/listings";
+import type { Listing } from "@/lib/types/listing";
 
 export const metadata: Metadata = {
   title: "My listings · Campus Marketplace",
@@ -12,7 +15,19 @@ export const metadata: Metadata = {
 
 export default async function MyListingsPage() {
   const user = await requireSessionUser();
-  const listings = await getMyListings(user.id);
+  const [listings, inbox] = await Promise.all([getMyListings(user.id), getInbox()]);
+
+  // Conversations where I am the seller, counted per listing.
+  const chats = new Map<string, { count: number; unread: number }>();
+
+  for (const row of inbox) {
+    if (row.i_am_seller) {
+      const entry = chats.get(row.listing_id) ?? { count: 0, unread: 0 };
+      entry.count += 1;
+      entry.unread += row.unread_count;
+      chats.set(row.listing_id, entry);
+    }
+  }
 
   // Unlike browse, sold listings stay visible here: a seller needs their own
   // history, which is the opposite of what a buyer's view wants.
@@ -22,6 +37,7 @@ export default async function MyListingsPage() {
   return (
     <main className="mx-auto w-full max-w-[1280px] flex-1 bg-canvas px-4 py-6 text-ink md:px-6 md:py-8">
       <ListingLiveRefresh />
+      <MessagesLiveRefresh />
 
       <h1 className="text-[26px] leading-tight font-semibold">My listings</h1>
 
@@ -52,9 +68,7 @@ export default async function MyListingsPage() {
             ) : (
               <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
                 {available.map((listing) => (
-                  <li key={listing.id} className="contents">
-                    <ListingCard listing={listing} />
-                  </li>
+                  <ListingWithChats key={listing.id} listing={listing} chats={chats.get(listing.id)} />
                 ))}
               </ul>
             )}
@@ -65,9 +79,7 @@ export default async function MyListingsPage() {
               <h2 className="text-lg font-semibold text-ink">Sold ({sold.length})</h2>
               <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
                 {sold.map((listing) => (
-                  <li key={listing.id} className="contents">
-                    <ListingCard listing={listing} />
-                  </li>
+                  <ListingWithChats key={listing.id} listing={listing} chats={chats.get(listing.id)} />
                 ))}
               </ul>
             </section>
@@ -75,5 +87,35 @@ export default async function MyListingsPage() {
         </>
       )}
     </main>
+  );
+}
+
+/**
+ * A card, and under it a link to the conversations about that listing.
+ *
+ * The link is a sibling of the card and not inside it: the whole card is
+ * already one link, and a link cannot contain another.
+ */
+function ListingWithChats({
+  listing,
+  chats,
+}: {
+  listing: Listing;
+  chats?: { count: number; unread: number };
+}) {
+  return (
+    <li className="flex flex-col">
+      <ListingCard listing={listing} />
+
+      {chats ? (
+        <Link
+          href={`/inbox?listing=${listing.id}`}
+          className="mt-1 flex min-h-11 items-center text-sm font-semibold text-ink underline"
+        >
+          {chats.count === 1 ? "1 chat" : `${chats.count} chats`}
+          {chats.unread > 0 ? ` · ${chats.unread} unread` : ""}
+        </Link>
+      ) : null}
+    </li>
   );
 }

@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 
+import { useUnreadCount } from "@/components/chat/unread";
+
 /**
  * The phone navigation menu.
  *
@@ -17,12 +19,16 @@ import { usePathname } from "next/navigation";
  */
 export function MobileMenu({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const unread = useUnreadCount();
 
   return (
     <details key={pathname} className="group relative md:hidden">
       <summary
-        aria-label="Menu"
-        className="flex size-11 cursor-pointer list-none items-center justify-center rounded-full border border-control-border text-ink hover:bg-surface-soft [&::-webkit-details-marker]:hidden"
+        // The Inbox link is inside the closed menu, so the button itself has to
+        // say there is something waiting: a dot for the eye, words for a
+        // screen reader.
+        aria-label={unread > 0 ? `Menu, ${unread} unread` : "Menu"}
+        className="relative flex size-11 cursor-pointer list-none items-center justify-center rounded-full border border-control-border text-ink hover:bg-surface-soft [&::-webkit-details-marker]:hidden"
       >
         <svg
           aria-hidden="true"
@@ -35,6 +41,13 @@ export function MobileMenu({ children }: { children: React.ReactNode }) {
         >
           <path d="M4 7h16M4 12h16M4 17h16" />
         </svg>
+
+        {unread > 0 ? (
+          <span
+            aria-hidden="true"
+            className="absolute top-1.5 right-1.5 size-3 rounded-full border-2 border-canvas bg-ink"
+          />
+        ) : null}
       </summary>
 
       <div className="absolute right-0 mt-2 flex w-56 flex-col rounded-[14px] bg-canvas p-2 shadow-float">

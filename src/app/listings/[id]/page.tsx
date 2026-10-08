@@ -3,10 +3,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AskSeller } from "@/components/chat/ask-seller";
+import { MessagesLiveRefresh } from "@/components/chat/messages-live-refresh";
 import { ConditionSummary } from "@/components/listings/condition-summary";
 import { ListingLiveRefresh } from "@/components/listings/listing-live-refresh";
 import { OwnerActions } from "@/components/listings/owner-actions";
 import { requireSessionUser } from "@/lib/auth";
+import { formatCampusDateTime } from "@/lib/campus-time";
+import { getInbox, getListingChat } from "@/lib/chat";
 import { getListing } from "@/lib/listings";
 import { fairPriceHint, formatPrice } from "@/lib/pricing";
 import { listingImageUrl } from "@/lib/storage";
@@ -54,11 +58,24 @@ export default async function ListingDetailPage({
   const imageUrl = listingImageUrl(listing.image_path);
   const hint = fairPriceHint(listing.price, listing.original_price, listing.condition);
 
+  // Chat, as far as this viewer is concerned. RLS returns a buyer their own
+  // conversation about this listing and its seller every one of them, so the
+  // same query serves both - and a third person gets nothing, which is why an
+  // accepted meetup is only ever shown to the two people who agreed it.
+  const chat = await getListingChat(listing.id, user.id);
+  const sellerName = listing.seller?.full_name || "the seller";
+  const unread = isOwner
+    ? (await getInbox(listing.id)).reduce((total, row) => total + row.unread_count, 0)
+    : 0;
+
   return (
     <main className="mx-auto w-full max-w-[1080px] flex-1 bg-canvas px-4 py-6 text-ink md:px-6 md:py-8">
       {/* Re-fetches this page when the listing changes, so a buyer looking at
           it sees it become sold without refreshing. */}
       <ListingLiveRefresh listingId={listing.id} />
+      {/* And when a message arrives: accepting a meetup posts one, so the
+          agreed time appears here for the other person without a refresh. */}
+      <MessagesLiveRefresh />
 
       <Link
         href="/listings"
@@ -161,21 +178,63 @@ export default async function ListingDetailPage({
               </div>
             ) : null}
 
-            <p className="mt-4 text-sm text-ink-body">
-              Meet at{" "}
-              <span className="font-semibold text-ink">
-                {listing.pickup_spot?.name ?? "a spot you agree with the seller"}
-              </span>
-              .
-            </p>
+            {chat.acceptedMeetups.length > 0 ? (
+              // An agreed meetup replaces the generic "Meet at" line below:
+              // showing both would give two different places to go.
+              <ul className="mt-4 flex flex-col gap-2">
+                {chat.acceptedMeetups.map((meetup) => (
+                  <li key={meetup.id} className="rounded-[14px] bg-success-surface p-4 text-sm">
+                    <p className="font-semibold text-ink">
+                      <span aria-hidden="true" className="mr-1.5">
+                        ✓
+                      </span>
+                      Meetup: {meetup.spotName}, {formatCampusDateTime(meetup.meetAt)}
+                    </p>
+                    <p className="mt-1 text-ink-body">
+                      Agreed with {meetup.withName}.{" "}
+                      <Link
+                        href={`/inbox/${meetup.conversationId}`}
+                        className="font-semibold text-ink underline"
+                      >
+                        Open chat
+                      </Link>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-ink-body">
+                Meet at{" "}
+                <span className="font-semibold text-ink">
+                  {listing.pickup_spot?.name ?? "a spot you agree with the seller"}
+                </span>
+                .
+              </p>
+            )}
           </div>
+
+          {isOwner ? null : chat.conversationIds[0] ? (
+            <Link
+              href={`/inbox/${chat.conversationIds[0]}`}
+              className="mt-4 flex h-12 items-center justify-center rounded-lg bg-brand-fill px-6 text-base font-medium text-white hover:bg-brand-active"
+            >
+              Open chat with {sellerName}
+            </Link>
+          ) : isSold ? null : (
+            <AskSeller listingId={listing.id} sellerName={sellerName} />
+          )}
 
           {isOwner ? (
             // Ownership decides only what is *shown* here. Each action re-checks
             // the session and scopes its query by seller_id, and RLS refuses the
             // row regardless - so hiding these controls is a convenience, never
             // the protection. See scripts/verify-rls.mjs.
-            <OwnerActions listingId={listing.id} status={listing.status} />
+            <OwnerActions
+              listingId={listing.id}
+              status={listing.status}
+              conversationCount={chat.conversationIds.length}
+              unreadCount={unread}
+            />
           ) : null}
         </aside>
       </div>

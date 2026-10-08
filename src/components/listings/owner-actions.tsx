@@ -8,6 +8,7 @@ import {
   setListingStatusAction,
   type OwnerActionState,
 } from "@/app/listings/actions";
+import { UnreadPill } from "@/components/chat/unread";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { ListingStatus } from "@/lib/types/listing";
@@ -25,9 +26,14 @@ const INITIAL_STATE: OwnerActionState = {};
 export function OwnerActions({
   listingId,
   status,
+  conversationCount,
+  unreadCount,
 }: {
   listingId: string;
   status: ListingStatus;
+  /** How many buyers have asked about this listing. */
+  conversationCount: number;
+  unreadCount: number;
 }) {
   const isSold = status === "sold";
 
@@ -41,8 +47,14 @@ export function OwnerActions({
 
   function confirmDelete(event: FormEvent<HTMLFormElement>) {
     // Deleting is irreversible and the button sits next to a benign one, so a
-    // misclick should not destroy a listing.
-    if (!window.confirm("Delete this listing? This cannot be undone.")) {
+    // misclick should not destroy a listing. Its conversations are deleted
+    // with it (ON DELETE CASCADE), for the buyers too, so the prompt says so.
+    const question =
+      conversationCount > 0
+        ? "Delete this listing? Its conversations and any meetup will be deleted too, for you and the buyers. This cannot be undone."
+        : "Delete this listing? This cannot be undone.";
+
+    if (!window.confirm(question)) {
       event.preventDefault();
     }
   }
@@ -61,6 +73,18 @@ export function OwnerActions({
       ) : null}
 
       <div className="mt-4 flex flex-col gap-3">
+        {conversationCount > 0 ? (
+          <Link
+            href={`/inbox?listing=${listingId}`}
+            className="flex h-12 items-center justify-center rounded-lg border border-ink px-6 text-base font-medium text-ink transition-colors hover:bg-surface-soft"
+          >
+            {conversationCount === 1 ? "1 conversation" : `${conversationCount} conversations`}
+            <UnreadPill count={unreadCount} />
+          </Link>
+        ) : (
+          <p className="text-sm text-ink-muted">Nobody has asked about this item yet.</p>
+        )}
+
         <Link
           href={`/listings/${listingId}/edit`}
           className="flex h-12 items-center justify-center rounded-lg border border-ink px-6 text-base font-medium text-ink transition-colors hover:bg-surface-soft"
