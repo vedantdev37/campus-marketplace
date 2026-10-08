@@ -44,7 +44,43 @@
   }
 }
 
+/*
+ * DESIGN.md tokens (the Airbnb-inspired reference in the repo root).
+ *
+ * Declared under their own names rather than by redefining the tokens above,
+ * so pages built before the design reference keep their current look until
+ * they are restyled, while every new page uses these from the start.
+ *
+ * Deliberately not redefined for dark mode: the reference is a white-canvas
+ * system with no dark variant.
+ */
+:root {
+  --ds-brand: #ff385c;
+  --ds-brand-active: #e00b41;
+  --ds-brand-disabled: #ffd1da;
+  --ds-ink: #222222;
+  --ds-ink-body: #3f3f3f;
+  --ds-ink-muted: #6a6a6a;
+  --ds-hairline: #dddddd;
+  --ds-hairline-soft: #ebebeb;
+  --ds-canvas: #ffffff;
+  --ds-surface-soft: #f7f7f7;
+  --ds-error: #c13515;
+}
+
 @theme inline {
+  --color-brand: var(--ds-brand);
+  --color-brand-active: var(--ds-brand-active);
+  --color-brand-disabled: var(--ds-brand-disabled);
+  --color-ink: var(--ds-ink);
+  --color-ink-body: var(--ds-ink-body);
+  --color-ink-muted: var(--ds-ink-muted);
+  --color-hairline: var(--ds-hairline);
+  --color-hairline-soft: var(--ds-hairline-soft);
+  --color-canvas: var(--ds-canvas);
+  --color-surface-soft: var(--ds-surface-soft);
+  --color-error: var(--ds-error);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
@@ -75,7 +111,15 @@ body {
  * get a clear ring; mouse users do not see it on click, because :focus-visible
  * does that distinction for us.
  */
-:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+@layer base {
+  /*
+   * Inside the base layer on purpose. Unlayered CSS outranks every Tailwind
+   * utility regardless of specificity, so as a bare rule this could not be
+   * turned off by `focus-visible:outline-none` - which the DESIGN.md inputs
+   * need, because they signal focus with an ink border instead of a ring.
+   */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
