@@ -6,15 +6,28 @@ changed or verified — with an entry added after each phase of work.
 
 ## Summary
 
+The author's statement, in his own words:
+
+> AI (Claude Code) wrote most of the code. I directed it: I chose the stack and
+> scope, came up with the product ideas (NITTE-only access, ISBN scan, meetups
+> in chat, rent/free/lost & found/Squad up, the deal meter), made the design
+> decisions, ran a reviewer and QA process on every phase, tested on real
+> phones with real books, caught wrong turns and pushed back, and set up and
+> ran the infrastructure (Supabase, Vercel, migrations, API keys). Every prompt
+> is logged in AI_USAGE.md.
+
+The rest of this summary, and everything below it except the sections marked
+as the author's own, was written by AI.
+
 - **Tool:** Claude (Anthropic), through Claude Code, used interactively. The
   author gave each phase as a prompt, answered the questions AI raised, and
   made the decisions recorded below.
 - **Models:** Claude Opus 5 and Claude Opus 5.5. Every AI-assisted commit names
   its model in a `Co-Authored-By` line: 35 commits credit Opus 5 and 67 credit
   Opus 5.5 (`git log` at the time of writing).
-- **How much is AI-written:** nearly all of the code, SQL, scripts, diagrams
-  and documentation. The direction, the requirements, the scope decisions and
-  some of the copy are the author's; each phase says which.
+- **How much is AI-written:** most of the code, and the SQL, scripts, diagrams
+  and documentation with it. The direction, the requirements, the scope
+  decisions and some of the copy are the author's; each phase says which.
 - **Skills:** `playwright-cli` (browser checks and QA) and
   `web-design-guidelines` (one accessibility review). See "Skills used".
 - **Process, from Phase 3 on:** three read-only AI reviewers before a phase
@@ -1362,62 +1375,93 @@ the favicon `src/app/icon.svg`. The drawing is AI's; the choice is the author's.
 > "Read HANDOFF.md, README.md, DESIGN.md and AI_USAGE.md. Confirm the state in
 > 5 lines, then start Phase 6."
 
-and, mid-phase, the fields of the submission form, with a request to draft the
-2,000-character overview and a short AI-usage answer in `SUBMISSION.md`.
+then the submission form's fields with a request to draft the overview and the
+AI-usage answer; the author's own README text and his statement on AI use; a
+README section on what is switched off for judging; and:
+
+> "Work fully unattended until everything I asked for is done. If a step needs
+> my approval or a permission prompt, skip it … Don't push anything that hasn't
+> passed build, lint and verify:rls."
 
 **AI produced**
 
 | File | What it is |
 | --- | --- |
+| `README.md` | **The author's text**, not AI's. AI filled in the check count, linked the file names, put the setup steps (from the old README, with migration 0011 and `test:deal` added) inside "run it locally", and changed one course code (below) |
 | `docs/write-up.md`, `docs/write-up.pdf` | The draft from the previous session, checked against the code and promoted; the PDF is rendered from it |
 | `docs/video-script.md` | A twelve-shot list for the three-minute walkthrough, marking phone and laptop shots |
-| `AI_USAGE.md` | The summary at the top, an empty author section in every phase, the logo note and this entry |
+| `AI_USAGE.md` | The summary (the author's statement is quoted as given), an empty author section in every phase, the logo note and this entry |
+| `HANDOFF.md` | What is left, rewritten |
 | `SUBMISSION.md` (not committed) | Form answers: links, the overview, the AI-usage answer, and blanks for the demo passwords |
 
-**What checking the write-up found**
+**What checking found**
 
-Five statements in the draft were wrong and were corrected against the
-migrations: "ten migrations" (eleven), "four" public functions (five), "64
-assertions" (66), triggers that set `sold_at` (also `created_at`, since 0011),
-and "each migration only adds" (0008 drops the unused `inquiries` table).
+- Five statements in the write-up draft were wrong and were corrected against
+  the migrations: "ten migrations" (eleven), "four" public functions (five), "64
+  assertions" (66), triggers that set `sold_at` (also `created_at`, since 0011),
+  and "each migration only adds" (0008 drops the unused `inquiries` table).
+- The README told a reviewer to search `21CS32`. No seeded post has that code
+  and the search returns nothing; `22CS32` returns one. AI changed that one
+  token and told the author. Five other README statements that are looser than
+  the code are listed in `HANDOFF.md` and left as the author wrote them.
 
 **AI mistakes and limits in this phase**
 
 - **AI did not rotate the demo passwords.** It wrote a script to do so; the
-  tool's own safety check refused to let AI run it, and AI did not look for
+  tool's own permission check refused to let AI run it, and AI did not look for
   another way. Rotation is left to the author.
 - **AI did not sign in to the deployed site.** It does not type account
-  passwords into a site that is not running locally. So the signed-in half of
-  the final live check has not been done by AI.
+  passwords into a site that is not running locally. The signed-in checks below
+  were run against a local production build that uses the same database.
+- AI's first two tries at the "saved item just sold" check reported no alert.
+  The feature was working: the sale had been triggered within two or three
+  seconds of the buyer's page loading, before its subscription was ready. A
+  third try with a longer wait showed the alert. That window is real, and a
+  sale inside it would be missed.
 - The PDF was produced by a small converter AI wrote for this one file. AI
-  confirmed in the browser that all three diagrams loaded and the six sections
-  and three tables are present, but could not open the finished PDF to look at
-  its page breaks.
-- The three-reviewer pass that precedes a phase was not run for this one: the
-  phase changes documents, not the product.
+  confirmed in the browser that all three diagrams loaded, but could not open
+  the finished PDF to look at its page breaks.
+- The three-reviewer pass and the separate QA agent were not used for this
+  phase. The main session ran the browser checks itself.
 
 **Verified by testing**
 
-- `npm run verify:rls`: 66 of 66 against the live database. `npm run test:deal`:
-  9 of 9.
-- On the deployed site, signed out: `/`, `/login`, `/signup`, `/security` and
-  `/commentary` return 200; `/explore`, `/post`, `/me`, `/inbox`, `/saved` and
-  the three old `/listings` URLs redirect to sign-in with the right `next`; the
-  home page carries the name, the disclaimer and the reviewer sign-up hint;
-  `/security` shows 66; `?next=https://evil.example` is dropped.
+- `next build` and `eslint` clean. `npm run verify:rls`: 66 of 66 after a final
+  reseed. `npm run test:deal`: 9 of 9.
+- **Deployed site, signed out only:** `/`, `/login`, `/signup`, `/security` and
+  `/commentary` return 200; `/explore`, `/post`, `/me`, `/inbox` and the three
+  old `/listings` URLs redirect to sign-in with the right `next`; the home page
+  carries the name, the disclaimer and the reviewer hint; `/security` shows 66;
+  `?next=https://evil.example` is dropped.
+- **Local production build, same database, three signed-in sessions** (seller,
+  buyer, outsider), desktop width, dark theme:
+  - a `gmail.com` sign-up is refused with the "NITTE emails only" message;
+  - search by course code; the five Explore tabs each show posts of their kind;
+    all six post forms open;
+  - a typed ISBN fills in the title and cover; the deal meter shows a verdict;
+    the post publishes, its price can be edited, and it deletes;
+  - the seller sees Edit, Mark as sold and Delete on their listing; the buyer
+    and the outsider do not, and the buyer opening the edit URL gets the
+    not-found page;
+  - a buyer's message reaches the seller's open chat without a reload; the
+    seller accepts the meetup and the buyer's chat and the listing show it; the
+    outsider sees neither the meetup nor the conversation;
+  - marking sold turns the card SOLD on the buyer's open Explore page without a
+    reload, and a buyer who saved it gets the alert.
 
 **Not verified**
 
-- Anything on the deployed site that needs an account: posting, editing,
-  marking sold, chat, meetups, saved posts, the gmail refusal.
+- Any signed-in flow on the deployed site.
+- A successful sign-up: no new account was created in this phase.
+- Phone width, the light theme, the camera scan, a photo upload from disk,
+  Hinglish and Kanglish, notifications, profiles. Earlier phases covered them;
+  this pass did not repeat them.
 - The video script has not been timed against a recording.
-- The README was not replaced in this session's first pass: the author's text
-  was needed again.
 
 **Author changed / verified**
 
-- Supplied the submission form's fields and the required last line of the
-  overview.
+- Wrote the README and the statement on AI use, and supplied the submission
+  form's fields and the "switched off for judging" section.
 
 **What I did / checked** _(the author's own section; left empty by AI on purpose)_
 

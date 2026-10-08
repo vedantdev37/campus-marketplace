@@ -113,7 +113,7 @@ Typing or scanning a book's ISBN fills in the title, author, description and cov
 
 **Known gaps**
 
-- Email confirmation is off for the demo, so the sign-up gate checks what an address looks like, not who owns it. A real launch would turn it on and remove `reviewer.test`.
+- Email confirmation is off and `@reviewer.test` is on the allowlist, for judging only. While that holds, the sign-up gate checks what an address looks like, not who owns it. Production would enable confirmation with custom SMTP (for example Resend) and delete the `reviewer.test` row from the allowlist.
 - The typing indicator's channel is not access-controlled: someone who knew a conversation's id could see or fake "typing". No message can be read or written that way.
 - Browser notifications work only while the site is open in a tab. Real push needs a service worker, stored push subscriptions and a server to send them.
 - Supabase sends Realtime `DELETE` events to every subscriber, carrying only a primary key.

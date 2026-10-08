@@ -1,160 +1,105 @@
 # Nitte Mart
 
-A buy/sell marketplace for a college campus. Students list things they no longer
-need, browse what others are selling, and arrange a handover at a known pickup
-spot on campus.
+hey judge 👋
 
-Built for the GDG NMIT Round 2 full-stack challenge.
+yes, this is the round 2 assignment. same brief everyone got.
+i'm Vedant Sharma, first year CSE. i didn't want to build "a marketplace",
+i wanted to build the one people at NITTE would actually open.
 
----
+live: https://nmit-campus-marketplace.vercel.app
 
-## ⭐ Evaluating this project? Start here
+## how to get in (takes 20 seconds)
 
-**Live app: <https://nmit-campus-marketplace.vercel.app>**
+normally only @nmit.ac.in emails can sign up. you probably don't want to
+use yours, so i opened a test door just for judges:
 
-**Sign up with any email ending in `@reviewer.test`** — for example
-`reviewer@reviewer.test`, with any password of 8+ characters. No inbox needed.
+1. open the site and tap **Sign up**
+2. email: anything ending in **@reviewer.test**, like judge1@reviewer.test
+   (it's a fake domain, nothing gets sent anywhere)
+3. password: anything, at least 8 characters
+4. that's it. no email confirmation, you're in.
 
-Sign-up is restricted to campus email domains, so `@reviewer.test` is seeded
-into the allowlist specifically so the sign-up flow can be assessed. `.test` is
-reserved by RFC 2606 and can never be a real domain.
+want to see a ready made account with listings, chats and a meetup?
+the seller and buyer logins are in my submission notes.
 
-**Or use a pre-seeded account**, to test owner-only actions without creating
-listings yourself:
-
-| Role | Email | What it has |
-| --- | --- | --- |
-| Seller | `seller@reviewer.test` | Several listings, one already sold |
-| Buyer | `buyer@reviewer.test` | No listings, one wishlist item, one conversation with the seller and a meetup proposal waiting for the seller to accept |
-
-**Passwords are in the submission notes, not in this repo.** This repository is
-public, so a credential committed anywhere in it — README, seed script, or
-history — would let anyone sign in and vandalise the demo data. The seed script
-reads them from `.env.local`, which is gitignored.
-
-Sign in as the **buyer** and open one of the seller's listings: there is no
-edit, delete or mark-sold control. The API refuses those operations too — Row
-Level Security rejects them at the database, not just in the UI. That is not a
-claim you have to take on trust:
-
-```bash
-npm run verify:rls
-```
-
-attacks the public API directly: as a signed-in non-owner against listings,
-and as a third account against a conversation between the buyer and the
-seller. It makes 66 assertions. Most are things that must be refused - a
-price change, a forged message sender, reading someone else's chat, accepting
-your own meetup proposal - and three confirm the public home page receives
-only what a listing card shows. The result of each run is written to
-`src/lib/security-run.json`, which is what the site's "tests passed" figure
-and the [`/security`](https://nmit-campus-marketplace.vercel.app/security)
-page display.
-
-**To see the restriction working**, try signing up with a `gmail.com` address.
-It is refused with a 403 from a database-level auth hook, not a client-side
-check — see
-[`docs/architecture.md`](docs/architecture.md#restricting-sign-up-to-nmitacin).
+curious? try signing up with a gmail id. it'll bounce you at the gate.
+that's the database saying no, not just the form.
 
 ---
 
-## Links
+## got 60 seconds? try these
 
-- **Live:** <https://nmit-campus-marketplace.vercel.app>
-- **Repo:** <https://github.com/vedantdev37/campus-marketplace>
-- **Walkthrough video:** _(added before submission)_
-- **Technical write-up:** [`docs/write-up.md`](docs/write-up.md) (decision log: [`docs/architecture.md`](docs/architecture.md))
-- **AI usage declaration:** [`AI_USAGE.md`](AI_USAGE.md)
+1. scroll the homepage and find "Locked to NITTE". then open /security.
+   i wrote a script that attacks my own app. it loses every time.
+2. post a book and hit scan. point your phone at the barcode.
+   the title, author and cover fill in on their own.
+3. search 22CS32. course codes are searchable, so juniors find the
+   exact book for their subject.
+4. open any listing, message the seller, and book a meetup at a real
+   spot on campus. "meet at main block" with no time never works.
 
-> **Status:** in development. This README is kept accurate as features land —
-> anything listed under "Planned" is not built yet.
+## what's actually different here
 
----
+you can't get in unless you're from NITTE. the database itself refuses
+other emails, not just the sign up form.
 
-## Tech stack
+nobody can edit or delete your stuff. i tried. 66 attack checks, all blocked.
 
-| Concern         | Choice                                               |
-| --------------- | ---------------------------------------------------- |
-| Framework       | Next.js 16.4 (App Router) + React 19.3               |
-| Language        | TypeScript (strict)                                  |
-| Styling         | Tailwind CSS 4                                       |
-| Database        | Supabase Postgres, with Row Level Security           |
-| Auth            | Supabase Auth (cookie sessions via `@supabase/ssr`)  |
-| File storage    | Supabase Storage                                     |
-| Live updates    | Supabase Realtime                                    |
-| Validation      | zod 4 (shared client + server schemas)               |
-| External API    | Google Books, falling back to Open Library (ISBN → title, author, cover, price) |
-| Hosting         | Vercel                                               |
+it's not only buying and selling. you can rent things you only need once
+(a drafter for one ED class), give stuff away for free, post things you
+found on campus, and find teammates for a hackathon in Squad up.
 
----
+every listing tells you if the price is a steal or a rip off, based on
+the MRP and how used it is.
 
-## Features
+things update live. if someone buys what you're looking at, it turns
+SOLD on your screen. no refresh. save something you like and you'll
+know the moment it sells.
 
-### Core requirements
-- [x] Email/password sign-up and login, restricted to `@nmit.ac.in` addresses
-- [x] Create a listing (name, description, price, category, image)
-- [x] Browse, search and filter listings
-- [x] Listing detail view
-- [x] Owner-only mark-as-sold and delete (enforced by RLS — see `npm run verify:rls`)
-- [x] Owner-only edit
-- [x] Sold listings visually distinct from available ones
-- [x] "My Listings" page
-- [x] Loading, empty and error states
-- [x] Validation on both client and server (shared zod schemas)
+and if english feels too formal, switch it to Hinglish or Kanglish.
 
-### Campus-specific additions
-- [x] Optional **course code** (e.g. `21CS32`) and **semester** on a listing,
-      both searchable — so you can find the exact book your course needs.
-- [x] **ISBN lookup and barcode scan → autofill.** Type the ISBN or point the
-      camera at the barcode; title, author, description and cover are filled in
-      from Google Books, falling back to Open Library. Every field stays editable.
-- [x] **Fair-price hint.** Compares the asking price against the original
-      price (from Google Books when it has one, otherwise the MRP the seller
-      enters), adjusted for condition. Sellers see it live while pricing; buyers
-      see it on the listing.
+## stuff that broke
 
-### Beyond the core
+Google Books gave me zero results for every Indian ISBN i tried, even
+with a valid key. so it falls back to Open Library now.
 
-- [x] **Realtime sold updates.** A listing marked sold greys out for everyone
-      currently viewing it, without a refresh.
-- [x] **Campus pickup spots.** Each listing names a handover point (library,
-      main gate, food court…); browse can be filtered by spot.
-- [x] **Condition checklists.** Category-specific facts the seller confirms
-      (charger included, no highlighting, lab coat size…), shown as ticks on
-      the listing and validated by a database trigger.
+a blocked write in Supabase doesn't throw an error. it just changes
+nothing and says it worked. my code believed it for a while.
 
-- [x] **Listing chat.** "Ask about this item" opens a private conversation
-      with the seller. Messages arrive live; an Inbox lists conversations with
-      unread counts. Only the buyer and the seller can read or write it, which
-      `npm run verify:rls` proves with a third account.
-- [x] **Meetup booking.** Either person proposes a pickup spot, date and time
-      inside the chat; the other accepts or suggests another. Once accepted it
-      shows on the listing for those two people only.
+there's more of this on the /commentary page. think of it like a
+director's commentary, but for code.
 
-- [x] **Its own look.** A dark-first design system ([`DESIGN.md`](DESIGN.md)),
-      a five-scene home page with live counts from the database, a light theme
-      behind a toggle, and a [`/security`](https://nmit-campus-marketplace.vercel.app/security)
-      page that explains the access-control tests in plain language.
+## things i switched off for judging
 
-- [x] **Six kinds of post in one model.** Sell, rent out, give away, post a
-      found item, offer a skill, or look for teammates. They share one table,
-      one card, one detail page, one chat and one set of access rules; a post's
-      type cannot be changed after it is made.
+email confirmation is off, so you can sign up instantly with a fake
+@reviewer.test address. in real life i'd turn it back on with a proper
+email provider (Supabase's free one only sends a few emails an hour),
+and remove the @reviewer.test door so only @nmit.ac.in gets in.
 
-**Dropped from scope**, deliberately, rather than left half-built: wishlist UI
-and push notifications. The `wishlist_items` table and its RLS policies exist
-in the schema but have no UI.
+## about AI
 
----
+i used AI a lot and i'm not going to pretend otherwise.
+every phase is written down in [AI_USAGE.md](AI_USAGE.md), prompts included.
+the ideas, the decisions and the testing on real phones and real books
+were mine. so was arguing with it when it was wrong, which happened.
 
-## Local setup
+## for the nerds
+
+Next.js 16, Supabase (Postgres, row level security, realtime, storage),
+Tailwind, deployed on Vercel.
+
+architecture: [docs/architecture.md](docs/architecture.md)
+write up: [docs/write-up.md](docs/write-up.md)
+
+<details>
+<summary>run it locally</summary>
 
 **Prerequisites:** Node.js 20+ (developed on 26.7) and npm 10+.
 
 ### 1. Clone and install
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/vedantdev37/campus-marketplace.git
 cd campus-marketplace
 npm install
 ```
@@ -197,8 +142,9 @@ typo produces a readable error rather than a crash deep inside a library.
 
 ### 4. Apply the database schema
 
-Open **Supabase → SQL Editor** and run each file in `supabase/migrations/`
-**in numerical order**, one at a time, checking each succeeds before the next:
+Open **Supabase → SQL Editor** and run each file in
+[`supabase/migrations/`](supabase/migrations/) **in numerical order**, one at a
+time, checking each succeeds before the next:
 
 | # | File | What it creates |
 | --- | --- | --- |
@@ -208,12 +154,11 @@ Open **Supabase → SQL Editor** and run each file in `supabase/migrations/`
 | 4 | `0004_signup_domain_allowlist.sql` | Email-domain gate for sign-up |
 | 5 | `0005_seed.sql` | Pickup spots and the allowed sign-up domains |
 | 6 | `0006_condition_checks.sql` | Condition checklists, the lab category, and two extra constraints. Run it on its own |
-| 7 | `0007_listing_teasers.sql` | *Optional.* Lets the public home page show a few recent listings |
+| 7 | `0007_listing_teasers.sql` | Lets the public home page show a few recent listings |
 | 8 | `0008_chat_meetups.sql` | Conversations, messages and meetups, their policies and functions. Drops the unused `inquiries` table; do not re-run `0002` afterwards |
-| 9 | `0009_public_stats.sql` | Three read-only functions for the public home page: live counts, pickup spot names, and recent listings including one sold. Without it the home page shows fewer things, not an error |
+| 9 | `0009_public_stats.sql` | Three read-only functions for the public home page: live counts, pickup spot names, and recent listings including one sold |
 | 10 | `0010_listing_types.sql` | A `type` on listings (sale, rent, free, lost and found, skill, team) with rules per type, and skills, bio, photo and GitHub username on profiles |
-
-They are written to be re-runnable, so running one twice is harmless.
+| 11 | `0011_hardening.sql` | Fixes from the security review: `created_at` and `sold_at` are set by triggers and cannot be forged |
 
 ### 5. Three dashboard settings
 
@@ -229,7 +174,8 @@ The migrations cannot set these; they must be done in the dashboard.
    register, so the domain gate becomes the only check on who gets in. A real
    deployment should leave confirmation on.*
 3. **Enable Realtime** for the `listings` table if `0002` printed a notice
-   about the `supabase_realtime` publication being missing — then re-run `0002`.
+   about the `supabase_realtime` publication being missing, then re-run `0002`
+   (before `0008`, not after).
 
 ### 6. Seed the demo accounts
 
@@ -237,27 +183,19 @@ The migrations cannot set these; they must be done in the dashboard.
 npm run seed:demo
 ```
 
-Creates `seller@reviewer.test` (with listings, one already sold),
-`buyer@reviewer.test` (with a wishlist item and a conversation with the seller)
-and `outsider@reviewer.test` (in no conversation; `verify:rls` uses it as the
-attacker), using the three `DEMO_*_PASSWORD` values from `.env.local`. Safe to
-re-run — it leaves existing listings and conversations alone.
+Creates the seller, buyer, outsider and showcase accounts at `@reviewer.test`
+with sample posts, a conversation and a meetup proposal, using the four
+`DEMO_*_PASSWORD` values from `.env.local`. Safe to re-run.
 
-To replace the demo data with a clean set (worth doing right before a
-demo or submission, after poking at it during testing):
+To replace the demo data with a clean set:
 
 ```bash
 npm run reseed:demo
 ```
 
-Both the inserts and the deletes run under RLS as an ordinary signed-in user, so
-the script cannot touch anything the demo accounts do not own.
-
-The script holds no special privilege — it signs in as an ordinary user and
+The script holds no special privilege. It signs in as an ordinary user and
 writes through the same public API the browser uses, so every insert is subject
-to Row Level Security. A successful run is therefore evidence the policies allow
-what they should. A service-role key would bypass RLS and prove nothing, which
-is also why this project does not have one.
+to Row Level Security. This project has no service-role key.
 
 ### 7. Run it
 
@@ -267,70 +205,22 @@ npm run dev
 
 Open <http://localhost:3000>.
 
-> `.env.local` is only read at startup — restart the dev server after editing it.
+### Scripts
 
----
-
-## Scripts
-
-| Command         | What it does                           |
-| --------------- | -------------------------------------- |
-| `npm run dev`   | Dev server (Turbopack) on port 3000    |
-| `npm run build` | Production build                       |
-| `npm start`     | Serve the production build             |
-| `npm run lint`  | ESLint                                 |
-| `npm run seed:demo` | Create the three demo accounts, sample listings and one conversation |
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Dev server on port 3000 |
+| `npm run build` | Production build |
+| `npm start` | Serve the production build |
+| `npm run lint` | ESLint |
+| `npm run seed:demo` | Create the demo accounts, sample posts and conversations |
 | `npm run reseed:demo` | Wipe and recreate the demo data |
-| `npm run verify:rls` | Attack the API as a non-owner and as an outsider to a chat; assert everything is refused |
+| `npm run verify:rls` | Attack the API as a non-owner and as an outsider to a chat; 66 checks |
+| `npm run test:deal` | The deal meter's arithmetic; 9 checks |
+
+</details>
 
 ---
 
-## Project structure
-
-```
-src/
-  app/
-    (auth)/       # /login and /signup, plus their Server Actions
-    inbox/        # conversations, the chat page, and their Server Actions
-    security/     # the public "receipts" page about the access-control tests
-    explore/      # browse, with a tab per kind of post
-    post/         # choose a kind of post, then the form for it
-    me/           # my posts and settings
-    listings/     # the detail and edit pages; the old browse URLs redirect
-    error.tsx     # route-level error boundary
-  components/
-    auth/         # login and sign-up forms (client)
-    chat/         # thread, meetup bar, unread badge
-    home/         # hero, scan demo, digit roller
-    layout/       # the shared header and footer, theme toggle
-    motion/       # the one scroll-reveal observer
-    listings/     # cards, the listing form, owner controls
-    ui/           # TextField, SubmitButton, Alert
-  lib/
-    auth.ts       # session access (the Data Access Layer)
-    chat.ts       # chat and meetup read queries
-    campus-time.ts # dates and times in campus time (IST)
-    env.ts        # zod-validated environment variables
-    navigation.ts # open-redirect-safe destination handling
-    supabase/     # server and browser clients
-    validation/   # zod schemas shared by client and server
-  proxy.ts        # session refresh + route gating (was middleware.ts pre-Next 16)
-scripts/
-  seed-demo.mjs   # demo accounts and sample listings
-  verify-rls.mjs  # adversarial Row Level Security checks
-docs/
-  architecture.md # design decisions and data model
-AI_USAGE.md       # AI usage declaration, per phase
-DESIGN.md         # the design system: tokens, type, motion, voice
-supabase/
-  migrations/     # SQL schema and RLS policies
-```
-
----
-
-## Architecture notes
-
-See [`docs/architecture.md`](docs/architecture.md) for the data model, the
-security model (RLS + server-side ownership checks), and the reasoning behind
-the significant decisions — including why Next.js 16's Cache Components is
-deliberately left disabled.
+demo photos from Unsplash, credits in [docs/credits.md](docs/credits.md).
+made in about 36 hours on chai and very little sleep.
