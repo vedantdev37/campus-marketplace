@@ -19,8 +19,8 @@ export function Alert({ tone, children }: AlertProps) {
       className={[
         "rounded-lg border px-3 py-2.5 text-sm",
         isError
-          ? "border-danger/30 bg-danger-surface text-danger"
-          : "border-success/30 bg-success-surface text-success",
+          ? "border-error/40 bg-error-surface text-error"
+          : "border-success/40 bg-success-surface text-success",
       ].join(" ")}
     >
       {children}

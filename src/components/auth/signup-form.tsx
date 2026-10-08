@@ -87,7 +87,8 @@ export function SignUpForm({ next }: { next?: string }) {
         inputMode="email"
         autoComplete="email"
         required
-        placeholder="you@nmit.ac.in"
+        placeholder="you@nmit.ac.in…"
+        spellCheck={false}
         hint="Campus email only. Reviewers: use any @reviewer.test address."
         defaultValue={serverState.values?.email ?? ""}
         error={errorFor("email")}

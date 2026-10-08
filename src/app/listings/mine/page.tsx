@@ -20,36 +20,20 @@ export default async function MyListingsPage() {
   const sold = listings.filter((listing) => listing.status === "sold");
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6">
+    <main className="mx-auto w-full max-w-[1280px] flex-1 bg-canvas px-4 py-6 text-ink md:px-6 md:py-8">
       <ListingLiveRefresh />
 
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">My listings</h1>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/listings/new"
-            className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            Sell an item
-          </Link>
-          <Link
-            href="/listings"
-            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface-muted"
-          >
-            Browse
-          </Link>
-        </div>
-      </header>
+      <h1 className="text-[26px] leading-tight font-semibold">My listings</h1>
 
       {listings.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
-          <p className="text-sm font-medium">You have not listed anything yet</p>
-          <p className="mt-1 text-sm text-muted">
+        <div className="mt-6 max-w-md">
+          <h2 className="text-[22px] leading-tight font-semibold">You have not listed anything yet</h2>
+          <p className="mt-2 text-base text-ink-body">
             Anything you list will appear here, sold items included.
           </p>
           <Link
             href="/listings/new"
-            className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="mt-6 inline-flex h-12 items-center rounded-lg bg-brand-fill px-6 text-base font-medium text-white hover:bg-brand-active"
           >
             Sell your first item
           </Link>
@@ -57,16 +41,16 @@ export default async function MyListingsPage() {
       ) : (
         <>
           <section className="mt-6">
-            <h2 className="text-sm font-medium text-muted">
+            <h2 className="text-lg font-semibold text-ink">
               Available ({available.length})
             </h2>
 
             {available.length === 0 ? (
-              <p className="mt-2 rounded-xl border border-dashed border-border px-4 py-5 text-center text-sm text-muted">
+              <p className="mt-2 text-base text-ink-body">
                 Everything you listed has sold.
               </p>
             ) : (
-              <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
                 {available.map((listing) => (
                   <li key={listing.id} className="contents">
                     <ListingCard listing={listing} />
@@ -78,8 +62,8 @@ export default async function MyListingsPage() {
 
           {sold.length > 0 ? (
             <section className="mt-8">
-              <h2 className="text-sm font-medium text-muted">Sold ({sold.length})</h2>
-              <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <h2 className="text-lg font-semibold text-ink">Sold ({sold.length})</h2>
+              <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
                 {sold.map((listing) => (
                   <li key={listing.id} className="contents">
                     <ListingCard listing={listing} />

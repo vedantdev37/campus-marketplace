@@ -10,7 +10,7 @@ import {
 } from "@/lib/types/listing";
 
 const SELECT_CLASS =
-  "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm";
+  "h-12 w-full rounded-lg border border-control-border bg-canvas px-3 text-base text-ink";
 
 /**
  * Browse filters as a plain GET form.
@@ -45,20 +45,21 @@ export function BrowseFilters({
           type="search"
           name="q"
           defaultValue={filters.search ?? ""}
-          placeholder="Search titles, authors, course codes…"
+          placeholder="Search listings…"
+          autoComplete="off"
           aria-label="Search listings"
-          className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2.5 text-base"
+          className="h-12 min-w-0 flex-1 rounded-lg border border-control-border bg-canvas px-3.5 text-base text-ink placeholder:text-ink-muted"
         />
         <button
           type="submit"
-          className="shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+          className="h-12 shrink-0 rounded-lg bg-brand-fill px-5 text-base font-medium text-white hover:bg-brand-active"
         >
           Search
         </button>
       </div>
 
       <details className="rounded-lg border border-border bg-surface" open={hasAnyFilter}>
-        <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+        <summary className="flex min-h-12 cursor-pointer items-center px-4 text-base font-medium">
           Filters
         </summary>
 
@@ -117,18 +118,20 @@ export function BrowseFilters({
               type="text"
               name="course"
               defaultValue={filters.courseCode ?? ""}
-              placeholder="e.g. 21CS32"
+              placeholder="e.g. 21CS32…"
+              autoComplete="off"
+              spellCheck={false}
               className={SELECT_CLASS}
             />
           </label>
 
-          <label className="flex items-center gap-2 self-end text-sm">
+          <label className="flex min-h-12 items-center gap-3 self-end text-base">
             <input
               type="checkbox"
               name="sold"
               value="1"
               defaultChecked={Boolean(filters.includeSold)}
-              className="size-4"
+              className="size-6 accent-(--ds-ink)"
             />
             Include sold items
           </label>
@@ -136,7 +139,7 @@ export function BrowseFilters({
           <div className="flex gap-2 sm:col-span-2">
             <button
               type="submit"
-              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+              className="h-12 flex-1 rounded-lg bg-brand-fill px-5 text-base font-medium text-white hover:bg-brand-active"
             >
               Apply filters
             </button>
@@ -144,7 +147,7 @@ export function BrowseFilters({
             {hasAnyFilter ? (
               <Link
                 href="/listings"
-                className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-surface-muted"
+                className="flex h-12 items-center rounded-lg border border-ink px-5 text-base font-medium text-ink hover:bg-surface-soft"
               >
                 Clear
               </Link>

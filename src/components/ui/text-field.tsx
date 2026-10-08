@@ -46,22 +46,23 @@ export function TextField({
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
         className={[
-          "w-full rounded-lg border bg-surface px-3 py-2.5 text-base",
-          "placeholder:text-muted/60",
+          "min-h-14 w-full rounded-lg border bg-canvas px-3.5 py-3 text-base text-ink",
+          "placeholder:text-ink-muted",
+          "focus-visible:border-ink focus-visible:shadow-[inset_0_0_0_1px_var(--ds-ink)] focus-visible:outline-none",
           // 16px text on mobile prevents iOS Safari from zooming on focus.
-          error ? "border-danger" : "border-border",
+          error ? "border-error" : "border-control-border",
           className,
         ].join(" ")}
       />
 
       {hint && !error ? (
-        <p id={hintId} className="text-xs text-muted">
+        <p id={hintId} className="text-xs text-ink-muted">
           {hint}
         </p>
       ) : null}
 
       {error ? (
-        <p id={errorId} role="alert" className="text-xs font-medium text-danger">
+        <p id={errorId} role="alert" className="text-xs font-medium text-error">
           {error}
         </p>
       ) : null}

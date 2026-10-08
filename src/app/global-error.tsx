@@ -18,6 +18,16 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
+      <head>
+        {/* The only way to follow the dark theme here: no stylesheet is loaded,
+            and inline style attributes cannot contain a media query. */}
+        <style>{`
+          :root { color-scheme: light dark; --bg: #ffffff; --fg: #222222; --body: #3f3f3f; --muted: #6a6a6a; }
+          @media (prefers-color-scheme: dark) {
+            :root { --bg: #121212; --fg: #f2f2f2; --body: #d4d4d4; --muted: #a3a3a3; }
+          }
+        `}</style>
+      </head>
       <body
         style={{
           margin: 0,
@@ -27,13 +37,13 @@ export default function GlobalError({
           justifyContent: "center",
           padding: 24,
           fontFamily: "system-ui, sans-serif",
-          background: "#ffffff",
-          color: "#222222",
+          background: "var(--bg)",
+          color: "var(--fg)",
         }}
       >
         <main style={{ maxWidth: 420 }}>
           <h1 style={{ fontSize: 28, lineHeight: 1.25, margin: 0 }}>Something went wrong</h1>
-          <p style={{ fontSize: 16, color: "#3f3f3f", marginTop: 12 }}>
+          <p style={{ fontSize: 16, color: "var(--body)", marginTop: 12 }}>
             The page could not be shown. Trying again usually fixes it.
           </p>
           <button
@@ -45,7 +55,7 @@ export default function GlobalError({
               padding: "0 24px",
               borderRadius: 8,
               border: 0,
-              background: "#ff385c",
+              background: "#e00b41",
               color: "#ffffff",
               fontSize: 16,
               fontWeight: 500,
@@ -55,7 +65,7 @@ export default function GlobalError({
             Try again
           </button>
           {error.digest ? (
-            <p style={{ marginTop: 16, fontSize: 12, color: "#6a6a6a", fontFamily: "monospace" }}>
+            <p style={{ marginTop: 16, fontSize: 12, color: "var(--muted)", fontFamily: "monospace" }}>
               Reference: {error.digest}
             </p>
           ) : null}

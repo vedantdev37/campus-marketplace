@@ -18,16 +18,16 @@ export default async function SignUpPage({
 
   return (
     <>
-      <h1 className="text-xl font-semibold tracking-tight">Create your account</h1>
-      <p className="mt-1 mb-5 text-sm text-muted">
+      <h1 className="text-[28px] leading-tight font-bold">Create your account</h1>
+      <p className="mt-2 mb-6 text-base text-ink-body">
         Buy and sell with students on your campus.
       </p>
 
       <SignUpForm next={safeNext} />
 
-      <p className="mt-5 text-center text-sm text-muted">
+      <p className="mt-6 text-base text-ink-body">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link href="/login" className="font-semibold text-ink underline">
           Sign in
         </Link>
       </p>

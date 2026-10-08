@@ -123,6 +123,21 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
     };
   }, [previewUrl]);
 
+  // Warn before a reload or tab close throws away a half-written listing. The
+  // browser shows its own generic prompt; the text cannot be customised. It is
+  // switched off while saving, or the successful redirect would trigger it.
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (!isDirty || isSaving) {
+      return;
+    }
+
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty, isSaving]);
+
   const shownImage = previewUrl ?? listingImageUrl(imagePath || null);
   const isBusy = isUploading || isSaving;
   const photoRequired = !listing || Boolean(listing.image_path);
@@ -326,7 +341,13 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      onInput={() => setIsDirty(true)}
+      noValidate
+      className="flex flex-col gap-5"
+    >
       {listing ? <input type="hidden" name="id" value={listing.id} /> : null}
 
       {serverState.formError ? <Alert tone="error">{serverState.formError}</Alert> : null}
@@ -379,7 +400,13 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
               // A plain <img>: the preview may be a local blob: URL, which
               // next/image cannot optimise and would reject.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={shownImage} alt="Listing photo preview" className="h-full w-full object-cover" />
+              <img
+                src={shownImage}
+                alt="Listing photo preview"
+                width={128}
+                height={96}
+                className="h-full w-full object-cover"
+              />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-ink-muted">
                 No photo
@@ -388,19 +415,29 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
           </div>
 
           <div className="flex min-w-0 flex-col gap-2">
-            <label htmlFor="field-photo" className={`${SECONDARY_BUTTON_CLASS} w-fit cursor-pointer`}>
+            {/*
+             * The real file input is visually hidden and this label is what you
+             * see, so keyboard focus lands on something invisible. The input
+             * sits INSIDE the label so the label can show the ring on its
+             * behalf, with `has-[:focus-visible]`. As siblings, a keyboard user
+             * tabbed to the photo control and saw nothing change.
+             */}
+            <label
+              htmlFor="field-photo"
+              className={`${SECONDARY_BUTTON_CLASS} w-fit cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink`}
+            >
               {shownImage ? "Change photo" : "Add a photo"}
+              <input
+                ref={fileInputRef}
+                id="field-photo"
+                name="photo"
+                type="file"
+                accept={LISTING_IMAGE_TYPES.join(",")}
+                onChange={handleFileChange}
+                aria-describedby="field-photo-hint"
+                className="sr-only"
+              />
             </label>
-            <input
-              ref={fileInputRef}
-              id="field-photo"
-              name="photo"
-              type="file"
-              accept={LISTING_IMAGE_TYPES.join(",")}
-              onChange={handleFileChange}
-              aria-describedby="field-photo-hint"
-              className="sr-only"
-            />
 
             {shownImage ? (
               <button
@@ -439,7 +476,8 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
             type="text"
             required
             maxLength={120}
-            placeholder="e.g. Engineering Mathematics, 44th edition"
+            placeholder="e.g. Casio FX-991EX calculator…"
+            autoComplete="off"
             defaultValue={listing?.title ?? ""}
             onInput={() => clearAutofilled("title")}
             onBlur={(event) => validateOnBlur("title", event.currentTarget.value)}
@@ -511,7 +549,8 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
               type="text"
               inputMode="decimal"
               required
-              placeholder="e.g. 350"
+              placeholder="e.g. 350…"
+              autoComplete="off"
               value={price}
               onChange={(event) => setPrice(event.currentTarget.value)}
               onBlur={(event) => validateOnBlur("price", event.currentTarget.value)}
@@ -536,7 +575,8 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
               {...props}
               type="text"
               inputMode="decimal"
-              placeholder="e.g. 650"
+              placeholder="e.g. 650…"
+              autoComplete="off"
               value={originalPrice}
               onChange={(event) => {
                 setOriginalPrice(event.currentTarget.value);
@@ -578,7 +618,9 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
                 type="text"
                 maxLength={12}
                 autoCapitalize="characters"
-                placeholder="e.g. 21CS32"
+                placeholder="e.g. 21CS32…"
+                autoComplete="off"
+                spellCheck={false}
                 defaultValue={listing?.course_code ?? ""}
                 onBlur={(event) => validateOnBlur("courseCode", event.currentTarget.value)}
               />
@@ -609,7 +651,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
           type="submit"
           disabled={isBusy}
           aria-busy={isBusy}
-          className="h-12 rounded-lg bg-brand px-6 text-base font-medium text-white transition-colors hover:bg-brand-active active:bg-brand-active disabled:cursor-not-allowed disabled:bg-brand-disabled"
+          className="h-12 rounded-lg bg-brand-fill px-6 text-base font-medium text-white transition-colors hover:bg-brand-active disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-muted"
         >
           {isUploading
             ? "Uploading photo…"

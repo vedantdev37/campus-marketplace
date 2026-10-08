@@ -146,7 +146,8 @@ export function BookLookup({
             inputMode="numeric"
             autoComplete="off"
             maxLength={20}
-            placeholder="e.g. 978-0-13-235088-4"
+            placeholder="e.g. 978-0-13-235088-4…"
+            spellCheck={false}
             value={isbn}
             onChange={(event) => setIsbn(event.currentTarget.value)}
             onKeyDown={(event) => {
@@ -215,7 +216,13 @@ export function BookLookup({
                 // A plain <img>: this is a small transient preview from a book
                 // database, not worth routing through the image optimiser.
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={status.book.coverUrl} alt="" className="h-full w-full object-cover" />
+                <img
+                  src={status.book.coverUrl}
+                  alt=""
+                  width={48}
+                  height={64}
+                  className="h-full w-full object-cover"
+                />
               ) : null}
             </div>
 

@@ -195,7 +195,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       role="dialog"
       aria-modal="true"
       aria-label="Scan a book barcode"
-      className="fixed inset-0 z-50 flex flex-col bg-ink text-white"
+      className="fixed inset-0 z-50 flex flex-col overscroll-contain bg-[#111111] text-white"
     >
       <div className="flex items-center justify-between px-4 py-3">
         <p className="text-base font-medium">Scan the barcode</p>
@@ -234,7 +234,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
         </p>
       </div>
 
-      <div className="px-6 pt-2 pb-8">
+      <div className="px-6 pt-2 pb-[max(2rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={onClose}

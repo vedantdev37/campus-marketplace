@@ -4,11 +4,11 @@
  * inset shadow so the extra pixel does not shift the layout.
  */
 export const INPUT_CLASS =
-  "min-h-14 w-full rounded-lg border bg-canvas px-3.5 py-3 text-base text-ink placeholder:text-ink-muted/70 focus:border-ink focus:shadow-[inset_0_0_0_1px_var(--ds-ink)] focus-visible:outline-none";
+  "min-h-14 w-full rounded-lg border bg-canvas px-3.5 py-3 text-base text-ink placeholder:text-ink-muted focus-visible:border-ink focus-visible:shadow-[inset_0_0_0_1px_var(--ds-ink)] focus-visible:outline-none";
 
 /** DESIGN.md `button-secondary`: white, 1px ink outline, 8px radius, 48px tall. */
 export const SECONDARY_BUTTON_CLASS =
-  "flex h-12 items-center justify-center rounded-lg border border-ink bg-canvas px-5 text-base font-medium text-ink transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-muted";
+  "flex h-12 items-center justify-center rounded-lg border border-ink bg-canvas px-4 text-base font-medium whitespace-nowrap text-ink transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-muted";
 
 export type FieldControlProps = {
   id: string;
@@ -53,7 +53,7 @@ export function Field({
       {children({
         id,
         name,
-        className: `${INPUT_CLASS} ${error ? "border-error" : "border-hairline"}`,
+        className: `${INPUT_CLASS} ${error ? "border-error" : "border-control-border"}`,
         "aria-invalid": error ? true : undefined,
         "aria-describedby": describedBy || undefined,
       })}

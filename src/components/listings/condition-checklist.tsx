@@ -55,7 +55,7 @@ export function ConditionChecklist({
                   className="peer sr-only"
                 />
                 {/* DESIGN.md `date-picker-day-selected`: ink fill, white text. */}
-                <span className="flex h-11 min-w-12 items-center justify-center rounded-full border border-hairline px-4 text-sm font-medium text-ink peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">
+                <span className="flex h-11 min-w-12 items-center justify-center rounded-full border border-control-border px-4 text-sm font-medium text-ink peer-checked:border-ink peer-checked:bg-ink peer-checked:text-canvas peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">
                   {size}
                 </span>
               </label>

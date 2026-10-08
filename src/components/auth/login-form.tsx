@@ -53,7 +53,8 @@ export function LoginForm({ next }: { next?: string }) {
         inputMode="email"
         autoComplete="email"
         required
-        placeholder="you@nmit.ac.in"
+        placeholder="you@nmit.ac.in…"
+        spellCheck={false}
         defaultValue={serverState.values?.email ?? ""}
         error={errorFor("email")}
       />
