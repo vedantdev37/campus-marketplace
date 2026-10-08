@@ -10,7 +10,8 @@ import { requireSessionUser } from "@/lib/auth";
 import { campusDate, campusDatePlusDays } from "@/lib/campus-time";
 import { getActiveMeetup, getConversation, getMessages } from "@/lib/chat";
 import { getPickupSpots } from "@/lib/listings";
-import { formatPrice } from "@/lib/pricing";
+import { TYPE_INFO } from "@/lib/types/listing";
+import { shortPriceLine } from "@/lib/listing-display";
 import { listingImageUrl } from "@/lib/storage";
 import { MEETUP_MAX_DAYS_AHEAD } from "@/lib/types/chat";
 import { isUuid } from "@/lib/uuid";
@@ -95,17 +96,24 @@ export default async function ConversationPage({
 
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold">{otherName}</h1>
-              <p className="truncate text-sm text-ink-muted">
-                {listing.title} ·{" "}
-                <span className={isSold ? "line-through" : ""}>{formatPrice(listing.price)}</span>
-                {isSold ? <span className="ml-1.5 font-semibold text-ink">Sold</span> : null}
+              <p className="flex text-sm text-ink-muted">
+                <span className="truncate">{listing.title}</span>
+                <span className="shrink-0 whitespace-pre"> · </span>
+                <span className={`shrink-0 ${isSold ? "line-through" : ""}`}>
+                  {shortPriceLine(listing.type, listing.price)}
+                </span>
+                {isSold ? (
+                  <span className="ml-1.5 shrink-0 font-semibold text-ink">
+                    {TYPE_INFO[listing.type].closed}
+                  </span>
+                ) : null}
               </p>
             </div>
           </Link>
 
           {isSold ? (
             <span className="shrink-0 rounded-full bg-ink px-2.5 py-1 text-[11px] leading-none font-semibold tracking-wide text-canvas uppercase">
-              Sold
+              {TYPE_INFO[listing.type].closed}
             </span>
           ) : null}
         </div>
@@ -113,7 +121,7 @@ export default async function ConversationPage({
 
       {isSold ? (
         <p role="status" className="border-b border-hairline bg-surface-soft px-4 py-2 text-center text-sm text-ink-body md:px-6">
-          This item has been sold. You can still message each other to arrange the handover.
+          {TYPE_INFO[listing.type].closed}. You can still message each other to sort out the rest.
         </p>
       ) : null}
 
@@ -136,6 +144,7 @@ export default async function ConversationPage({
         myId={user.id}
         otherName={otherName}
         messages={messages}
+        listingType={listing.type}
       />
     </main>
   );

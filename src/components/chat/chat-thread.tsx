@@ -9,6 +9,7 @@ import { INPUT_CLASS } from "@/components/listings/form-field";
 import { formatCampusDateTime, formatCampusDay, formatCampusTime } from "@/lib/campus-time";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { MESSAGE_MAX_LENGTH, type Message } from "@/lib/types/chat";
+import type { ListingType } from "@/lib/types/listing";
 import { useNewMessages } from "@/lib/use-new-messages";
 import { messageBodySchema } from "@/lib/validation/chat";
 
@@ -17,7 +18,32 @@ type ChatThreadProps = {
   myId: string;
   otherName: string;
   messages: Message[];
+  /** Decides which quick replies are offered. */
+  listingType: ListingType;
 };
+
+/**
+ * Quick replies: one tap puts a common opening line in the message box. They
+ * fill the box and do not send, so "Would you do ₹X?" can have its X typed in
+ * and nothing goes out by accident.
+ */
+const AVAILABLE = "Is it still available?";
+const OFFER = "Would you do ₹X?";
+const MEET = "Can we meet today?";
+const JOIN = "I'm interested in joining";
+
+const QUICK_REPLIES: Record<ListingType, string[]> = {
+  sale: [AVAILABLE, OFFER, MEET],
+  rent: [AVAILABLE, OFFER, MEET],
+  free: [AVAILABLE, MEET],
+  lost_found: [AVAILABLE, MEET],
+  skill_offer: [AVAILABLE, OFFER, MEET],
+  team_request: [JOIN, MEET],
+};
+
+/** How often "typing" is sent while someone types, and how long it shows. */
+const TYPING_SEND_EVERY_MS = 2000;
+const TYPING_SHOWN_FOR_MS = 3500;
 
 /** The counter appears once this much of the limit is used. */
 const COUNTER_FROM = MESSAGE_MAX_LENGTH * 0.8;
@@ -36,7 +62,13 @@ const COUNTER_FROM = MESSAGE_MAX_LENGTH * 0.8;
  * renders on the server: a GET that changes data would mark messages read for
  * a link that was only prefetched.
  */
-export function ChatThread({ conversationId, myId, otherName, messages }: ChatThreadProps) {
+export function ChatThread({
+  conversationId,
+  myId,
+  otherName,
+  messages,
+  listingType,
+}: ChatThreadProps) {
   const router = useRouter();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -47,12 +79,83 @@ export function ChatThread({ conversationId, myId, otherName, messages }: ChatTh
   const [error, setError] = useState<string | null>(null);
   const [isSending, startSending] = useTransition();
   const [hasNewBelow, setHasNewBelow] = useState(false);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [typingAtId, setTypingAtId] = useState<string | null>(null);
 
   const last = messages[messages.length - 1];
   const lastId = last?.id ?? null;
   const lastIsMine = last?.sender_id === myId;
 
   useNewMessages(() => router.refresh(), conversationId);
+
+  // --- "is typing" --------------------------------------------------------
+  // A Realtime broadcast: a message between the browsers on a channel, stored
+  // nowhere. What is sent is the bare event - no text, no name - and the
+  // other side shows the indicator for a few seconds each time one arrives.
+  //
+  // WHAT THIS IS NOT
+  // The channel is named after the conversation and is not access-controlled,
+  // so someone who knew this conversation's id could listen for these events
+  // or send fake ones. They would learn that somebody is typing, or make the
+  // indicator blink: no message can be read or written this way, because
+  // messages go through the database and its policies. The id is a random
+  // UUID known to the two participants. Locking the channel as well needs a
+  // Realtime authorisation policy, which this project does not have yet.
+  const typingChannelRef = useRef<ReturnType<ReturnType<typeof createSupabaseBrowserClient>["channel"]> | null>(null);
+  const lastTypingSentRef = useRef(0);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastIdRef = useRef(lastId);
+
+  useEffect(() => {
+    lastIdRef.current = lastId;
+  });
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase.channel(`typing:${conversationId}`, {
+      config: { broadcast: { self: false } },
+    });
+
+    channel.on("broadcast", { event: "typing" }, () => {
+      setIsOtherTyping(true);
+      setTypingAtId(lastIdRef.current);
+
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
+
+      typingTimerRef.current = setTimeout(() => setIsOtherTyping(false), TYPING_SHOWN_FOR_MS);
+    });
+
+    channel.subscribe();
+    typingChannelRef.current = channel;
+
+    return () => {
+      typingChannelRef.current = null;
+
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
+
+      void supabase.removeChannel(channel);
+    };
+  }, [conversationId]);
+
+  function announceTyping() {
+    const now = Date.now();
+
+    // At most one event every couple of seconds, however fast the typing.
+    if (now - lastTypingSentRef.current < TYPING_SEND_EVERY_MS) {
+      return;
+    }
+
+    lastTypingSentRef.current = now;
+    void typingChannelRef.current?.send({ type: "broadcast", event: "typing", payload: {} });
+  }
+
+  // Their message arriving means they have finished typing it: the indicator
+  // only counts while the thread still ends where it did when they typed.
+  const shownTyping = isOtherTyping && typingAtId === lastId;
 
   // Watches a marker after the last message, so "is the reader at the end?" is
   // known without measuring on every scroll event.
@@ -186,6 +289,11 @@ export function ChatThread({ conversationId, myId, otherName, messages }: ChatTh
           })}
         </ol>
 
+        {/* Polite, so a screen reader mentions it once without interrupting. */}
+        <p aria-live="polite" className="mx-auto min-h-6 w-full max-w-[720px] pb-2 text-sm text-ink-muted">
+          {shownTyping ? `${otherName} is typing…` : ""}
+        </p>
+
         <div ref={endRef} aria-hidden="true" className="h-px" />
 
         {hasNewBelow ? (
@@ -217,6 +325,27 @@ export function ChatThread({ conversationId, myId, otherName, messages }: ChatTh
             </p>
           ) : null}
 
+          {/* Offered only while the box is empty: once you are writing your
+              own message they are in the way. */}
+          {body === "" ? (
+            <ul aria-label="Quick replies" className="-mx-4 mb-2 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
+              {QUICK_REPLIES[listingType].map((reply) => (
+                <li key={reply} className="shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBody(reply);
+                      inputRef.current?.focus();
+                    }}
+                    className="flex h-11 items-center rounded-full border border-control-border px-4 text-sm font-medium whitespace-nowrap text-ink hover:bg-surface-soft"
+                  >
+                    {reply}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
           <div className="flex items-end gap-2">
             <label htmlFor="composer" className="sr-only">
               Message {otherName}
@@ -225,7 +354,10 @@ export function ChatThread({ conversationId, myId, otherName, messages }: ChatTh
               id="composer"
               ref={inputRef}
               value={body}
-              onChange={(event) => setBody(event.target.value)}
+              onChange={(event) => {
+                setBody(event.target.value);
+                announceTyping();
+              }}
               onKeyDown={onKeyDown}
               rows={1}
               maxLength={MESSAGE_MAX_LENGTH}
