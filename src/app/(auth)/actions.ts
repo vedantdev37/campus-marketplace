@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { safeNextPath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { fieldErrorsFrom, loginSchema, signUpSchema } from "@/lib/validation/auth";
+import { DOMAIN_MESSAGE, fieldErrorsFrom, loginSchema, signUpSchema } from "@/lib/validation/auth";
 
 /**
  * State returned to the form. Note what is absent: the password is never echoed
@@ -21,9 +21,9 @@ export type AuthFormState = {
 /**
  * Turns a Supabase auth error into something a user can act on.
  *
- * The default branch passes the message through, which is deliberate: that is
- * how the database-level domain gate's own message ("Sign-up is limited to
- * approved campus email domains.") reaches the form.
+ * The database-level domain gate's refusal ("Sign-up is limited to approved
+ * campus email domains.") is recognised and given the same wording as the
+ * form's own check. Other 4xx messages are passed through as they are.
  */
 const UNREACHABLE_MESSAGE =
   "Could not reach the sign-in service. Check your connection and try again.";
@@ -42,6 +42,14 @@ function describeSignUpError(error: AuthError): string {
     case "over_request_rate_limit":
       return "Too many attempts. Wait a minute and try again.";
     default:
+      // The database sign-up gate answers 403, with a message about email
+      // domains, for an address outside the allowed ones. The form normally
+      // catches that first; this gives the same wording to a request that
+      // reached the database anyway.
+      if (error.status === 403 && /domain/i.test(error.message)) {
+        return DOMAIN_MESSAGE;
+      }
+
       // A 4xx is the auth service refusing THIS request for a stated reason,
       // and its message is written for the person signing up - this is the
       // route by which the domain gate's own wording reaches the form. Anything

@@ -8,7 +8,7 @@ import { isUuid } from "@/lib/uuid";
 import { getListing, getPickupSpots } from "@/lib/listings";
 
 export const metadata: Metadata = {
-  title: "Edit listing · Campus Marketplace",
+  title: "Edit listing · Nitte Mart",
 };
 
 export default async function EditListingPage({ params }: { params: Promise<{ id: string }> }) {

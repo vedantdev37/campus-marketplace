@@ -201,7 +201,9 @@ export function BookLookup({
           // Deliberately neutral: plenty of Indian textbooks are in neither
           // database, so this will be seen often and must not read as broken.
           <div className="rounded-lg bg-surface-soft px-4 py-3 text-sm text-ink">
-            <p className="font-semibold">Book not found — fill in the details yourself</p>
+            <p className="font-semibold">
+              This book is too rare for the internet. Fill it in yourself, legend.
+            </p>
             <p className="mt-0.5 text-ink-body">
               Not every book is in the catalogues we search. We have kept ISBN {status.isbn} on
               your listing, so buyers can still find it by that number.

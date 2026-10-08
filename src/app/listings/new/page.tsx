@@ -6,7 +6,7 @@ import { requireSessionUser } from "@/lib/auth";
 import { getPickupSpots } from "@/lib/listings";
 
 export const metadata: Metadata = {
-  title: "Sell an item · Campus Marketplace",
+  title: "Sell an item · Nitte Mart",
 };
 
 export default async function NewListingPage() {

@@ -13,7 +13,7 @@ import type { InboxRow } from "@/lib/types/chat";
 import { isUuid } from "@/lib/uuid";
 
 export const metadata: Metadata = {
-  title: "Inbox · Campus Marketplace",
+  title: "Inbox · Nitte Mart",
 };
 
 /** What the last thing said was, in one line. */
@@ -63,14 +63,14 @@ export default async function InboxPage({
 
       {rows.length === 0 ? (
         <div className="mt-6 max-w-md">
-          <h2 className="text-[22px] leading-tight font-semibold">No conversations yet</h2>
+          <h2 className="text-[22px] leading-tight font-semibold">Clean sheet. No messages yet.</h2>
           <p className="mt-2 text-base text-ink-body">
-            When you ask about an item, or someone asks about one of yours, the conversation
-            appears here.
+            Ask about an item, or wait for someone to ask about one of yours. The conversation
+            will turn up here.
           </p>
           <Link
             href="/listings"
-            className="mt-6 inline-flex h-12 items-center rounded-lg bg-brand-fill px-6 text-base font-medium text-white hover:bg-brand-active"
+            className="mt-6 inline-flex h-12 items-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active"
           >
             Browse listings
           </Link>

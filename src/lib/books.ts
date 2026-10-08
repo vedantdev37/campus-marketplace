@@ -465,7 +465,7 @@ async function lookupOpenLibrary(isbn: string): Promise<BookLookupResult> {
   // Open Library asks API users to identify themselves so that heavy callers
   // can be contacted rather than blocked.
   const fetched = await fetchJson(url.toString(), {
-    "User-Agent": "CampusMarketplace/1.0 (student project; nmit-campus-marketplace.vercel.app)",
+    "User-Agent": "NitteMart/1.0 (student project; nmit-campus-marketplace.vercel.app)",
   });
 
   if (!fetched.ok) {

@@ -22,8 +22,9 @@ import { z } from "zod";
  */
 export const ALLOWED_SIGNUP_DOMAINS = ["nmit.ac.in", "reviewer.test"] as const;
 
-const DOMAIN_MESSAGE =
-  "Sign up with your campus email (@nmit.ac.in). Reviewers can use any @reviewer.test address.";
+/** The joke comes first and the instruction second, but the instruction is there. */
+export const DOMAIN_MESSAGE =
+  "NITTE emails only. Your Gmail can wait outside the gate. Use your @nmit.ac.in address (reviewers: any @reviewer.test address).";
 
 /** Trim and lower-case first, then validate - otherwise " A@B.com " is rejected for its spaces. */
 const normalisedEmail = z

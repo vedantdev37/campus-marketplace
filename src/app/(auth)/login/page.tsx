@@ -5,7 +5,7 @@ import { LoginForm } from "@/components/auth/login-form";
 import { isSafeNextPath } from "@/lib/navigation";
 
 export const metadata: Metadata = {
-  title: "Sign in · Campus Marketplace",
+  title: "Sign in · Nitte Mart",
 };
 
 export default async function LoginPage({
@@ -32,7 +32,7 @@ export default async function LoginPage({
 
       <p className="mt-6 text-base text-ink-body">
         New here?{" "}
-        <Link href="/signup" className="font-semibold text-ink underline">
+        <Link href="/signup" className="inline-flex min-h-11 items-center font-semibold text-ink underline">
           Create an account
         </Link>
       </p>

@@ -13,14 +13,15 @@ export default function ListingNotFound() {
   return (
     <div className="flex flex-1 flex-col bg-canvas text-ink">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 py-16">
-        <h1 className="text-[28px] leading-[1.25] font-bold">This listing is gone</h1>
-        <p className="mt-3 text-base text-ink-body">
-          It may have been removed by the seller, or the link may be wrong.
+        <h1 className="title-card text-[48px] md:text-[64px]">Gone. Like free food.</h1>
+        <p className="mt-4 text-base text-ink-body">
+          This listing is no longer here. The seller may have removed it, or the link may be
+          wrong. There is plenty more to look at.
         </p>
 
         <Link
           href="/listings"
-          className="mt-8 flex h-12 items-center justify-center rounded-lg bg-brand-fill px-6 text-base font-medium text-white hover:bg-brand-active sm:w-fit"
+          className="mt-8 flex h-12 items-center justify-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active sm:w-fit"
         >
           Browse other listings
         </Link>

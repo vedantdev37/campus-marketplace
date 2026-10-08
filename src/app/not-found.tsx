@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Not found · Campus Marketplace",
+  title: "Not found · Nitte Mart",
 };
 
 /**
@@ -17,15 +17,16 @@ export default function NotFound() {
     <div className="flex flex-1 flex-col bg-canvas text-ink">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 py-16">
         <p className="text-sm font-medium text-ink-muted">404</p>
-        <h1 className="mt-1 text-[28px] leading-[1.25] font-bold">We could not find that page</h1>
-        <p className="mt-3 text-base text-ink-body">
-          The link may be mistyped, or the page may have been removed.
+        <h1 className="title-card mt-2 text-[48px] md:text-[64px]">This page bunked class.</h1>
+        <p className="mt-4 text-base text-ink-body">
+          There is nothing at this address. The link may be mistyped, or the page may have been
+          removed. Try browsing instead.
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/listings"
-            className="flex h-12 items-center justify-center rounded-lg bg-brand-fill px-6 text-base font-medium text-white hover:bg-brand-active"
+            className="flex h-12 items-center justify-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active"
           >
             Browse listings
           </Link>

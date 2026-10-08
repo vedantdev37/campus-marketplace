@@ -29,9 +29,10 @@ export default function RouteError({
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-5 py-10">
       <div className="rounded-2xl border border-border bg-surface p-6 text-center">
-        <h1 className="text-lg font-semibold tracking-tight">Something went wrong</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Well, that was not in the syllabus.</h1>
         <p className="mt-2 text-sm text-muted">
-          That is on us, not you. Try again — if it keeps happening, reload the page.
+          Something broke on our side, not yours. Press Try again. If it keeps happening,
+          reload the page.
         </p>
 
         <button

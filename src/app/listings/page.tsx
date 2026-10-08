@@ -8,7 +8,7 @@ import { hasActiveFilters, parseListingFilters, type RawSearchParams } from "@/l
 import { getPickupSpots, listListings } from "@/lib/listings";
 
 export const metadata: Metadata = {
-  title: "Browse · Campus Marketplace",
+  title: "Browse · Nitte Mart",
 };
 
 export default async function ListingsPage({
@@ -60,9 +60,12 @@ export default async function ListingsPage({
         <div className="mt-6 max-w-md">
           {filtered ? (
             <>
-              <h2 className="text-[22px] leading-tight font-semibold">Nothing matches those filters</h2>
+              <h2 className="text-[22px] leading-tight font-semibold">
+                Nothing found. Can&rsquo;t find dates here either.
+              </h2>
               <p className="mt-2 text-base text-ink-body">
-                Try a broader search, or include sold items.
+                No listing matches that search. Try fewer words, clear a filter, or include
+                sold items.
               </p>
               <Link
                 href="/listings"
@@ -73,13 +76,13 @@ export default async function ListingsPage({
             </>
           ) : (
             <>
-              <h2 className="text-[22px] leading-tight font-semibold">Nothing listed yet</h2>
+              <h2 className="text-[22px] leading-tight font-semibold">Empty shelves. For now.</h2>
               <p className="mt-2 text-base text-ink-body">
-                The marketplace is empty. Be the first to list something.
+                Nobody has listed anything yet. Go first: it takes about a minute.
               </p>
               <Link
                 href="/listings/new"
-                className="mt-6 inline-flex h-12 items-center rounded-lg bg-brand-fill px-6 text-base font-medium text-white hover:bg-brand-active"
+                className="mt-6 inline-flex h-12 items-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active"
               >
                 Sell an item
               </Link>

@@ -10,7 +10,7 @@ import { getMyListings } from "@/lib/listings";
 import type { Listing } from "@/lib/types/listing";
 
 export const metadata: Metadata = {
-  title: "My listings · Campus Marketplace",
+  title: "My listings · Nitte Mart",
 };
 
 export default async function MyListingsPage() {
@@ -43,13 +43,15 @@ export default async function MyListingsPage() {
 
       {listings.length === 0 ? (
         <div className="mt-6 max-w-md">
-          <h2 className="text-[22px] leading-tight font-semibold">You have not listed anything yet</h2>
+          <h2 className="text-[22px] leading-tight font-semibold">
+            Nothing listed yet. That drafter under your bed won&rsquo;t sell itself.
+          </h2>
           <p className="mt-2 text-base text-ink-body">
-            Anything you list will appear here, sold items included.
+            Anything you list appears here, sold items included.
           </p>
           <Link
             href="/listings/new"
-            className="mt-6 inline-flex h-12 items-center rounded-lg bg-brand-fill px-6 text-base font-medium text-white hover:bg-brand-active"
+            className="mt-6 inline-flex h-12 items-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active"
           >
             Sell your first item
           </Link>
