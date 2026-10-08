@@ -26,6 +26,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
       href={`/listings/${listing.id}`}
       className={[
         "group flex flex-col overflow-hidden rounded-xl border border-border bg-surface transition-shadow hover:shadow-md",
+        // When a listing sells while someone is looking, the change fades in
+        // rather than snapping - unless they have asked for reduced motion.
+        "motion-safe:transition-opacity motion-safe:duration-300",
         isSold ? "opacity-70" : "",
       ].join(" ")}
     >
@@ -42,6 +45,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             // title, so books are fitted inside the frame rather than filling it.
             className={[
               listing.category === "books" ? "object-contain" : "object-cover",
+              "motion-safe:transition-[filter] motion-safe:duration-300",
               isSold ? "grayscale" : "",
             ].join(" ")}
           />

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ListingCard } from "@/components/listings/listing-card";
+import { ListingLiveRefresh } from "@/components/listings/listing-live-refresh";
 import { requireSessionUser } from "@/lib/auth";
 import { getMyListings } from "@/lib/listings";
 
@@ -20,6 +21,8 @@ export default async function MyListingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6">
+      <ListingLiveRefresh />
+
       <header className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">My listings</h1>
         <div className="flex items-center gap-2">

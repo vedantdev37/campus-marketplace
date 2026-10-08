@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { BrowseFilters } from "@/components/listings/browse-filters";
-import { ListingCard } from "@/components/listings/listing-card";
+import { LiveListingGrid } from "@/components/listings/live-listing-grid";
 import { requireSessionUser } from "@/lib/auth";
 import { hasActiveFilters, parseListingFilters, type RawSearchParams } from "@/lib/listing-filters";
 import { getPickupSpots, listListings } from "@/lib/listings";
@@ -101,13 +101,10 @@ export default async function ListingsPage({
           )}
         </div>
       ) : (
-        <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {listings.map((listing) => (
-            <li key={listing.id} className="contents">
-              <ListingCard listing={listing} />
-            </li>
-          ))}
-        </ul>
+        // A Client Component: it subscribes to Realtime so a listing marked sold
+        // greys out here without a refresh. The listings are still fetched on
+        // the server, above, through RLS.
+        <LiveListingGrid listings={listings} />
       )}
     </main>
   );

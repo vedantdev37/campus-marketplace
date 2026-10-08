@@ -2,8 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ConditionSummary } from "@/components/listings/condition-summary";
+import { ListingLiveRefresh } from "@/components/listings/listing-live-refresh";
 import { OwnerActions } from "@/components/listings/owner-actions";
 import { requireSessionUser } from "@/lib/auth";
+import { isUuid } from "@/lib/uuid";
 import { getListing } from "@/lib/listings";
 import { fairPriceHint, formatPrice } from "@/lib/pricing";
 import { listingImageUrl } from "@/lib/storage";
@@ -26,7 +29,7 @@ export default async function ListingDetailPage({
   // Checked before querying: Postgres rejects a malformed uuid with a syntax
   // error, which would surface as a 500 rather than a 404. A junk URL should be
   // "not found", not "something broke".
-  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+  if (!isUuid(id)) {
     notFound();
   }
 
@@ -43,6 +46,10 @@ export default async function ListingDetailPage({
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-6">
+      {/* Re-fetches this page when the listing changes, so a buyer looking at
+          it sees it become sold without refreshing. */}
+      <ListingLiveRefresh listingId={listing.id} />
+
       <Link href="/listings" className="text-sm text-muted hover:underline">
         ← Back to browse
       </Link>
@@ -108,6 +115,8 @@ export default async function ListingDetailPage({
             {listing.book_author ? <Detail label="Author" value={listing.book_author} /> : null}
             {listing.isbn ? <Detail label="ISBN" value={listing.isbn} /> : null}
           </dl>
+
+          <ConditionSummary category={listing.category} checks={listing.condition_checks} />
 
           {isOwner ? (
             // Ownership decides only what is *shown* here. Each action re-checks
