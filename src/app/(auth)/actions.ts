@@ -1,6 +1,6 @@
 "use server";
 
-import type { AuthError } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
 import { safeNextPath } from "@/lib/navigation";
@@ -25,7 +25,15 @@ export type AuthFormState = {
  * how the database-level domain gate's own message ("Sign-up is limited to
  * approved campus email domains.") reaches the form.
  */
+const UNREACHABLE_MESSAGE =
+  "Could not reach the sign-in service. Check your connection and try again.";
+
 function describeSignUpError(error: AuthError): string {
+  // A request that never got an answer is not a verdict on the user's input.
+  if (isAuthRetryableFetchError(error)) {
+    return UNREACHABLE_MESSAGE;
+  }
+
   switch (error.code) {
     case "user_already_exists":
     case "email_exists":
@@ -114,6 +122,14 @@ export async function signInAction(
   });
 
   if (error) {
+    // A network failure must not be reported as a wrong password. It was, until
+    // a dropped connection during testing showed "Email or password is
+    // incorrect." for correct credentials - which sends a user off to reset a
+    // password that was never wrong.
+    if (isAuthRetryableFetchError(error)) {
+      return { formError: UNREACHABLE_MESSAGE, values: { email: submitted.email } };
+    }
+
     // Deliberately one message for both "no such account" and "wrong
     // password". Distinguishing them would let someone enumerate which campus
     // addresses are registered.
