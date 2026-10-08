@@ -210,7 +210,11 @@ export default async function ListingDetailPage({
             <ConditionSummary category={listing.category} checks={listing.condition_checks} />
 
             <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-hairline pt-6 text-base">
-              <Detail label="Posted by" value={listing.seller?.full_name ?? "A student"} />
+              <Detail
+                label="Posted by"
+                value={listing.seller?.full_name ?? "A student"}
+                href={`/u/${listing.seller_id}`}
+              />
               {isSquad ? null : (
                 <Detail
                   label={listing.type === "lost_found" ? "Found at" : "Pickup"}
@@ -378,11 +382,19 @@ export default async function ListingDetailPage({
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
     <div>
       <dt className="text-sm text-ink-muted">{label}</dt>
-      <dd className="mt-0.5 font-medium">{value}</dd>
+      <dd className="mt-0.5 font-medium">
+        {href ? (
+          <Link href={href} className="inline-flex min-h-11 items-center underline">
+            {value}
+          </Link>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 }

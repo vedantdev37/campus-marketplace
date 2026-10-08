@@ -250,7 +250,12 @@ export type ListingField = keyof typeof listingFieldSchemas;
  */
 const TAG_PATTERN = /^[a-z0-9+#.-]{1,24}$/;
 
-export function parseTags(raw: string, max: number = MAX_TAGS): { tags: string[] } | { error: string } {
+export function parseTags(
+  raw: string,
+  max: number = MAX_TAGS,
+  /** What the field calls one of these, for the messages: "tag" or "skill". */
+  noun: string = "tag",
+): { tags: string[] } | { error: string } {
   const tags = [
     ...new Set(
       raw
@@ -261,13 +266,15 @@ export function parseTags(raw: string, max: number = MAX_TAGS): { tags: string[]
   ];
 
   if (tags.length > max) {
-    return { error: `Use at most ${max} tags.` };
+    return { error: `Use at most ${max} ${noun}s.` };
   }
 
   const bad = tags.find((tag) => !TAG_PATTERN.test(tag));
 
   if (bad) {
-    return { error: `“${bad}” will not work as a tag. Use letters, digits and + # . - only, up to 24 characters.` };
+    return {
+      error: `“${bad}” will not work as a ${noun}. Use letters, digits and + # . - only, up to 24 characters.`,
+    };
   }
 
   return { tags };
@@ -343,7 +350,7 @@ export function readTypeExtras(
   }
 
   if (type === "skill_offer" || type === "team_request") {
-    const parsedTags = parseTags(text("tags"));
+    const parsedTags = parseTags(text("tags"), MAX_TAGS, "skill");
 
     if ("error" in parsedTags) {
       errors.tags = parsedTags.error;

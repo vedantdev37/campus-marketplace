@@ -6,9 +6,11 @@ import { MessagesLiveRefresh } from "@/components/chat/messages-live-refresh";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ListingCard } from "@/components/listings/listing-card";
 import { ListingLiveRefresh } from "@/components/listings/listing-live-refresh";
+import { Avatar } from "@/components/profile/avatar";
 import { requireSessionUser } from "@/lib/auth";
 import { getInbox } from "@/lib/chat";
 import { getMyListings } from "@/lib/listings";
+import { getProfile, initialsOf } from "@/lib/profiles";
 import { readTheme } from "@/lib/theme";
 import { isListingType, LISTING_TYPES, TYPE_INFO, type Listing } from "@/lib/types/listing";
 
@@ -25,11 +27,14 @@ export default async function MePage({
   const { type } = await searchParams;
   const shownType = isListingType(type) ? type : null;
 
-  const [listings, inbox, theme] = await Promise.all([
+  const [listings, inbox, theme, profile] = await Promise.all([
     getMyListings(user.id),
     getInbox(),
     readTheme(),
+    getProfile(user.id),
   ]);
+
+  const name = profile?.full_name || "You";
 
   // Conversations where I am the one who posted, counted per post.
   const chats = new Map<string, { count: number; unread: number }>();
@@ -56,8 +61,46 @@ export default async function MePage({
       <ListingLiveRefresh />
       <MessagesLiveRefresh />
 
-      <h1 className="text-[26px] leading-tight font-semibold">Me</h1>
-      <p className="mt-1 text-sm text-ink-muted">Signed in as {user.email}</p>
+      <div className="flex items-center gap-4">
+        <Avatar name={name} initials={initialsOf(name)} avatarPath={profile?.avatar_path ?? null} size={72} />
+
+        <div className="min-w-0">
+          <h1 className="text-[26px] leading-tight font-semibold break-words">{name}</h1>
+          <p className="mt-0.5 truncate text-sm text-ink-muted">{user.email}</p>
+        </div>
+      </div>
+
+      <section aria-labelledby="my-skills" className="mt-6">
+        <h2 id="my-skills" className="text-lg font-semibold">
+          My skills
+        </h2>
+
+        {profile && profile.skills.length > 0 ? (
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {profile.skills.map((skill) => (
+              <li
+                key={skill}
+                className="rounded-full border border-control-border px-3.5 py-2 text-sm font-medium text-ink"
+              >
+                {skill}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-base text-ink-body">
+            None yet. Add a few and people looking for teammates can find you.
+          </p>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-x-5">
+          <Link href="/me/profile" className="inline-flex min-h-11 items-center text-base font-semibold text-ink underline">
+            Edit profile
+          </Link>
+          <Link href={`/u/${user.id}`} className="inline-flex min-h-11 items-center text-base font-semibold text-ink underline">
+            See my public profile
+          </Link>
+        </div>
+      </section>
 
       <section aria-labelledby="my-posts" className="mt-8">
         <h2 id="my-posts" className="text-lg font-semibold">
