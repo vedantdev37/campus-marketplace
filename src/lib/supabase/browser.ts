@@ -5,8 +5,9 @@ import { env } from "@/lib/env";
 /**
  * Supabase client for Client Components.
  *
- * Used for things that must happen in the browser - chiefly the Realtime
- * subscription that greys out a listing the moment it is marked sold.
+ * Used for things that must happen in the browser. Today that is uploading a
+ * listing photo straight to Storage (see listing-form.tsx); the Realtime
+ * subscription for sold updates will use it too once that is built.
  *
  * Every query made through this client is still subject to Row Level Security,
  * which is what makes it safe to ship the publishable key to the browser.
