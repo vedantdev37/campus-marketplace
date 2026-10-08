@@ -13,6 +13,11 @@ export const DEFAULT_SIGNED_IN_PATH = "/explore";
  * `//evil.example` is rejected too - browsers treat a protocol-relative URL as
  * absolute, so a leading-slash check alone is not enough. Backslashes are
  * rejected because some user agents normalise them to forward slashes.
+ *
+ * Control characters are rejected for a related reason. URL parsers strip
+ * tabs and newlines, so `/<tab>/evil.example` is `//evil.example` by the time
+ * a browser acts on it, while passing every check above. No real path on this
+ * site contains one.
  */
 export function isSafeNextPath(value: unknown): value is string {
   return (
@@ -20,7 +25,8 @@ export function isSafeNextPath(value: unknown): value is string {
     value.startsWith("/") &&
     !value.startsWith("//") &&
     !value.startsWith("/\\") &&
-    !value.includes("\\")
+    !value.includes("\\") &&
+    !/[\u0000-\u001f\u007f]/.test(value)
   );
 }
 
