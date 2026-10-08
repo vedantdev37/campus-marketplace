@@ -48,9 +48,9 @@ export function OwnerActions({
   }
 
   return (
-    <div className="mt-5 rounded-xl border border-border bg-surface-muted p-4">
-      <p className="text-sm font-medium">You own this listing</p>
-      <p className="mt-0.5 text-xs text-muted">
+    <div className="mt-4 rounded-[14px] border border-hairline p-6">
+      <p className="text-base font-semibold text-ink">You own this listing</p>
+      <p className="mt-0.5 text-sm text-ink-muted">
         Only you can see these controls, and only you can perform them.
       </p>
 
@@ -60,15 +60,15 @@ export function OwnerActions({
         </div>
       ) : null}
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
+      <div className="mt-4 flex flex-col gap-3">
         <Link
           href={`/listings/${listingId}/edit`}
-          className="mt-1 rounded-lg border border-border bg-surface px-4 py-2.5 text-center text-base font-medium transition-colors hover:bg-background"
+          className="flex h-12 items-center justify-center rounded-lg border border-ink px-6 text-base font-medium text-ink transition-colors hover:bg-surface-soft"
         >
           Edit
         </Link>
 
-        <form action={submitStatus} className="flex-1">
+        <form action={submitStatus}>
           <input type="hidden" name="id" value={listingId} />
           <input type="hidden" name="status" value={isSold ? "available" : "sold"} />
           <SubmitButton pendingLabel={isSold ? "Relisting…" : "Marking sold…"}>
@@ -76,7 +76,7 @@ export function OwnerActions({
           </SubmitButton>
         </form>
 
-        <form action={submitDelete} onSubmit={confirmDelete} className="sm:w-auto">
+        <form action={submitDelete} onSubmit={confirmDelete}>
           <input type="hidden" name="id" value={listingId} />
           <button
             type="submit"
@@ -84,7 +84,7 @@ export function OwnerActions({
             // send a second request for a listing that is already going.
             disabled={isDeleting}
             aria-busy={isDeleting}
-            className="mt-1 w-full rounded-lg border border-danger/40 px-4 py-2.5 text-base font-medium text-danger transition-colors hover:bg-danger-surface disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            className="h-12 w-full rounded-lg border border-error px-6 text-base font-medium text-error transition-colors hover:bg-error-surface disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isDeleting ? "Deleting…" : "Delete"}
           </button>

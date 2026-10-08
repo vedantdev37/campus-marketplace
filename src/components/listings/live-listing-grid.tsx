@@ -88,7 +88,7 @@ export function LiveListingGrid({ listings }: { listings: Listing[] }) {
         {announcement}
       </p>
 
-      <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
         {listings.map((listing) => (
           <li key={listing.id} className="contents">
             <ListingCard
