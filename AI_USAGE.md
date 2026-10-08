@@ -4,23 +4,45 @@ This project was built with AI assistance. This file discloses that assistance
 in specific terms — the prompts given, the modules produced, and what the author
 changed or verified — with an entry added after each phase of work.
 
-**Tool:** Claude (Anthropic), via Claude Code, used interactively.
+## Summary
+
+- **Tool:** Claude (Anthropic), through Claude Code, used interactively. The
+  author gave each phase as a prompt, answered the questions AI raised, and
+  made the decisions recorded below.
+- **Models:** Claude Opus 5 and Claude Opus 5.5. Every AI-assisted commit names
+  its model in a `Co-Authored-By` line: 35 commits credit Opus 5 and 67 credit
+  Opus 5.5 (`git log` at the time of writing).
+- **How much is AI-written:** nearly all of the code, SQL, scripts, diagrams
+  and documentation. The direction, the requirements, the scope decisions and
+  some of the copy are the author's; each phase says which.
+- **Skills:** `playwright-cli` (browser checks and QA) and
+  `web-design-guidelines` (one accessibility review). See "Skills used".
+- **Process, from Phase 3 on:** three read-only AI reviewers before a phase
+  (Judge, Auditor, Designer), one AI QA agent driving a real browser after it,
+  and one whole-project security review. These are AI reviewing AI; their
+  findings, and AI's own mistakes, are listed under each phase.
+- **Run by the author, not AI:** every database migration, the Supabase
+  dashboard settings, and the Vercel deployment.
+- **Not checked by any AI session:** a real phone, the native Android barcode
+  path, iOS Safari, Firefox, a screen reader.
 
 ---
 
 ## How to read this
 
-Each phase records three things:
+Each phase records:
 
-1. **Asked for** — what the author requested, in their own words where possible.
-2. **AI produced** — the specific files and modules generated or substantially
+1. **Asked for**: what the author requested, quoted where possible.
+2. **AI produced**: the specific files and modules generated or substantially
    written by AI.
-3. **Author changed / verified** — what the author corrected, overruled, tested
-   or confirmed themselves.
+3. **Author changed / verified**: what the author directed, decided or did, as
+   recorded by AI from the session. AI wrote these lists; they are not the
+   author's own statement.
+4. **What I did / checked**: the author's own account. AI has left it empty in
+   every phase. Until the author writes in it, it says nothing.
 
-Section 3 is filled in by the author, not by the AI. Entries marked
-_"pending author review"_ have not been reviewed yet and should not be treated
-as verified.
+Entries marked _"pending author review"_ have not been reviewed and should not
+be treated as verified.
 
 ---
 
@@ -72,6 +94,10 @@ the repo.
   apply — AI verified by search that the string appeared nowhere in the project
   or its history, and made no changes.
 - _Code review of the above files: **pending author review**._
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -135,6 +161,10 @@ and, mid-phase:
   for the demo, accepting the stated trade-off.
 - _Applying the migrations and confirming they execute: **pending**._
 - _Code review of the SQL: **pending author review**._
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -206,6 +236,10 @@ trigger and the seed script are all unexercised.
   requirements.
 - _Applying migrations and running the auth flow end to end: **pending**._
 - _Code review of the above files: **pending author review**._
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -292,6 +326,10 @@ yet. **This entry covers read paths plus mark-sold and delete only.**
 - _Visual and interaction testing of Phase 2a: **pending**._
 - _Code review of the above files: **pending author review**._
 
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
+
 ---
 
 ## Deployment — first production release
@@ -333,6 +371,10 @@ instruction stands regardless.
   observed in production.
 - No authenticated page has been rendered in a browser by AI. Browse, detail, My
   Listings and the mark-sold/delete round trip remain visually unconfirmed.
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -436,6 +478,10 @@ and, mid-phase:
 - Directed the use of sub-agents and their file boundaries.
 - _Clicking through create/edit on the live site: **pending**._
 - _Code review of the above files: **pending author review**._
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -565,6 +611,10 @@ author approved it and asked for the manual MRP field. This is recorded in
 - _Trying the scanner on a real phone: **pending**._
 - _Code review of the above files: **pending author review**._
 
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
+
 ---
 
 ## Phase 4 — Realtime, the validation and states audit, condition checklists
@@ -647,6 +697,10 @@ and, after AI raised two questions:
 - Decided that a photo is required on create, that lab coats get their own
   category, and that demo listings need images.
 - _Code review of the above files: **pending author review**._
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -743,6 +797,10 @@ and, after AI raised two questions:
 - Applied migration 0007.
 - _Replacing the placeholder hero and demo images: **pending**._
 - _Code review of the above files: **pending author review**._
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -869,6 +927,10 @@ and, after AI showed the plan with five open decisions:
 - Applied migration 0008, and the corrected constraint, by hand, and confirmed
   the constraint definition from the database.
 - _Code review of the above files: **pending author review**._
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -997,6 +1059,10 @@ in the repository; the choice is still open.
 - _Choosing a logo, and supplying campus photographs: **pending**._
 - _Code review of the above files: **pending author review**._
 
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
+
 ---
 
 ## Phase 5d, Batch A — Six kinds of post, Explore, Post, Me
@@ -1099,6 +1165,10 @@ and separately, while this was being built:
 - Asked for stock photos and a credits file, with their own photos preferred.
 - _Code review of the above files: **pending author review**._
 
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
+
 ---
 
 ## Phase 5d, Batch B — Profiles, Squad up, chat upgrade, showcase profile
@@ -1170,6 +1240,10 @@ the author; the two posts' wording is AI's, from the titles the author gave.
 - Supplied the photo, the bio, the skills and the GitHub username, and
   confirmed "First-year CSE" is correct.
 - _Code review of the above files: **pending author review**._
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
 
 ---
 
@@ -1262,6 +1336,93 @@ then, after seeing the drafts:
 - _Reading the Hinglish and Kanglish lines: **pending**._
 - _Code review of the above files: **pending author review**._
 
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
+
+---
+
+## Logo
+
+AI drew three logo options as HTML and showed the author screenshots of them in
+Phase 5c. The author chose option A (the silhouette in a shopping cart) at the
+end of Phase 5d. AI then built it as `src/components/layout/logo-mark.tsx` and
+the favicon `src/app/icon.svg`. The drawing is AI's; the choice is the author's.
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
+
+---
+
+## Phase 6 — Documentation, write-up, video script, final checks
+
+**Asked for**
+
+> "Read HANDOFF.md, README.md, DESIGN.md and AI_USAGE.md. Confirm the state in
+> 5 lines, then start Phase 6."
+
+and, mid-phase, the fields of the submission form, with a request to draft the
+2,000-character overview and a short AI-usage answer in `SUBMISSION.md`.
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `docs/write-up.md`, `docs/write-up.pdf` | The draft from the previous session, checked against the code and promoted; the PDF is rendered from it |
+| `docs/video-script.md` | A twelve-shot list for the three-minute walkthrough, marking phone and laptop shots |
+| `AI_USAGE.md` | The summary at the top, an empty author section in every phase, the logo note and this entry |
+| `SUBMISSION.md` (not committed) | Form answers: links, the overview, the AI-usage answer, and blanks for the demo passwords |
+
+**What checking the write-up found**
+
+Five statements in the draft were wrong and were corrected against the
+migrations: "ten migrations" (eleven), "four" public functions (five), "64
+assertions" (66), triggers that set `sold_at` (also `created_at`, since 0011),
+and "each migration only adds" (0008 drops the unused `inquiries` table).
+
+**AI mistakes and limits in this phase**
+
+- **AI did not rotate the demo passwords.** It wrote a script to do so; the
+  tool's own safety check refused to let AI run it, and AI did not look for
+  another way. Rotation is left to the author.
+- **AI did not sign in to the deployed site.** It does not type account
+  passwords into a site that is not running locally. So the signed-in half of
+  the final live check has not been done by AI.
+- The PDF was produced by a small converter AI wrote for this one file. AI
+  confirmed in the browser that all three diagrams loaded and the six sections
+  and three tables are present, but could not open the finished PDF to look at
+  its page breaks.
+- The three-reviewer pass that precedes a phase was not run for this one: the
+  phase changes documents, not the product.
+
+**Verified by testing**
+
+- `npm run verify:rls`: 66 of 66 against the live database. `npm run test:deal`:
+  9 of 9.
+- On the deployed site, signed out: `/`, `/login`, `/signup`, `/security` and
+  `/commentary` return 200; `/explore`, `/post`, `/me`, `/inbox`, `/saved` and
+  the three old `/listings` URLs redirect to sign-in with the right `next`; the
+  home page carries the name, the disclaimer and the reviewer sign-up hint;
+  `/security` shows 66; `?next=https://evil.example` is dropped.
+
+**Not verified**
+
+- Anything on the deployed site that needs an account: posting, editing,
+  marking sold, chat, meetups, saved posts, the gmail refusal.
+- The video script has not been timed against a recording.
+- The README was not replaced in this session's first pass: the author's text
+  was needed again.
+
+**Author changed / verified**
+
+- Supplied the submission form's fields and the required last line of the
+  overview.
+
+**What I did / checked** _(the author's own section; left empty by AI on purpose)_
+
+- 
+
 ---
 
 ## Skills used
@@ -1274,8 +1435,9 @@ each was used:
 | `playwright-cli` | microsoft/playwright-cli | Every browser check from Phase 2b on: the create/edit flow, the fake-webcam barcode test, two-session realtime tests, and all QA agent passes and screenshots |
 | `web-design-guidelines` | vercel-labs/agent-skills | One review of all pages and components in Phase 5 against Vercel's Web Interface Guidelines |
 
-`DESIGN.md` came from the `getdesign` CLI (the `airbnb` design). It is a
-reference document, not a skill.
+The first `DESIGN.md` came from the `getdesign` CLI (the `airbnb` design). It
+was replaced in Phase 5c by the project's own, written by AI to the author's
+direction. It is a reference document, not a skill.
 
 ---
 
