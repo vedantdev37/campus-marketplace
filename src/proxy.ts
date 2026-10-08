@@ -18,7 +18,7 @@ import { env } from "@/lib/env";
  */
 
 /** Routes reachable without a session. Everything else requires one. */
-const PUBLIC_ROUTES = new Set(["/", "/login", "/signup", "/security"]);
+const PUBLIC_ROUTES = new Set(["/", "/login", "/signup", "/security", "/commentary"]);
 
 /** Prefixes reachable without a session (auth callbacks, error pages). */
 const PUBLIC_PREFIXES = ["/auth/"];

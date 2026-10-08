@@ -29,7 +29,7 @@ export function NavLink({
       href={href}
       aria-current={isCurrent ? "page" : undefined}
       className={[
-        "flex h-11 items-center border-b-2 px-1 text-base font-semibold",
+        "flex h-11 min-w-11 items-center justify-center border-b-2 px-1 text-base font-semibold",
         isCurrent ? "border-ink text-ink" : "border-transparent text-ink-muted hover:text-ink",
       ].join(" ")}
     >

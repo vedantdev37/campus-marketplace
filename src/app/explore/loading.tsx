@@ -1,3 +1,5 @@
+import { LoadingTip } from "@/components/ui/loading-tip";
+
 /**
  * Shown while the browse page is still resolving on the server.
  *
@@ -13,9 +15,6 @@ export default function ListingsLoading() {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6" aria-busy="true">
       <span className="sr-only">Loading listings…</span>
-      <p aria-hidden="true" className="mb-4 text-sm text-ink-muted">
-        Checking under every hostel bed…
-      </p>
 
       <div className="flex items-center justify-between gap-4">
         <div className="h-8 w-28 rounded-md bg-surface-muted motion-safe:animate-pulse" />
@@ -36,6 +35,8 @@ export default function ListingsLoading() {
           </li>
         ))}
       </ul>
+
+      <LoadingTip tip={0} />
     </main>
   );
 }

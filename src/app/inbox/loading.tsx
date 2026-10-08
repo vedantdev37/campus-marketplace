@@ -1,3 +1,5 @@
+import { LoadingTip } from "@/components/ui/loading-tip";
+
 /** Shown while the Inbox resolves: a heading, then a few conversation rows. */
 export default function InboxLoading() {
   return (
@@ -18,6 +20,8 @@ export default function InboxLoading() {
           </li>
         ))}
       </ul>
+
+      <LoadingTip tip={2} />
     </main>
   );
 }

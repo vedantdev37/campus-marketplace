@@ -1,3 +1,5 @@
+import { LoadingTip } from "@/components/ui/loading-tip";
+
 /**
  * Shown while a listing's detail page resolves.
  *
@@ -20,6 +22,8 @@ export default function ListingDetailLoading() {
           <div className="h-20 rounded bg-surface-muted motion-safe:animate-pulse" />
         </div>
       </div>
+
+      <LoadingTip tip={4} />
     </main>
   );
 }
