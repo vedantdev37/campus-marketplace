@@ -52,7 +52,7 @@ export function BrowseFilters({
         />
         <button
           type="submit"
-          className="h-12 shrink-0 rounded-lg bg-brand-fill px-5 text-base font-medium text-white hover:bg-brand-active"
+          className="h-12 shrink-0 rounded-lg bg-accent px-5 text-base font-medium text-on-accent hover:bg-accent-active"
         >
           Search
         </button>
@@ -139,7 +139,7 @@ export function BrowseFilters({
           <div className="flex gap-2 sm:col-span-2">
             <button
               type="submit"
-              className="h-12 flex-1 rounded-lg bg-brand-fill px-5 text-base font-medium text-white hover:bg-brand-active"
+              className="h-12 flex-1 rounded-lg bg-accent px-5 text-base font-medium text-on-accent hover:bg-accent-active"
             >
               Apply filters
             </button>

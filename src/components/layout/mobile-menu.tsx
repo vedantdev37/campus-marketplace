@@ -50,7 +50,7 @@ export function MobileMenu({ children }: { children: React.ReactNode }) {
         ) : null}
       </summary>
 
-      <div className="absolute right-0 mt-2 flex w-56 flex-col rounded-[14px] bg-canvas p-2 shadow-float">
+      <div className="absolute right-0 mt-2 flex w-56 flex-col rounded-[14px] border border-hairline bg-canvas p-2 shadow-float">
         {children}
       </div>
     </details>

@@ -4,6 +4,7 @@ import { signOutAction } from "@/app/(auth)/actions";
 import { UnreadPill, UnreadProvider } from "@/components/chat/unread";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { NavLink } from "@/components/layout/nav-link";
+import { ThemeToggle, type Theme } from "@/components/layout/theme-toggle";
 import type { SessionUser } from "@/lib/auth";
 
 /**
@@ -17,7 +18,7 @@ import type { SessionUser } from "@/lib/auth";
  * Signed-out visitors get Sign in and Sign up instead; the links a session is
  * needed for are simply not offered, rather than shown and then redirected.
  */
-export function SiteHeader({ user }: { user: SessionUser | null }) {
+export function SiteHeader({ user, theme }: { user: SessionUser | null; theme: Theme }) {
   return (
     <header className="sticky top-0 z-40 border-b border-hairline bg-canvas">
       <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center gap-3 px-4 md:h-20 md:px-6">
@@ -25,9 +26,10 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
           href={user ? "/listings" : "/"}
           // A brand name: translation tools should leave it alone.
           translate="no"
-          className="flex h-11 items-center text-lg font-bold tracking-tight text-brand md:text-xl"
+          // A text-only wordmark for now; the logo is still to be chosen.
+          className="title-card flex h-11 items-center pt-0.5 text-[26px] text-ink md:text-[30px]"
         >
-          Campus Marketplace
+          Nitte Mart
         </Link>
 
         {user ? (
@@ -49,10 +51,14 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
             <div className="ml-auto flex items-center gap-2 md:ml-0">
               <Link
                 href="/listings/new"
-                className="flex h-11 items-center rounded-full bg-brand-fill px-5 text-sm font-semibold text-white hover:bg-brand-active"
+                className="flex h-11 items-center rounded-full bg-accent px-5 text-sm font-semibold text-on-accent hover:bg-accent-active"
               >
                 Sell
               </Link>
+
+              <div className="hidden md:block">
+                <ThemeToggle initial={theme} />
+              </div>
 
               <form action={signOutAction} className="hidden md:block">
                 <button
@@ -76,6 +82,7 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
                   Inbox
                   <UnreadPill />
                 </Link>
+                <ThemeToggle initial={theme} variant="row" />
                 <form action={signOutAction}>
                   <button
                     type="submit"
@@ -88,7 +95,8 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
             </div>
           </UnreadProvider>
         ) : (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <ThemeToggle initial={theme} />
             <Link
               href="/login"
               className="flex h-11 items-center rounded-full px-4 text-sm font-semibold text-ink hover:bg-surface-soft"
@@ -97,7 +105,7 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
             </Link>
             <Link
               href="/signup"
-              className="flex h-11 items-center rounded-full bg-brand-fill px-5 text-sm font-semibold text-white hover:bg-brand-active"
+              className="flex h-11 items-center rounded-full bg-accent px-5 text-sm font-semibold text-on-accent hover:bg-accent-active"
             >
               Sign up
             </Link>

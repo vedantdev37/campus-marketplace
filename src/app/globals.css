@@ -1,64 +1,74 @@
 @import "tailwindcss";
 
 /*
- * Design tokens - one system, from DESIGN.md (the Airbnb-inspired reference in
- * the repo root).
+ * Design tokens - one system, described in DESIGN.md ("after dark").
  *
  * Every colour is declared once here as a CSS variable and exposed to Tailwind
  * through @theme inline, so components say `bg-canvas` or `text-ink-muted` and
- * never a hex. Dark mode then only has to redefine the variables: no component
- * needs a `dark:` variant for colour.
+ * never a hex. A theme only has to redefine the variables: no component needs
+ * a `dark:` variant for colour.
  *
- * WHERE THIS DEPARTS FROM DESIGN.md, AND WHY
+ * DARK IS THE DEFAULT. The values on :root are the dark theme, and the light
+ * theme is the override - the reverse of the usual arrangement, because the
+ * product's identity is the dark one. Which theme applies is the `data-theme`
+ * attribute on <html>, written by the server from a cookie (see layout.tsx),
+ * so the first paint is already in the right theme and nothing flashes. The
+ * operating system's preference is deliberately not consulted: a visitor on a
+ * light-mode laptop should still meet the site as it was designed, and can
+ * switch with the toggle in the header or footer.
  *
- * 1. Button fill. The reference puts white text on Rausch (#ff385c). That is
- *    about 3.5:1, which fails WCAG AA (4.5:1) for a 16px button label. Text
- *    buttons use `brand-fill` (#e00b41, 4.9:1 with white) instead. The brighter
- *    Rausch is kept for the wordmark, where it is large display text.
- * 2. Control borders. A 1px #dddddd outline is 1.4:1 against white, below the
- *    3:1 that WCAG asks of a form control's boundary. Inputs use
- *    `control-border`; the lighter hairline stays for dividers and cards, where
- *    it is decoration rather than the only thing marking an interactive area.
- * 3. Dark mode. The reference has none. The dark values below were chosen to
- *    keep the same roles and AA contrast on a near-black canvas.
+ * CONTRAST (WCAG AA: 4.5:1 for text, 3:1 for control boundaries)
+ *
+ * 1. Yellow is a FILL, never text, on the light canvas: #FFD60A on #FAF8F2 is
+ *    about 1.4:1. On dark it is 13.9:1 and may be text (the price). Text on a
+ *    yellow fill is always `on-accent`, a near-black, in both themes.
+ * 2. Because a yellow button barely differs from the light canvas, on the
+ *    light theme it also gets an ink outline (the rule near the end of this
+ *    file). Its edge must not depend on telling yellow from cream.
+ * 3. Control borders use `control-border` (4.8:1 dark, 3.4:1 light); the
+ *    fainter hairline is for dividers and cards, where it is decoration.
  */
 
 :root {
-  --ds-canvas: #ffffff;
-  --ds-surface-soft: #f7f7f7;
-  --ds-ink: #222222;
-  --ds-ink-body: #3f3f3f;
-  --ds-ink-muted: #6a6a6a;
-  --ds-hairline: #dddddd;
-  --ds-hairline-soft: #ebebeb;
-  --ds-control-border: #8c8c8c;
-  --ds-brand: #ff385c;
-  --ds-brand-fill: #e00b41;
-  --ds-brand-active: #c40a39;
-  --ds-error: #c13515;
-  --ds-error-surface: #fdf0ec;
-  --ds-success: #1a7f4b;
-  --ds-success-surface: #eef8f1;
+  --ds-canvas: #0b0b12;
+  --ds-surface-soft: #15151f;
+  --ds-ink: #f5f3ec;
+  --ds-ink-body: #c9c8d4;
+  --ds-ink-muted: #9a99ab;
+  --ds-hairline: #2a2a3a;
+  --ds-hairline-soft: #1e1e2a;
+  --ds-control-border: #7c7b92;
+  --ds-accent: #ffd60a;
+  --ds-accent-active: #e6bf00;
+  --ds-on-accent: #0b0b12;
+  --ds-indigo: #4338ca;
+  --ds-indigo-text: #a5b4fc;
+  --ds-price: #ffd60a;
+  --ds-error: #ff8a70;
+  --ds-error-surface: #2b1612;
+  --ds-success: #5fd08f;
+  --ds-success-surface: #12261b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ds-canvas: #121212;
-    --ds-surface-soft: #1e1e1e;
-    --ds-ink: #f2f2f2;
-    --ds-ink-body: #d4d4d4;
-    --ds-ink-muted: #a3a3a3;
-    --ds-hairline: #3d3d3d;
-    --ds-hairline-soft: #2a2a2a;
-    --ds-control-border: #7a7a7a;
-    --ds-brand: #ff5a78;
-    --ds-brand-fill: #e00b41;
-    --ds-brand-active: #c40a39;
-    --ds-error: #ff8a70;
-    --ds-error-surface: #2b1612;
-    --ds-success: #5fd08f;
-    --ds-success-surface: #12261b;
-  }
+:root[data-theme="light"] {
+  --ds-canvas: #faf8f2;
+  --ds-surface-soft: #f0ede4;
+  --ds-ink: #12111c;
+  --ds-ink-body: #3a3948;
+  --ds-ink-muted: #625f73;
+  --ds-hairline: #e4e0d6;
+  --ds-hairline-soft: #efece3;
+  --ds-control-border: #86839a;
+  --ds-accent: #ffd60a;
+  --ds-accent-active: #f2c800;
+  --ds-on-accent: #12111c;
+  --ds-indigo: #4338ca;
+  --ds-indigo-text: #4338ca;
+  --ds-price: #12111c;
+  --ds-error: #b42318;
+  --ds-error-surface: #fdecea;
+  --ds-success: #17693f;
+  --ds-success-surface: #e6f4ec;
 }
 
 @theme inline {
@@ -70,9 +80,12 @@
   --color-hairline: var(--ds-hairline);
   --color-hairline-soft: var(--ds-hairline-soft);
   --color-control-border: var(--ds-control-border);
-  --color-brand: var(--ds-brand);
-  --color-brand-fill: var(--ds-brand-fill);
-  --color-brand-active: var(--ds-brand-active);
+  --color-accent: var(--ds-accent);
+  --color-accent-active: var(--ds-accent-active);
+  --color-on-accent: var(--ds-on-accent);
+  --color-indigo: var(--ds-indigo);
+  --color-indigo-text: var(--ds-indigo-text);
+  --color-price: var(--ds-price);
   --color-error: var(--ds-error);
   --color-error-surface: var(--ds-error-surface);
   --color-success: var(--ds-success);
@@ -80,10 +93,8 @@
 
   /*
    * The names the first pages were built with, kept as aliases of the tokens
-   * above. Before the design pass these were a separate blue-and-slate palette,
-   * which is why older and newer pages did not match. Pointing them here made
-   * every page share one palette - and one dark mode - in a single change,
-   * without rewriting class names in files that otherwise needed no edits.
+   * above so that files which needed no other change did not have to be
+   * rewritten class by class.
    */
   --color-background: var(--ds-canvas);
   --color-foreground: var(--ds-ink);
@@ -91,23 +102,25 @@
   --color-surface-muted: var(--ds-surface-soft);
   --color-border: var(--ds-hairline);
   --color-muted: var(--ds-ink-muted);
-  --color-primary: var(--ds-brand-fill);
-  --color-primary-hover: var(--ds-brand-active);
-  --color-primary-foreground: #ffffff;
+  --color-primary: var(--ds-accent);
+  --color-primary-hover: var(--ds-accent-active);
+  --color-primary-foreground: var(--ds-on-accent);
   --color-danger: var(--ds-error);
   --color-danger-surface: var(--ds-error-surface);
 
   --font-sans: var(--font-app-sans);
   --font-mono: var(--font-geist-mono);
+  /* Headlines only. See DESIGN.md for where it must not be used. */
+  --font-display: var(--font-app-display);
 
-  /* DESIGN.md has exactly one shadow tier. */
+  /* One shadow tier. On the dark canvas it reads as a faint lift and edge. */
   --shadow-float:
-    rgba(0, 0, 0, 0.02) 0 0 0 1px, rgba(0, 0, 0, 0.04) 0 2px 6px 0, rgba(0, 0, 0, 0.1) 0 4px 8px 0;
+    rgba(0, 0, 0, 0.3) 0 0 0 1px, rgba(0, 0, 0, 0.25) 0 2px 6px 0, rgba(0, 0, 0, 0.35) 0 8px 20px 0;
 }
 
 html {
   /* Tells the browser which native form controls and scrollbars to draw. */
-  color-scheme: light dark;
+  color-scheme: dark;
 
   /*
    * The header is sticky, so anything scrolled or tabbed into view would
@@ -115,6 +128,18 @@ html {
    * plus a little air.
    */
   scroll-padding-top: 6rem;
+
+  /*
+   * The same at the bottom, for the bar that sticks there on a phone's
+   * listing page: something tabbed into view must not land underneath it.
+   */
+  scroll-padding-bottom: 5rem;
+
+  /*
+   * The flash a phone browser draws on a tapped link, set on purpose: a faint
+   * tint of the accent instead of the default grey-blue box.
+   */
+  -webkit-tap-highlight-color: rgba(255, 214, 10, 0.18);
 }
 
 @layer base {
@@ -174,5 +199,139 @@ body {
   }
   to {
     transform: scale(1.08) translateX(2%);
+  }
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+/*
+ * A yellow button on the cream light canvas is about 1.4:1 against it, so its
+ * edge is drawn in ink there. Inset, so the button does not change size.
+ */
+:root[data-theme="light"] .bg-accent {
+  box-shadow: inset 0 0 0 1.5px var(--ds-ink);
+}
+
+/* The chat page fills the viewport exactly; a footer under it would make the
+   whole page scroll. */
+body:has(main[data-chat]) .site-footer {
+  display: none;
+}
+
+/*
+ * Display headlines: Anton, upper-case, tight. A class and not a bare font
+ * utility so the three properties always travel together.
+ */
+.title-card {
+  font-family: var(--font-app-display), Impact, "Arial Narrow", sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 0.95;
+}
+
+/*
+ * Film grain: one small SVG noise tile, repeated. It is a still image - grain
+ * that shimmers costs a repaint per frame - and it sits above the photograph
+ * but below the text, ignoring the pointer.
+ */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.09;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/*
+ * SCROLL REVEALS
+ *
+ * Everything is visible by default. A small script (RevealObserver) marks the
+ * elements that are still below the fold as `data-reveal="hidden"`, and marks
+ * each `"in"` as it scrolls into view. So with no JavaScript, or before it
+ * has run, nothing is hidden - and under reduced motion the hidden state is
+ * never applied at all, because these rules sit inside the media query.
+ * Only `opacity` and `transform` change, which the compositor handles without
+ * laying the page out again.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    transition:
+      opacity 700ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  [data-reveal="hidden"] {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  /* Digit roller: each column is the digits 0-9 stacked, slid up to the one
+     wanted. Hidden, it rests on 0; revealed, it rolls to its digit. */
+  .roller-digits {
+    transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--roll-delay, 0ms);
+  }
+
+  [data-reveal="hidden"] .roller-digits {
+    transform: translateY(0) !important;
+  }
+
+  /* The SOLD stamp wipes in from the left. */
+  [data-reveal] .sold-stamp {
+    transition: clip-path 600ms cubic-bezier(0.7, 0, 0.2, 1) 350ms;
+  }
+
+  [data-reveal="hidden"] .sold-stamp {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  /* "Scan it. List it." plays once, in order, when its scene arrives. */
+  .scan-line {
+    transition: transform 1100ms ease-in-out 300ms;
+  }
+
+  [data-reveal="hidden"] .scan-line {
+    transform: translateX(-100%);
+  }
+
+  .scan-fill {
+    transition:
+      opacity 400ms ease-out var(--fill-delay, 0ms),
+      transform 400ms ease-out var(--fill-delay, 0ms);
+  }
+
+  [data-reveal="hidden"] .scan-fill {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+
+  /*
+   * Parallax, only where the browser can tie an animation to scroll position
+   * natively. There is no scroll listener anywhere: where this is unsupported
+   * the element simply stays put.
+   */
+  @supports (animation-timeline: view()) {
+    .parallax {
+      animation: parallax-drift linear both;
+      animation-timeline: view();
+    }
+  }
+}
+
+.sold-stamp {
+  clip-path: inset(0 0 0 0);
+}
+
+@keyframes parallax-drift {
+  from {
+    transform: translateY(24px);
+  }
+  to {
+    transform: translateY(-24px);
   }
 }

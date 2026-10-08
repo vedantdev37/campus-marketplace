@@ -45,7 +45,7 @@ const TIME_OPTIONS = Array.from(
 );
 
 const PRIMARY_BUTTON_CLASS =
-  "flex h-11 items-center justify-center rounded-lg bg-brand-fill px-4 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-brand-active disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-muted";
+  "flex h-11 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium whitespace-nowrap text-on-accent transition-colors hover:bg-accent-active disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-muted";
 
 const SMALL_SECONDARY_CLASS = `${SECONDARY_BUTTON_CLASS} h-11! px-3! text-sm!`;
 
@@ -243,7 +243,7 @@ export function MeetupBar({
       <dialog
         ref={dialogRef}
         aria-labelledby="meetup-dialog-title"
-        className="m-auto w-[min(calc(100%-2rem),420px)] rounded-[14px] bg-canvas p-6 text-ink shadow-float backdrop:bg-black/50"
+        className="m-auto w-[min(calc(100%-2rem),420px)] rounded-[14px] border border-hairline bg-canvas p-6 text-ink shadow-float backdrop:bg-black/60"
       >
         {/* Keyed by the meetup, so the defaults follow it: an uncontrolled
             field reads `defaultValue` only when it is first mounted. */}

@@ -240,7 +240,7 @@ export function ChatThread({ conversationId, myId, otherName, messages }: ChatTh
               type="submit"
               disabled={isSending || body.trim() === ""}
               aria-busy={isSending}
-              className="flex h-12 shrink-0 items-center rounded-lg bg-brand-fill px-5 text-base font-medium text-white transition-colors hover:bg-brand-active disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-muted"
+              className="flex h-12 shrink-0 items-center rounded-lg bg-accent px-5 text-base font-medium text-on-accent transition-colors hover:bg-accent-active disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-muted"
             >
               {isSending ? "Sending…" : "Send"}
             </button>
@@ -324,7 +324,7 @@ function MessageItem({
       <p
         className={[
           "max-w-[85%] rounded-[14px] px-3.5 py-2.5 text-base leading-snug break-words whitespace-pre-wrap md:max-w-[70%]",
-          isMine ? "bg-ink text-canvas" : "bg-surface-soft text-ink",
+          isMine ? "bg-indigo text-white" : "bg-surface-soft text-ink",
         ].join(" ")}
       >
         <span className="sr-only">{who}: </span>

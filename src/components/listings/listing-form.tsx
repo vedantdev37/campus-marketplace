@@ -651,7 +651,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
           type="submit"
           disabled={isBusy}
           aria-busy={isBusy}
-          className="h-12 rounded-lg bg-brand-fill px-6 text-base font-medium text-white transition-colors hover:bg-brand-active disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-muted"
+          className="h-12 rounded-lg bg-accent px-6 text-base font-medium text-on-accent transition-colors hover:bg-accent-active disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-muted"
         >
           {isUploading
             ? "Uploading photo…"
