@@ -746,6 +746,132 @@ and, after AI raised two questions:
 
 ---
 
+## Phase 5b — Listing chat and meetup booking
+
+The author reopened the frozen scope for this phase.
+
+**Asked for**
+
+> "New phase (overrides the scope freeze; I've decided): listing chat + meetup
+> booking. Run Judge/Auditor/Designer reviewers first and show me the plan. …
+> a buyer can start a conversation with the seller ('Ask about this item').
+> Check the existing `inquiries` table in the schema and reuse or adapt it. …
+> Realtime messages, an Inbox page … with unread indicators … RLS: only the
+> buyer and seller of that conversation can read or write it; a seller can't
+> chat with themselves; message length limits; client + server validation.
+> Add tests to `verify:rls` proving a third user cannot read or post … 'Propose
+> meetup' in the chat: pick a campus pickup spot + date + time (future only,
+> sensible hours). The other person can Accept or Suggest another time. Only
+> one active meetup per conversation. Once accepted, show 'Meetup: [spot],
+> [day, time]' on the listing for both buyer and seller, and in the chat."
+
+and, after AI showed the plan with five open decisions:
+
+> "Go with all five defaults. For #2, generate the outsider password yourself
+> and write it to .env.local (don't print it)."
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `supabase/migrations/0008_chat_meetups.sql` | `conversations`, `messages`, `meetups`; grants, policies, seven functions, two triggers; drops `inquiries` |
+| `src/app/inbox/` | Inbox page, conversation page, their loading and not-found states, Server Actions |
+| `src/components/chat/` | Thread and composer, meetup bar and dialog, "Ask about this item" form, unread badge, live refresh |
+| `src/lib/chat.ts`, `types/chat.ts`, `validation/chat.ts` | Read queries, row types, zod schemas |
+| `src/lib/campus-time.ts` | Dates and times in campus time, formatted identically on server and browser |
+| `src/lib/use-new-messages.ts` | Realtime subscription to new messages |
+| `listings/[id]/page.tsx`, `listings/mine/page.tsx`, `owner-actions.tsx`, `site-header.tsx`, `mobile-menu.tsx` | Chat entry points, accepted meetup on the listing, Inbox link and unread indicators |
+| `scripts/seed-demo.mjs`, `scripts/verify-rls.mjs` | A third account and a seeded conversation; 24 new assertions |
+
+**What the reviewers found (AI reviewing AI)**
+
+- *Auditor:* `inquiries` could not be reused, because its insert policy checked
+  only `buyer_id`, so a seller could message their own listing. Columns a client
+  could forge (`seller_id`, `sender_id`, `created_at`) had to be set by the
+  database. Meetup transitions belonged in functions, the one-active rule in a
+  partial unique index, and the hours rule in campus time because Vercel runs in
+  UTC. `verify:rls` would need a third account.
+- *Judge:* the static "Meet at …" line on the listing would contradict an
+  accepted meetup; deleting a listing silently deletes its chats; the docs still
+  said messaging was dropped. It also listed what to leave out: typing
+  indicators, read receipts, attachments, message editing.
+- *Designer:* where each entry point goes, an unread indicator that is a number
+  and not a colour, a native date input and a time list limited to campus hours.
+- AI went beyond the reviewers in one place: giving clients an insert grant on
+  only two columns of `messages`, so a forged sender is refused by privilege
+  before any policy runs.
+- AI overruled the Designer once: it suggested closing the message box when a
+  listing is sold. Existing conversations stay open, because that is when the
+  two people are arranging the handover. This was put to the author as a
+  decision, not made silently.
+- *QA agent:* twelve scenarios with three browser sessions. Eleven passed. It
+  found five defects, all fixed: the dialog's buttons were 24 px tall on a
+  phone; the chat page scrolled by one pixel (the header's border was not in
+  the height sum); keyboard focus was lost after sending a counter-proposal;
+  "Change" did not start from the agreed time and place; and a pending proposal
+  said "Waiting for a reply" to the person who had to reply. A second pass on a
+  fresh build confirmed each of the five.
+
+**AI mistakes in this phase**
+
+- **A constraint that did not do what its comment said.** The message rule was
+  `char_length(btrim(body)) >= 1`. Postgres `btrim` strips spaces, not newlines,
+  so a message of spaces around a newline was accepted. `verify:rls` failed on
+  it the first time it ran - but by then the author had already applied the
+  migration, and had to run a second block to correct it. AI had no local
+  Postgres to try the SQL against, and should have said more plainly that the
+  first run by the author was the first run by anyone.
+- The plan shown to the author said three tables would be published to
+  Realtime. While writing the migration AI published one, having noticed every
+  meetup event also inserts a message. Reported to the author with the
+  migration, not hidden, but it was a change after approval.
+- A scripted edit to the seed file silently did nothing; it was noticed only
+  because AI counted occurrences afterwards.
+- The first unread-count code called a state-setting function directly in an
+  effect, which the linter rejected; it was restructured.
+
+**Verified by testing** (production build)
+
+- `npm run verify:rls` against the live database: 34 of 36 on its first run
+  (the two failures were the constraint bug above), then 36 of 36 after the
+  author applied the correction and the demo data was reseeded.
+- QA agent, scenarios A-L, as seller, buyer and a third user, at 390 px and
+  1280 px, in light and dark: asking about an item; messages arriving in both
+  directions without a reload (a marker set on `window` survived); the header
+  count rising on another page; propose, counter-propose, accept and cancel,
+  with the other person's page updating live; the accepted meetup shown on the
+  listing to both participants and not to the third user; the third user
+  opening the conversation's URL and getting the not-found page; sold
+  listings; the composer's limits; no horizontal overflow; no console errors.
+- `next build`, `tsc --noEmit` and `eslint` clean.
+
+**Not verified**
+
+- Nothing in this phase has been run on the deployed site.
+- No real phone, no Safari or Firefox, no screen reader.
+- "A time later today is accepted" could not be tried: the QA pass ran at about
+  10 pm campus time, when every slot today had passed. Past times being refused
+  was tested; the boundary was not.
+- Two proposals made at the same instant. The row lock is there for that case
+  and has not been exercised.
+- More than two people in one listing's conversations at once, and long
+  threads beyond the 200 messages a page loads.
+- Realtime not leaking to a third user was shown by that user receiving
+  nothing in the browser, not by an automated check: `verify:rls` makes no
+  writes, so it has no message to listen for.
+
+**Author changed / verified**
+
+- Reopened scope and set the requirements.
+- Decided the five questions AI raised: drop `inquiries`; add a third demo
+  account; keep conversations open on sold listings; allow cancel and
+  reschedule; accept that deleting a listing deletes its chats.
+- Applied migration 0008, and the corrected constraint, by hand, and confirmed
+  the constraint definition from the database.
+- _Code review of the above files: **pending author review**._
+
+---
+
 ## Skills used
 
 Agent skills installed in this repository under `.claude/skills/`, and where

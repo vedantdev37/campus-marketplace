@@ -154,9 +154,17 @@ data that may change, and a filter UI needs to list them.
 `(user_id, listing_id)` composite primary key — the key itself prevents
 duplicate saves, with no application logic needed.
 
-### `inquiries` *(bonus 4)*
-`listing_id`, `buyer_id`, `body`, `created_at`. Designed now so the schema
-doesn't need reshaping if it gets built.
+### `conversations`, `messages`, `meetups` *(migration 0008)*
+Listing chat and meetup booking. They replace the original `inquiries` table,
+which had no sender column and so could not hold a seller's reply.
+
+- `conversations` - one per (listing, buyer), with `seller_id` copied from the
+  listing by a trigger and a "read up to" timestamp for each side.
+- `messages` - typed messages and meetup events in one ordered list.
+- `meetups` - a proposed time and pickup spot, with a status. A partial unique
+  index allows one `proposed` or `accepted` meetup per conversation.
+
+The reasoning is in [`write-up.md`](write-up.md#listing-chat-and-meetup-booking).
 
 ---
 
@@ -172,7 +180,9 @@ RLS is enabled on **every** table, with no permissive fallback policy.
 | `listings` | any authenticated user | `insert` where `seller_id = auth.uid()`; `update`/`delete` only where `seller_id = auth.uid()` |
 | `pickup_spots` | any authenticated user | none (seeded by migration) |
 | `wishlist_items` | own rows only | own rows only |
-| `inquiries` | listing owner or the buyer who sent it | buyer inserts own |
+| `conversations` | its buyer and seller | none directly; opened by `start_conversation()` |
+| `messages` | the conversation's buyer and seller | insert own plain-text message (`conversation_id`, `body` only); no update or delete |
+| `meetups` | the conversation's buyer and seller | none directly; `propose_meetup()`, `accept_meetup()`, `cancel_meetup()` |
 
 Browsing requires a session. For a campus marketplace that's the correct
 default, and it keeps every policy expressible as a comparison against

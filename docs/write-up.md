@@ -28,7 +28,9 @@ It is for students only, so sign-up is restricted to approved email domains and 
 | ISBN lookup, barcode scan, autofill, live fair-price guide | Built and verified in a browser (section 6); TODO: try on a real phone |
 | Realtime sold updates | Built and verified with two browser sessions (section 7) |
 | Category-specific condition checklists | Built and verified (section 7) |
-| Wishlist UI, inquiry messaging, push notifications | Dropped from scope |
+| Listing chat: realtime messages, Inbox, unread counts | Built and verified with two browser sessions (section 7) |
+| Meetup booking inside the chat | Built and verified (section 7) |
+| Wishlist UI, push notifications | Dropped from scope |
 
 ## 2. Tech stack and why
 
@@ -56,8 +58,12 @@ erDiagram
     PICKUP_SPOTS ||--o{ LISTINGS : "pickup_spot_id"
     PROFILES ||--o{ WISHLIST_ITEMS : "user_id"
     LISTINGS ||--o{ WISHLIST_ITEMS : "listing_id"
-    PROFILES ||--o{ INQUIRIES : "buyer_id"
-    LISTINGS ||--o{ INQUIRIES : "listing_id"
+    LISTINGS ||--o{ CONVERSATIONS : "listing_id"
+    PROFILES ||--o{ CONVERSATIONS : "buyer_id, seller_id"
+    CONVERSATIONS ||--o{ MESSAGES : "conversation_id"
+    CONVERSATIONS ||--o{ MEETUPS : "conversation_id"
+    PICKUP_SPOTS ||--o{ MEETUPS : "pickup_spot_id"
+    MEETUPS ||--o{ MESSAGES : "meetup_id"
 ```
 
 ### `profiles`
@@ -101,10 +107,12 @@ erDiagram
 | --- | --- | --- |
 | `pickup_spots` | `id`, `name` (unique), `description`, `sort_order` | Lookup table rather than an enum because spots are campus data that can change. Seeded with seven spots. |
 | `wishlist_items` | `(user_id, listing_id)` composite PK | The key itself prevents duplicate saves. **No UI.** |
-| `inquiries` | `id`, `listing_id`, `buyer_id`, `body` (1 to 1000 chars) | **No UI.** |
+| `conversations` | `listing_id`, `buyer_id`, `seller_id`, a last-read time per side | One per (listing, buyer). `seller_id` is copied from the listing by a trigger. `buyer_id <> seller_id`. |
+| `messages` | `conversation_id`, `sender_id`, `kind`, `meetup_id`, `body` (1 to 1000 chars) | Typed messages and meetup events in one ordered list. Never updated or deleted. |
+| `meetups` | `conversation_id`, `proposed_by`, `pickup_spot_id`, `meet_at`, `status` | At most one `proposed` or `accepted` per conversation (partial unique index). |
 | `signup_allowed_domains` | `domain` PK, `note` | Read only by the sign-up hook. |
 
-`wishlist_items` and `inquiries` were designed up front and then dropped from scope. The tables and their policies still exist; the seed script inserts one wishlist row and the verify script checks wishlist privacy, but there is no page for either.
+`wishlist_items` was designed up front and then dropped from scope. The table and its policies still exist; the seed script inserts one row and the verify script checks wishlist privacy, but there is no page for it. The original `inquiries` table was replaced by the three chat tables in migration 0008 (section 7 explains why it could not be adapted).
 
 **Triggers**
 
@@ -139,7 +147,9 @@ erDiagram
 | `listings` | any signed-in user | `seller_id = auth.uid()` | own, `using` and `with check` | own |
 | `pickup_spots` | any signed-in user | none | none | none |
 | `wishlist_items` | own rows | own | none | own |
-| `inquiries` | the buyer, or the listing's seller | `buyer_id = auth.uid()` | none | none |
+| `conversations` | its buyer and seller | none (database function) | none (database function) | none (cascade) |
+| `messages` | the conversation's buyer and seller | own, plain text, `conversation_id` and `body` columns only | none | none |
+| `meetups` | the conversation's buyer and seller | none (database function) | none (database function) | none |
 | `signup_allowed_domains` | none | none | none | none |
 
 The `with check` on the listings update policy is what stops an owner reassigning `seller_id`. Policies use `(select auth.uid())` so Postgres evaluates it once per statement instead of once per row.
@@ -166,7 +176,9 @@ The `with check` on the listings update policy is what stops an owner reassignin
 8. A signed-out client cannot read listings.
 9. The target listing's price, status and seller are unchanged afterwards.
 
-Seven of the nine are access-control checks; 1 is a credential-hygiene check and 9 confirms the others had no effect.
+Seven of the nine are access-control checks; 1 is a credential-hygiene check and 9 confirms the others had no effect. Three more, added with the condition checklists, insert the seller's own rows with a bad checklist or a photo path in another user's folder.
+
+**Chat adds 24 assertions**, bringing the total to 36. A third account, in no conversation, tries to read the buyer and seller's conversation, its messages and its meetups; to find it in its own inbox; to post in it; to propose a meetup in it; and to mark it read. The participants then try to cheat: posting as the other person, posting a fake "meetup accepted" event, editing and deleting a sent message, sending 1001 characters and a whitespace-only message, starting a conversation about their own listing, inserting a conversation or an accepted meetup directly, changing a meetup's status directly, proposing a time in the past, at 3 am and a year away, and accepting their own proposal. The last one counts the messages again to confirm nothing was written. Where a database function does the refusing, the script checks the reason it gave, so a refusal for the wrong reason is a failure.
 
 ## 6. External API integration: Google Books, with an Open Library fallback
 
@@ -246,6 +258,38 @@ Before this phase I had an AI reviewer audit every form and page (see [`AI_USAGE
 | The price rule rejected valid prices such as 19.99 (floating-point rounding) | Decimal places are counted on the text before conversion |
 | A photo was optional, though the brief names it as a listing field | Required on create; an edit may replace a photo but not remove it |
 
+### Listing chat and meetup booking
+
+A buyer opens a private conversation from a listing ("Ask about this item"), the two exchange messages that arrive live, and either of them can propose where and when to meet. Schema and rules are in [`0008_chat_meetups.sql`](../supabase/migrations/0008_chat_meetups.sql); pages are under [`src/app/inbox/`](../src/app/inbox/).
+
+**Why `inquiries` was replaced.** The table planned in Phase 1 held one buyer-to-seller note. It had no sender column, so a seller's reply had nowhere to go; nothing tied two rows into a thread; and its insert policy checked only `buyer_id`, so a seller could "inquire" about their own listing. I replaced it with `conversations` (one per listing and buyer), `messages` and `meetups`.
+
+**Who can write what** is decided in the database, in three different ways:
+
+- **Privilege.** A signed-in user may insert only the `conversation_id` and `body` columns of `messages`. The sender, the kind and the timestamp are column defaults (`auth.uid()`, `'text'`, `clock_timestamp()`), so a forged sender is refused before any policy is consulted. There is no update or delete grant: messages are permanent.
+- **Policy.** Selecting a conversation, its messages or its meetups requires being its buyer or seller. Inserting a message requires the same.
+- **Functions.** Conversations and meetups have no write grant at all. They change only through `start_conversation`, `propose_meetup`, `accept_meetup`, `cancel_meetup` and `mark_conversation_read`. These are `security definer`, so RLS does not apply inside them; each one therefore takes the caller from `auth.uid()`, never from an argument, and checks membership itself. I used functions because these changes cannot be written as a policy: a counter-proposal must retire the old meetup and insert the new one together, and "you cannot accept your own proposal" is a rule about who makes a transition.
+
+**One active meetup** is a partial unique index on `conversation_id where status in ('proposed','accepted')`. `propose_meetup` locks the conversation row, so two simultaneous proposals queue and the second supersedes the first. `accept_meetup` is a single `UPDATE` whose `WHERE` holds every condition, so there is no gap between checking and changing. One function serves "Propose", "Suggest another time" and "Change".
+
+**Time.** A meetup means campus time, but Vercel runs in UTC and a phone can be set to anything. The 8 am to 8 pm rule is a `CHECK` evaluated `at time zone 'Asia/Kolkata'`. "In the future" cannot be a `CHECK`, so it is in `propose_meetup`, along with a 60-day limit. The app sends times with an explicit `+05:30` and formats them through [`src/lib/campus-time.ts`](../src/lib/campus-time.ts), which builds strings from numeric parts so the server and the browser cannot render the same instant differently.
+
+**Unread counts.** Each side of a conversation has a "read up to" time; a message is unread if the other person sent it after that. The marker is moved by `mark_conversation_read`, which takes no timestamp and touches only the caller's side. It is called from the browser when a thread is open and visible, not while the page renders, because a prefetched link would otherwise mark messages read.
+
+**Realtime.** Every meetup event also inserts a message row, so only `messages` is published and one subscription covers a chat page. As with listings, the event is a signal: the page re-fetches through RLS and nothing from the event is displayed. The hook subscribes to `INSERT` only.
+
+**Sold and deleted listings.** A sold listing refuses new conversations; existing ones stay open, because the two people may still be arranging the handover. Deleting a listing deletes its conversations by cascade, and the delete prompt now says so.
+
+**A bug the test script found.** The first version of the message length rule was `char_length(btrim(body)) >= 1`. `btrim` strips spaces but not newlines, so a message of spaces around a newline passed and was stored as an empty bubble. `verify:rls` caught it on its first run against the live database, after I had already applied the migration. The rule is now `body ~ '\S'`.
+
+Limits I know about:
+
+- A thread loads its latest 200 messages; there is no way to page further back.
+- There is no rate limit on messages, no block or report, and no notification outside the app.
+- A meetup does not reserve the item. A seller can accept meetups with several buyers.
+- Supabase sends Realtime `DELETE` events to every subscriber of a table, because a deleted row cannot be checked against a policy. They carry only the primary key. Deleting a listing therefore reveals the ids of its messages, and nothing else, to anyone subscribed.
+- An accepted meetup is not cleared once its time has passed.
+
 ## 8. Design
 
 The interface follows [`DESIGN.md`](../DESIGN.md), an Airbnb-inspired reference: a white canvas, near-black ink, one accent colour used sparingly, hairline borders, soft 8 px and 14 px radii, and a single shadow tier.
@@ -301,7 +345,8 @@ I then checked the code against Vercel's Web Interface Guidelines with the `web-
 
 - `next build`, `tsc --noEmit` and `eslint` clean, re-run after the create/edit work.
 - A scripted browser pass with `playwright-cli` against a local production build (`next build` + `next start`), 30 of 30 checks passing: sign-in; the Sell an item link; an empty form blocked client-side; a bad price rejected on blur; a non-image file refused; photo preview; create; the photo stored at `<uid>/<uuid>.png` and publicly fetchable; the edit form pre-filled; edit saving title, price and a replacement photo; the replaced photo removed from Storage; mark sold; the sold item hidden from default browse and shown with a Sold label when included; My Listings; a second user seeing no owner controls and a not-found page on the edit URL; delete with its confirm dialog, both cancelled and accepted; and the deleted listing and its photo both gone.
-- `npm run verify:rls`: 12 of 12 assertions pass against the live database. Three were added in the last phase and attack the new checklist and photo-path rules through the API directly.
+- `npm run verify:rls`: 36 of 36 assertions pass against the live database. Three attack the checklist and photo-path rules through the API directly and 24 attack chat and meetups (section 5). The first run with the chat checks scored 34: the two failures were a real bug in the message length rule (section 7).
+- Chat and meetups, with three separate browser sessions (seller, buyer and a third user) at 390 px and 1280 px in both themes: asking about an item; messages arriving in both directions with a `window` marker surviving; the header's unread count rising on another page; proposing, counter-proposing, accepting and cancelling a meetup with the other person's page updating live; the accepted meetup shown on the listing to the two participants and not to the third user; the third user opening the conversation's URL and getting the not-found page. Five defects were found and fixed, then re-checked on a fresh build.
 - Realtime: two separate browser sessions, a buyer watching and a seller acting. The buyer's browse card gained its Sold label in place, and the buyer's open listing page gained its sold banner. In both cases a marker set on `window` beforehand was still there afterwards, which shows the page had not reloaded.
 - The checklist trigger: seven crafted inserts through the API (a key from another category, an unknown key, a script-like string, `false`, a bad size, a checklist on a category without one, and a photo in another user's folder) were all rejected.
 - `npm run seed:demo` and `npm run reseed:demo` succeed using only the publishable key, which exercises the migrations, the domain hook, the profile trigger and the `sold_at` trigger.
@@ -311,13 +356,14 @@ I then checked the code against Vercel's Web Interface Guidelines with the `web-
 
 **Not verified / known limitations**
 
-- The browser pass ran locally against the production build, not against the deployed Vercel URL. TODO: repeat the create and edit steps once on the live site.
+- The browser pass ran locally against the production build, not against the deployed Vercel URL. TODO: repeat the create and edit steps, and one chat with a meetup, on the live site.
+- Chat: a meetup time later the same day was not tried (the pass ran after 8 pm campus time), two proposals at the same instant were not tried, and Realtime not reaching a third user was observed in a browser rather than asserted by a script.
 - `notFound()` pages return HTTP 200, not 404. A route with a `loading.tsx` starts streaming before the page decides it does not exist, which fixes the status code; Next adds a `noindex` tag instead. The user sees the not-found page either way. This is a cost of streamed loading states that I only noticed because a test asserted on the status code.
 - An upload can succeed and the following save fail, leaving an orphaned file in Storage. The form reuses the uploaded path on retry, but nothing sweeps up after an abandoned form.
 - A photo is optional when creating a listing.
 - `next dev` on my Windows machine intermittently failed server-side requests to Supabase with a 10 second connect timeout while compiling. I could not reproduce it in plain Node, with `curl`, or in the production build, and did not find the cause.
 - TODO: Storage policies have no automated test. `verify:rls` does not try to upload into, overwrite or delete from another user's folder.
-- TODO: `inquiries` policies are not exercised by any script, and the wishlist check covers read privacy only.
+- The wishlist check covers read privacy only.
 - There are no unit, component or end-to-end tests. All verification is the scripts above plus manual checks.
 - The `Cache-Control: private, no-store` header path has not been observed in production, since it only fires on a response that rotates auth cookies.
 - No pagination: browse returns at most 60 listings.
@@ -330,9 +376,9 @@ I then checked the code against Vercel's Web Interface Guidelines with the `web-
 
 1. Repeat the create/edit browser pass on the deployed site.
 2. Test the barcode scanner on real Android and iOS devices.
-4. Extend `verify:rls` to cover Storage (cross-folder upload and delete) and `inquiries`.
+4. Extend `verify:rls` to cover Storage (cross-folder upload and delete).
 5. Add pagination to browse and rank search results by relevance instead of only by date.
 6. Add a small end-to-end suite for the sign-up, list, mark-sold path so regressions do not rely on manual checks.
 7. Replace the placeholder hero images and demo photos with real ones.
 8. Before any real use: turn email confirmation on, remove `reviewer.test` from the allowlist, and generate database types instead of hand-writing them.
-9. Either build the wishlist and inquiry UIs or drop the unused tables.
+9. Either build the wishlist UI or drop the unused table.

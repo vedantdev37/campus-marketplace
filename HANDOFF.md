@@ -1,11 +1,13 @@
 # Handoff
 
-State of the project for whoever picks it up next. Written at the end of Phase 5.
+State of the project for whoever picks it up next. Written at the end of Phase 5,
+updated after Phase 5b (chat and meetups).
 
 - **Live:** <https://nmit-campus-marketplace.vercel.app> (Vercel, auto-deploys on push to `main`)
 - **Repo:** <https://github.com/vedantdev37/campus-marketplace> — folder `C:\Users\admin\Documents\campus-marketplace`
 - **Name:** the product is **Campus Marketplace**. Do not rename it. "NMIT" belongs in copy, not the name.
-- **Deadline:** GDG NMIT Round 2. Scope is frozen (see "What is left").
+- **Deadline:** GDG NMIT Round 2. Scope is frozen (see "What is left"); the author
+  reopened it once, for Phase 5b.
 - **Stack:** Next.js 16.4 App Router, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, RLS, Storage, Realtime), zod 4.
 
 ## Phase status
@@ -20,6 +22,7 @@ State of the project for whoever picks it up next. Written at the end of Phase 5
 | 3 | ISBN lookup, barcode scan, autofill, fair-price guide | Done |
 | 4 | Realtime sold updates, states audit, condition checklists | Done; migration 0006 applied |
 | 5 | Design pass (DESIGN.md), home page, hero, dark mode | Done; migration 0007 applied |
+| 5b | Listing chat, Inbox, unread counts, meetup booking | Done; migration 0008 applied |
 | 6 | Docs, diagrams, write-up, video, final review | **Not started** |
 
 Supabase dashboard settings already made: "Before User Created" hook enabled
@@ -31,12 +34,14 @@ Vercel env vars set, including `GOOGLE_BOOKS_API_KEY`.
 ```bash
 npm run dev            # dev server
 npm run build && npm run start   # production build - test against THIS, not dev
-npm run verify:rls     # 12 adversarial checks; must stay 12/12
+npm run verify:rls     # 36 adversarial checks; must stay 36/36 (run reseed:demo first)
 npm run reseed:demo    # wipe + recreate demo listings with images; run before submitting
 ```
 
-Demo accounts: `seller@reviewer.test`, `buyer@reviewer.test`. Passwords are only in
-`.env.local` (`DEMO_SELLER_PASSWORD`, `DEMO_BUYER_PASSWORD`) — never commit them.
+Demo accounts: `seller@reviewer.test`, `buyer@reviewer.test`, and
+`outsider@reviewer.test` (in no conversation; the attacker in `verify:rls`). Passwords
+are only in `.env.local` (`DEMO_SELLER_PASSWORD`, `DEMO_BUYER_PASSWORD`,
+`DEMO_OUTSIDER_PASSWORD`) — never commit them.
 Reviewers can sign up with any `@reviewer.test` address.
 
 ## Decisions and why
@@ -63,7 +68,21 @@ Reviewers can sign up with any `@reviewer.test` address.
 - **SOLD is marked four ways** (pill, word, strike-through, greyscale) — never colour alone.
 - **Signed-out home listings** come from `recent_listing_teasers()` (card fields only);
   the `listings` table itself stays closed to `anon`.
-- **Dropped from scope**: wishlist UI, messaging, push. Their tables exist with no UI.
+- **Chat writes are decided by the database, in three ways** (migration 0008): clients
+  may insert only `conversation_id` and `body` into `messages` (a column-level grant, so
+  the sender cannot be forged); conversations and meetups have no write grant at all and
+  change only through `security definer` functions that read `auth.uid()` themselves;
+  "one active meetup" is a partial unique index.
+- **Every meetup event also inserts a message row**, so only `messages` is in the
+  Realtime publication and one subscription covers a whole chat page.
+- **Meetup times are campus time (IST)** whatever zone the code runs in:
+  `src/lib/campus-time.ts`. The hours rule is a table CHECK; "in the future" is in
+  `propose_meetup()` because a CHECK cannot use `now()`.
+- **A conversation is marked read from the browser**, never while a page renders: a
+  prefetched link would otherwise mark messages read.
+- **Sold listings** refuse new conversations; existing ones stay open for the handover.
+  **Deleting a listing deletes its chats** (cascade), and the confirm prompt says so.
+- **Dropped from scope**: wishlist UI, push. The `wishlist_items` table exists with no UI.
 
 ## Gotchas
 
@@ -96,6 +115,14 @@ Reviewers can sign up with any `@reviewer.test` address.
   register `page.on("dialog", d => d.accept())` first.
 - **Migrations are applied by hand** in the Supabase SQL Editor. Never push code that
   depends on a migration before confirming it is applied.
+- **0008 drops `inquiries`**, so `0002` can no longer be re-run as written.
+- **Postgres `btrim(text)` strips spaces only**, not newlines. A length check on
+  `btrim(body)` let a whitespace-only message through; use `body ~ '\S'`. The older
+  `listings` title and description checks have the same weakness.
+- **`verify:rls` needs a pending meetup** for its two self-accept checks; it prints SKIP
+  for them once someone has accepted the seeded proposal. `reseed:demo` restores it.
+- **Realtime DELETE events ignore RLS** (the row is gone, so no policy can be checked):
+  every subscriber receives the primary key. Chat subscribes to INSERT only.
 
 ## How we work
 

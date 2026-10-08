@@ -25,7 +25,7 @@ listings yourself:
 | Role | Email | What it has |
 | --- | --- | --- |
 | Seller | `seller@reviewer.test` | Several listings, one already sold |
-| Buyer | `buyer@reviewer.test` | No listings, one wishlist item |
+| Buyer | `buyer@reviewer.test` | No listings, one wishlist item, one conversation with the seller and a meetup proposal waiting for the seller to accept |
 
 **Passwords are in the submission notes, not in this repo.** This repository is
 public, so a credential committed anywhere in it — README, seed script, or
@@ -41,9 +41,11 @@ claim you have to take on trust:
 npm run verify:rls
 ```
 
-attacks the public API directly as a signed-in non-owner. Of its nine
-assertions, seven are access-control refusals, one checks that a previously
-leaked password no longer works, and one confirms the target row is unchanged.
+attacks the public API directly: as a signed-in non-owner against listings,
+and as a third account against a conversation between the buyer and the
+seller. It makes 36 assertions. Each is something that must be refused - a
+price change, a forged message sender, reading someone else's chat, accepting
+your own meetup proposal - and the last ones confirm nothing changed.
 
 **To see the restriction working**, try signing up with a `gmail.com` address.
 It is refused with a 403 from a database-level auth hook, not a client-side
@@ -117,9 +119,17 @@ check — see
       (charger included, no highlighting, lab coat size…), shown as ticks on
       the listing and validated by a database trigger.
 
-**Dropped from scope**, deliberately, rather than left half-built: wishlist UI,
-buyer–seller messaging, and push notifications. The `wishlist_items` and
-`inquiries` tables and their RLS policies exist in the schema but have no UI.
+- [x] **Listing chat.** "Ask about this item" opens a private conversation
+      with the seller. Messages arrive live; an Inbox lists conversations with
+      unread counts. Only the buyer and the seller can read or write it, which
+      `npm run verify:rls` proves with a third account.
+- [x] **Meetup booking.** Either person proposes a pickup spot, date and time
+      inside the chat; the other accepts or suggests another. Once accepted it
+      shows on the listing for those two people only.
+
+**Dropped from scope**, deliberately, rather than left half-built: wishlist UI
+and push notifications. The `wishlist_items` table and its RLS policies exist
+in the schema but have no UI.
 
 ---
 
@@ -165,6 +175,7 @@ Then fill in `.env.local` from **Supabase → Settings → API**:
 | `GOOGLE_BOOKS_API_KEY`          | Needed for Google Books: without a key it now returns 429. Lookups still work without it, through Open Library |
 | `DEMO_SELLER_PASSWORD`          | Any 8+ character password, for the seeded seller account  |
 | `DEMO_BUYER_PASSWORD`           | Any 8+ character password, for the seeded buyer account   |
+| `DEMO_OUTSIDER_PASSWORD`        | Any 8+ character password, for the third account `verify:rls` attacks chats with |
 
 The app validates these on startup and names any variable that's missing, so a
 typo produces a readable error rather than a crash deep inside a library.
@@ -183,6 +194,7 @@ Open **Supabase → SQL Editor** and run each file in `supabase/migrations/`
 | 5 | `0005_seed.sql` | Pickup spots and the allowed sign-up domains |
 | 6 | `0006_condition_checks.sql` | Condition checklists, the lab category, and two extra constraints. Run it on its own |
 | 7 | `0007_listing_teasers.sql` | *Optional.* Lets the public home page show a few recent listings |
+| 8 | `0008_chat_meetups.sql` | Conversations, messages and meetups, their policies and functions. Drops the unused `inquiries` table; do not re-run `0002` afterwards |
 
 They are written to be re-runnable, so running one twice is harmless.
 
@@ -208,9 +220,11 @@ The migrations cannot set these; they must be done in the dashboard.
 npm run seed:demo
 ```
 
-Creates `seller@reviewer.test` (with listings, one already sold) and
-`buyer@reviewer.test` (with a wishlist item), using the two `DEMO_*_PASSWORD`
-values from `.env.local`. Safe to re-run — it leaves existing listings alone.
+Creates `seller@reviewer.test` (with listings, one already sold),
+`buyer@reviewer.test` (with a wishlist item and a conversation with the seller)
+and `outsider@reviewer.test` (in no conversation; `verify:rls` uses it as the
+attacker), using the three `DEMO_*_PASSWORD` values from `.env.local`. Safe to
+re-run — it leaves existing listings and conversations alone.
 
 To replace the demo data with a clean set (worth doing right before a
 demo or submission, after poking at it during testing):
@@ -248,9 +262,9 @@ Open <http://localhost:3000>.
 | `npm run build` | Production build                       |
 | `npm start`     | Serve the production build             |
 | `npm run lint`  | ESLint                                 |
-| `npm run seed:demo` | Create the two demo accounts and sample listings |
+| `npm run seed:demo` | Create the three demo accounts, sample listings and one conversation |
 | `npm run reseed:demo` | Wipe and recreate the demo data |
-| `npm run verify:rls` | Attack the API as a non-owner; assert every write is refused |
+| `npm run verify:rls` | Attack the API as a non-owner and as an outsider to a chat; assert everything is refused |
 
 ---
 
@@ -260,13 +274,19 @@ Open <http://localhost:3000>.
 src/
   app/
     (auth)/       # /login and /signup, plus their Server Actions
-    listings/     # browse (protected)
+    inbox/        # conversations, the chat page, and their Server Actions
+    listings/     # browse, detail, create/edit, My Listings
     error.tsx     # route-level error boundary
   components/
     auth/         # login and sign-up forms (client)
+    chat/         # thread, meetup bar, unread badge
+    layout/       # the shared header
+    listings/     # cards, the listing form, owner controls
     ui/           # TextField, SubmitButton, Alert
   lib/
     auth.ts       # session access (the Data Access Layer)
+    chat.ts       # chat and meetup read queries
+    campus-time.ts # dates and times in campus time (IST)
     env.ts        # zod-validated environment variables
     navigation.ts # open-redirect-safe destination handling
     supabase/     # server and browser clients
