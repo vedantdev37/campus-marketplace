@@ -16,7 +16,11 @@ import {
   updateListingAction,
   type ListingFormState,
 } from "@/app/listings/actions";
+import type { BookAutofill } from "@/app/listings/book-actions";
+import { BookLookup } from "@/components/listings/book-lookup";
+import { Field, SECONDARY_BUTTON_CLASS } from "@/components/listings/form-field";
 import { Alert } from "@/components/ui/alert";
+import { fairPriceHint, formatPrice } from "@/lib/pricing";
 import {
   buildListingImagePath,
   LISTING_IMAGE_BUCKET,
@@ -28,8 +32,10 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   CATEGORIES,
   CATEGORY_LABELS,
-  CONDITIONS,
   CONDITION_LABELS,
+  CONDITION_VALUE_FACTOR,
+  CONDITIONS,
+  type ItemCondition,
   type ListingRow,
   type PickupSpot,
 } from "@/lib/types/listing";
@@ -42,13 +48,7 @@ import {
 
 const INITIAL_STATE: ListingFormState = {};
 
-/**
- * DESIGN.md `text-input`: white surface, 1px hairline, 8px radius, 56px tall.
- * On focus the border turns ink and thickens to 2px with no glow - done with an
- * inset shadow so the extra pixel does not shift the layout.
- */
-const INPUT_CLASS =
-  "min-h-14 w-full rounded-lg border bg-canvas px-3.5 py-3 text-base text-ink placeholder:text-ink-muted/70 focus:border-ink focus:shadow-[inset_0_0_0_1px_var(--ds-ink)] focus-visible:outline-none";
+const AUTOFILL_HINT = "Filled in from the ISBN. Edit it freely.";
 
 type ListingFormProps = {
   /** The signed-in user's id: the folder their photo is uploaded into. */
@@ -85,14 +85,26 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
   );
   const [isSaving, startSaving] = useTransition();
 
+  const formRef = useRef<HTMLFormElement>(null);
+
   const [clientErrors, setClientErrors] = useState<Record<string, string | undefined>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
+  // Controlled, because other parts of the form react to them as they change:
+  // category reveals the book card, and the other three drive the price guide.
   const [category, setCategory] = useState<string>(listing?.category ?? "");
+  const [condition, setCondition] = useState<string>(listing?.condition ?? "");
+  const [price, setPrice] = useState<string>(listing ? String(listing.price) : "");
+  const [originalPrice, setOriginalPrice] = useState<string>(
+    listing?.original_price != null ? String(listing.original_price) : "",
+  );
+
+  /** Fields currently holding a value that came from a book lookup. */
+  const [autofilled, setAutofilled] = useState<Record<string, boolean>>({});
 
   // --- Photo state ------------------------------------------------------
   // `imagePath` is what will be saved: the existing path, a freshly uploaded
-  // one, or "" for no photo.
+  // one, an imported book cover, or "" for no photo.
   const [imagePath, setImagePath] = useState<string>(listing?.image_path ?? "");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -111,6 +123,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
 
   const shownImage = previewUrl ?? listingImageUrl(imagePath || null);
   const isBusy = isUploading || isSaving;
+  const isBook = category === "books";
 
   /**
    * A field the user has touched since the last submit shows its live
@@ -128,6 +141,62 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
       ...previous,
       [field]: result.success ? undefined : result.error.issues[0]?.message,
     }));
+  }
+
+  function clearAutofilled(field: string) {
+    setAutofilled((previous) => (previous[field] ? { ...previous, [field]: false } : previous));
+  }
+
+  /**
+   * Applies a book lookup to the form.
+   *
+   * Only EMPTY fields are filled. A seller who has already typed a title or a
+   * description keeps it: a lookup is an offer of help, and silently replacing
+   * someone's words with a database's is the opposite of help. Everything
+   * filled stays an ordinary editable input.
+   */
+  function applyBook(book: BookAutofill) {
+    const form = formRef.current;
+    const filled: Record<string, boolean> = {};
+
+    const fillIfEmpty = (name: string, value: string | null) => {
+      const control = form?.elements.namedItem(name);
+
+      if (
+        value &&
+        (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) &&
+        control.value.trim() === ""
+      ) {
+        control.value = value;
+        filled[name] = true;
+      }
+    };
+
+    fillIfEmpty("title", book.title);
+    fillIfEmpty("description", book.description);
+    fillIfEmpty("bookAuthor", book.author);
+
+    if (book.originalPriceInr !== null && originalPrice.trim() === "") {
+      setOriginalPrice(String(book.originalPriceInr));
+      filled.originalPrice = true;
+    }
+
+    // The cover is only used when the seller has not supplied their own photo.
+    if (book.coverPath && imagePath === "" && !pendingFile) {
+      setImagePath(book.coverPath);
+    }
+
+    setAutofilled((previous) => ({ ...previous, ...filled }));
+
+    // Autofilled values are valid by construction, so stale errors on those
+    // fields would now be wrong.
+    setClientErrors((previous) => {
+      const next = { ...previous };
+      for (const name of Object.keys(filled)) {
+        next[name] = undefined;
+      }
+      return next;
+    });
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -244,10 +313,46 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
       {listing ? <input type="hidden" name="id" value={listing.id} /> : null}
 
       {serverState.formError ? <Alert tone="error">{serverState.formError}</Alert> : null}
+
+      {/* Category comes first because it decides what the rest of the form
+          offers: choosing Books reveals the ISBN lookup, which can then fill in
+          most of what follows. */}
+      <Field label="What are you selling?" name="category" error={errorFor("category")}>
+        {(props) => (
+          <select
+            {...props}
+            required
+            value={category}
+            onChange={(event) => setCategory(event.currentTarget.value)}
+          >
+            <option value="" disabled>
+              Choose a category
+            </option>
+            {CATEGORIES.map((value) => (
+              <option key={value} value={value}>
+                {CATEGORY_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+
+      {isBook ? (
+        <BookLookup
+          defaultIsbn={listing?.isbn ?? ""}
+          defaultAuthor={listing?.book_author ?? ""}
+          isbnError={errorFor("isbn")}
+          authorError={errorFor("bookAuthor")}
+          authorHint={autofilled.bookAuthor ? AUTOFILL_HINT : undefined}
+          wantsCover={imagePath === "" && !pendingFile}
+          onBook={applyBook}
+          onAuthorEdited={() => clearAutofilled("bookAuthor")}
+        />
+      ) : null}
 
       {/* --- Photo ------------------------------------------------------ */}
       <div className="flex flex-col gap-2">
@@ -256,8 +361,8 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
         <div className="flex items-start gap-4">
           <div className="relative aspect-4/3 w-32 shrink-0 overflow-hidden rounded-lg border border-hairline bg-surface-soft">
             {shownImage ? (
-              // A plain <img>: the preview is a local blob: URL, which next/image
-              // cannot optimise and would reject.
+              // A plain <img>: the preview may be a local blob: URL, which
+              // next/image cannot optimise and would reject.
               // eslint-disable-next-line @next/next/no-img-element
               <img src={shownImage} alt="Listing photo preview" className="h-full w-full object-cover" />
             ) : (
@@ -268,10 +373,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
           </div>
 
           <div className="flex min-w-0 flex-col gap-2">
-            <label
-              htmlFor="field-photo"
-              className="w-fit cursor-pointer rounded-lg border border-ink bg-canvas px-4 py-2 text-sm font-medium text-ink hover:bg-surface-soft"
-            >
+            <label htmlFor="field-photo" className={`${SECONDARY_BUTTON_CLASS} w-fit cursor-pointer`}>
               {shownImage ? "Change photo" : "Add a photo"}
             </label>
             <input
@@ -289,14 +391,15 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
               <button
                 type="button"
                 onClick={removePhoto}
-                className="w-fit text-sm text-ink-muted underline hover:text-ink"
+                className="flex min-h-11 w-fit items-center text-sm text-ink-muted underline hover:text-ink"
               >
                 Remove photo
               </button>
             ) : null}
 
             <p id="field-photo-hint" className="text-xs text-ink-muted">
-              JPEG, PNG or WebP, up to 5 MB. Listings with a photo sell faster.
+              JPEG, PNG or WebP, up to 5 MB. A photo of your actual copy sells faster than a
+              stock cover.
             </p>
           </div>
         </div>
@@ -309,7 +412,12 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
       </div>
 
       {/* --- Essentials ------------------------------------------------- */}
-      <Field label="Title" name="title" error={errorFor("title")}>
+      <Field
+        label="Title"
+        name="title"
+        error={errorFor("title")}
+        hint={autofilled.title ? AUTOFILL_HINT : undefined}
+      >
         {(props) => (
           <input
             {...props}
@@ -318,6 +426,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
             maxLength={120}
             placeholder="e.g. Engineering Mathematics, 44th edition"
             defaultValue={listing?.title ?? ""}
+            onInput={() => clearAutofilled("title")}
             onBlur={(event) => validateOnBlur("title", event.currentTarget.value)}
           />
         )}
@@ -327,7 +436,11 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
         label="Description"
         name="description"
         error={errorFor("description")}
-        hint="Condition details, what is included, why you are selling."
+        hint={
+          autofilled.description
+            ? "Filled in from the ISBN. Add the condition of your copy."
+            : "Condition details, what is included, why you are selling."
+        }
       >
         {(props) => (
           <textarea
@@ -336,23 +449,30 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
             rows={5}
             maxLength={2000}
             defaultValue={listing?.description ?? ""}
+            onInput={() => clearAutofilled("description")}
             onBlur={(event) => validateOnBlur("description", event.currentTarget.value)}
           />
         )}
       </Field>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <Field label="Price (₹)" name="price" error={errorFor("price")}>
+        <Field label="Condition" name="condition" error={errorFor("condition")}>
           {(props) => (
-            <input
+            <select
               {...props}
-              type="text"
-              inputMode="decimal"
               required
-              placeholder="e.g. 350"
-              defaultValue={listing ? String(listing.price) : ""}
-              onBlur={(event) => validateOnBlur("price", event.currentTarget.value)}
-            />
+              value={condition}
+              onChange={(event) => setCondition(event.currentTarget.value)}
+            >
+              <option value="" disabled>
+                Choose a condition
+              </option>
+              {CONDITIONS.map((value) => (
+                <option key={value} value={value}>
+                  {CONDITION_LABELS[value]}
+                </option>
+              ))}
+            </select>
           )}
         </Field>
 
@@ -369,41 +489,51 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
           )}
         </Field>
 
-        <Field label="Category" name="category" error={errorFor("category")}>
+        <Field label="Your price (₹)" name="price" error={errorFor("price")}>
           {(props) => (
-            <select
+            <input
               {...props}
+              type="text"
+              inputMode="decimal"
               required
-              value={category}
-              onChange={(event) => setCategory(event.currentTarget.value)}
-            >
-              <option value="" disabled>
-                Choose a category
-              </option>
-              {CATEGORIES.map((value) => (
-                <option key={value} value={value}>
-                  {CATEGORY_LABELS[value]}
-                </option>
-              ))}
-            </select>
+              placeholder="e.g. 350"
+              value={price}
+              onChange={(event) => setPrice(event.currentTarget.value)}
+              onBlur={(event) => validateOnBlur("price", event.currentTarget.value)}
+            />
           )}
         </Field>
 
-        <Field label="Condition" name="condition" error={errorFor("condition")}>
+        <Field
+          label="Original price (₹)"
+          name="originalPrice"
+          error={errorFor("originalPrice")}
+          hint={
+            autofilled.originalPrice
+              ? AUTOFILL_HINT
+              : isBook
+                ? "Optional. The MRP when new - printed on the back cover."
+                : "Optional. What it cost new (the MRP)."
+          }
+        >
           {(props) => (
-            <select {...props} required defaultValue={listing?.condition ?? ""}>
-              <option value="" disabled>
-                Choose a condition
-              </option>
-              {CONDITIONS.map((value) => (
-                <option key={value} value={value}>
-                  {CONDITION_LABELS[value]}
-                </option>
-              ))}
-            </select>
+            <input
+              {...props}
+              type="text"
+              inputMode="decimal"
+              placeholder="e.g. 650"
+              value={originalPrice}
+              onChange={(event) => {
+                setOriginalPrice(event.currentTarget.value);
+                clearAutofilled("originalPrice");
+              }}
+              onBlur={(event) => validateOnBlur("originalPrice", event.currentTarget.value)}
+            />
           )}
         </Field>
       </div>
+
+      <PriceGuide price={price} originalPrice={originalPrice} condition={condition} />
 
       {/* --- Course ----------------------------------------------------- */}
       <fieldset className="rounded-[14px] border border-hairline p-4">
@@ -444,61 +574,8 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
         </div>
       </fieldset>
 
-      {/* --- Book details ------------------------------------------------
-          Always in the DOM so the values submit, but only opened by default
-          for books, where they drive the fair-price hint. */}
-      <details
-        className="rounded-[14px] border border-hairline"
-        open={category === "books" || Boolean(listing?.isbn || listing?.original_price)}
-      >
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-ink">
-          Book details (optional)
-        </summary>
-
-        <div className="grid grid-cols-1 gap-5 border-t border-hairline p-4 sm:grid-cols-2">
-          <Field label="Author" name="bookAuthor" error={errorFor("bookAuthor")}>
-            {(props) => (
-              <input {...props} type="text" maxLength={160} defaultValue={listing?.book_author ?? ""} />
-            )}
-          </Field>
-
-          <Field label="ISBN" name="isbn" error={errorFor("isbn")}>
-            {(props) => (
-              <input
-                {...props}
-                type="text"
-                inputMode="numeric"
-                maxLength={17}
-                defaultValue={listing?.isbn ?? ""}
-                onBlur={(event) => validateOnBlur("isbn", event.currentTarget.value)}
-              />
-            )}
-          </Field>
-
-          <Field
-            label="Original price (₹)"
-            name="originalPrice"
-            error={errorFor("originalPrice")}
-            hint="Shows buyers how your price compares."
-          >
-            {(props) => (
-              <input
-                {...props}
-                type="text"
-                inputMode="decimal"
-                defaultValue={listing?.original_price != null ? String(listing.original_price) : ""}
-                onBlur={(event) => validateOnBlur("originalPrice", event.currentTarget.value)}
-              />
-            )}
-          </Field>
-        </div>
-      </details>
-
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Link
-          href={listing ? `/listings/${listing.id}` : "/listings"}
-          className="flex h-12 items-center justify-center rounded-lg border border-ink bg-canvas px-6 text-base font-medium text-ink hover:bg-surface-soft"
-        >
+        <Link href={listing ? `/listings/${listing.id}` : "/listings"} className={SECONDARY_BUTTON_CLASS}>
           Cancel
         </Link>
 
@@ -521,65 +598,61 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
   );
 }
 
-type FieldControlProps = {
-  id: string;
-  name: string;
-  className: string;
-  "aria-invalid": true | undefined;
-  "aria-describedby": string | undefined;
-};
+/** A positive finite number from a form string, or null. */
+function toAmount(value: string): number | null {
+  const trimmed = value.trim();
+
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+    return null;
+  }
+
+  const amount = Number(trimmed);
+  return amount > 0 ? amount : null;
+}
 
 /**
- * Label, control, hint and error, wired together for assistive technology.
+ * Live pricing guidance while the seller fills in the form.
  *
- * The control is supplied as a render function so this works for <input>,
- * <textarea> and <select> alike: the wrapper computes the id and aria
- * attributes once and hands them over, rather than each control repeating them.
+ * The same `fairPriceHint` a buyer sees on the listing page, shown to the
+ * seller before they publish - so the person who can act on "this is above the
+ * usual price" finds out while they can still change it.
+ *
+ * Renders nothing until there is an original price and a condition to reason
+ * from. A guide built on missing data would be a guess presented as advice.
  */
-function Field({
-  label,
-  name,
-  error,
-  hint,
-  children,
+function PriceGuide({
+  price,
+  originalPrice,
+  condition,
 }: {
-  label: string;
-  name: string;
-  error?: string;
-  hint?: string;
-  children: (props: FieldControlProps) => React.ReactNode;
+  price: string;
+  originalPrice: string;
+  condition: string;
 }) {
-  const id = `field-${name}`;
-  const errorId = `${id}-error`;
-  const hintId = `${id}-hint`;
+  const original = toAmount(originalPrice);
 
-  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ");
+  if (original === null || !(CONDITIONS as readonly string[]).includes(condition)) {
+    return null;
+  }
+
+  const itemCondition = condition as ItemCondition;
+  const expected = original * CONDITION_VALUE_FACTOR[itemCondition];
+  const asking = toAmount(price);
+  const hint = asking !== null ? fairPriceHint(asking, original, itemCondition) : null;
+
+  const VERDICT_LABEL = { great: "A good deal", fair: "Fairly priced", high: "On the high side" };
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-ink">
-        {label}
-      </label>
-
-      {children({
-        id,
-        name,
-        className: `${INPUT_CLASS} ${error ? "border-error" : "border-hairline"}`,
-        "aria-invalid": error ? true : undefined,
-        "aria-describedby": describedBy || undefined,
-      })}
-
-      {hint && !error ? (
-        <p id={hintId} className="text-xs text-ink-muted">
-          {hint}
-        </p>
-      ) : null}
-
-      {error ? (
-        <p id={errorId} role="alert" className="text-xs font-medium text-error">
-          {error}
-        </p>
-      ) : null}
+    <div aria-live="polite" className="rounded-lg bg-surface-soft px-4 py-3 text-sm text-ink">
+      <p className="font-semibold">
+        {hint ? VERDICT_LABEL[hint.verdict] : "Price guide"}
+        {hint ? <span className="font-normal"> — {hint.percentOfOriginal}% of the original price</span> : null}
+      </p>
+      <p className="mt-0.5 text-ink-body">
+        Items in {CONDITION_LABELS[itemCondition].toLowerCase()} condition usually go for about{" "}
+        {formatPrice(expected * 0.85)}–{formatPrice(expected * 1.15)}. Buyers see this comparison
+        on your listing.
+      </p>
     </div>
   );
 }
