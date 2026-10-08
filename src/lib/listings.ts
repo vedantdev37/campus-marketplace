@@ -20,9 +20,9 @@ import type { Listing, ListingFilters, PickupSpot } from "@/lib/types/listing";
  * The seller join MUST name its foreign key explicitly. A bare
  * `seller:profiles(full_name)` fails at runtime with "more than one
  * relationship was found for 'listings' and 'profiles'": PostgREST can reach
- * profiles from listings by three paths - directly via seller_id, and
- * indirectly through wishlist_items and inquiries, which both reference the two
- * tables. Naming the constraint removes the ambiguity.
+ * profiles from listings by more than one path - directly via seller_id, and
+ * indirectly through tables that reference both, such as wishlist_items and
+ * conversations. Naming the constraint removes the ambiguity.
  *
  * Worth noting that `next build` and `tsc` both pass without this: the select
  * string is opaque to them, so the failure only appears when a query runs.
