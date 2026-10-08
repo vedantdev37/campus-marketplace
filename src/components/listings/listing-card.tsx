@@ -38,7 +38,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
             // Two columns on phones, three from `sm` up - telling the browser
             // this avoids it downloading a full-width image for a third-width slot.
             sizes="(max-width: 640px) 50vw, 33vw"
-            className={["object-cover", isSold ? "grayscale" : ""].join(" ")}
+            // A book cover is portrait: cropped to this 4:3 frame it loses its
+            // title, so books are fitted inside the frame rather than filling it.
+            className={[
+              listing.category === "books" ? "object-contain" : "object-cover",
+              isSold ? "grayscale" : "",
+            ].join(" ")}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted">

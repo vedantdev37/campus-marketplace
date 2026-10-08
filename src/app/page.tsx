@@ -10,7 +10,7 @@ export default async function Home() {
       <h1 className="text-3xl font-semibold tracking-tight">Campus Marketplace</h1>
       <p className="mt-3 text-base/relaxed text-muted">
         Buy and sell with students on your campus — textbooks, electronics and
-        hostel essentials. Find what your course needs by its code.
+        hostel essentials. Scan a book&apos;s barcode to list it in seconds.
       </p>
 
       {user ? (

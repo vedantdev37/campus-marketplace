@@ -58,7 +58,10 @@ export default async function ListingDetailPage({
               // The detail image is the largest thing on the page and above the
               // fold, so it is the Largest Contentful Paint element.
               priority
-              className={["object-cover", isSold ? "grayscale" : ""].join(" ")}
+              className={[
+                listing.category === "books" ? "object-contain" : "object-cover",
+                isSold ? "grayscale" : "",
+              ].join(" ")}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted">
