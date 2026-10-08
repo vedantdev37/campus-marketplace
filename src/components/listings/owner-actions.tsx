@@ -1,20 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import type { FormEvent } from "react";
+import { useActionState, type FormEvent } from "react";
 
-import { deleteListingAction, setListingStatusAction } from "@/app/listings/actions";
+import {
+  deleteListingAction,
+  setListingStatusAction,
+  type OwnerActionState,
+} from "@/app/listings/actions";
+import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { ListingStatus } from "@/lib/types/listing";
+
+const INITIAL_STATE: OwnerActionState = {};
 
 /**
  * Owner-only controls for a listing.
  *
- * A Client Component for one reason: the delete needs a confirmation step, and
- * `confirm()` only exists in the browser. Everything else here is a plain form
- * posting to a Server Action, so the mark-sold controls still work without JS -
- * only the confirmation prompt is lost, and the action re-checks ownership
- * regardless.
+ * A Client Component for two reasons: delete needs a confirmation step, and
+ * `confirm()` only exists in the browser; and a failed action reports back
+ * here, next to the button, instead of throwing the owner onto the error page.
+ * The forms still post to Server Actions, which re-check ownership regardless.
  */
 export function OwnerActions({
   listingId,
@@ -24,6 +30,14 @@ export function OwnerActions({
   status: ListingStatus;
 }) {
   const isSold = status === "sold";
+
+  const [statusState, submitStatus] = useActionState(setListingStatusAction, INITIAL_STATE);
+  const [deleteState, submitDelete, isDeleting] = useActionState(
+    deleteListingAction,
+    INITIAL_STATE,
+  );
+
+  const error = statusState.error ?? deleteState.error;
 
   function confirmDelete(event: FormEvent<HTMLFormElement>) {
     // Deleting is irreversible and the button sits next to a benign one, so a
@@ -40,6 +54,12 @@ export function OwnerActions({
         Only you can see these controls, and only you can perform them.
       </p>
 
+      {error ? (
+        <div className="mt-3">
+          <Alert tone="error">{error}</Alert>
+        </div>
+      ) : null}
+
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
         <Link
           href={`/listings/${listingId}/edit`}
@@ -48,7 +68,7 @@ export function OwnerActions({
           Edit
         </Link>
 
-        <form action={setListingStatusAction} className="flex-1">
+        <form action={submitStatus} className="flex-1">
           <input type="hidden" name="id" value={listingId} />
           <input type="hidden" name="status" value={isSold ? "available" : "sold"} />
           <SubmitButton pendingLabel={isSold ? "Relisting…" : "Marking sold…"}>
@@ -56,13 +76,17 @@ export function OwnerActions({
           </SubmitButton>
         </form>
 
-        <form action={deleteListingAction} onSubmit={confirmDelete} className="sm:w-auto">
+        <form action={submitDelete} onSubmit={confirmDelete} className="sm:w-auto">
           <input type="hidden" name="id" value={listingId} />
           <button
             type="submit"
-            className="mt-1 w-full rounded-lg border border-danger/40 px-4 py-2.5 text-base font-medium text-danger transition-colors hover:bg-danger-surface sm:w-auto"
+            // Disabled while the delete is in flight, so a second click cannot
+            // send a second request for a listing that is already going.
+            disabled={isDeleting}
+            aria-busy={isDeleting}
+            className="mt-1 w-full rounded-lg border border-danger/40 px-4 py-2.5 text-base font-medium text-danger transition-colors hover:bg-danger-surface disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
-            Delete
+            {isDeleting ? "Deleting…" : "Delete"}
           </button>
         </form>
       </div>

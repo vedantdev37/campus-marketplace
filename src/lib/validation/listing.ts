@@ -1,7 +1,15 @@
 import { z } from "zod";
 
 import { normalizeIsbn } from "@/lib/isbn";
-import { CATEGORIES, CONDITIONS } from "@/lib/types/listing";
+import {
+  CATEGORIES,
+  CATEGORIES_WITH_SIZE,
+  CONDITION_CHECKS,
+  CONDITIONS,
+  LAB_SIZES,
+  type ConditionChecks,
+  type ListingCategory,
+} from "@/lib/types/listing";
 
 /**
  * Listing validation, shared by the create/edit form and the Server Actions.
@@ -153,6 +161,67 @@ export const listingSchema = z.object({
 });
 
 export type ListingInput = z.infer<typeof listingSchema>;
+
+/**
+ * The checklist a given category accepts.
+ *
+ * Built per category from CONDITION_CHECKS and made STRICT, so a key that
+ * belongs to another category - or to no category at all - is a validation
+ * error rather than something silently stored. A tick can only be the literal
+ * `true`: there is no "false", so "not stated" cannot be mistaken for
+ * "confirmed bad", and nothing but a known size can be a string.
+ *
+ * The same rule is enforced again by a trigger in the database (migration
+ * 0006), because a signed-in user can insert through the REST API directly and
+ * never run this code.
+ */
+export function conditionChecksSchemaFor(category: ListingCategory) {
+  const shape: Record<string, z.ZodType> = {};
+
+  for (const item of CONDITION_CHECKS[category] ?? []) {
+    shape[item.key] = z.literal(true).optional();
+  }
+
+  if (CATEGORIES_WITH_SIZE.includes(category)) {
+    shape.size = z.enum(LAB_SIZES).optional();
+  }
+
+  return z.strictObject(shape);
+}
+
+/**
+ * Collects the checklist from a submitted form and validates it.
+ *
+ * Every `check_*` field is gathered - not just the ones this category expects -
+ * precisely so that an unexpected one is seen by the strict schema and
+ * rejected. Returns null when the submission is not acceptable.
+ */
+export function readConditionChecks(
+  category: ListingCategory,
+  formData: FormData,
+): ConditionChecks | null {
+  const candidate: Record<string, unknown> = {};
+
+  for (const [name, value] of formData.entries()) {
+    if (!name.startsWith("check_") || typeof value !== "string" || value === "") {
+      continue;
+    }
+
+    const key = name.slice("check_".length);
+    candidate[key] = key === "size" ? value : value === "on" ? true : value;
+  }
+
+  const parsed = conditionChecksSchemaFor(category).safeParse(candidate);
+
+  if (!parsed.success) {
+    return null;
+  }
+
+  // Drop the `undefined` entries that optional keys leave behind.
+  return Object.fromEntries(
+    Object.entries(parsed.data).filter(([, value]) => value !== undefined),
+  ) as ConditionChecks;
+}
 
 /** Per-field schemas, so the form can validate one field on blur. */
 export const listingFieldSchemas = {

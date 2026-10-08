@@ -6,9 +6,10 @@ import { redirect } from "next/navigation";
 import { requireSessionUser } from "@/lib/auth";
 import { LISTING_IMAGE_BUCKET } from "@/lib/storage";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { STATUSES, type ListingStatus } from "@/lib/types/listing";
+import { STATUSES, type ConditionChecks, type ListingStatus } from "@/lib/types/listing";
+import { isUuid } from "@/lib/uuid";
 import { fieldErrorsFrom } from "@/lib/validation/auth";
-import { listingSchema, type ListingInput } from "@/lib/validation/listing";
+import { listingSchema, readConditionChecks, type ListingInput } from "@/lib/validation/listing";
 
 /**
  * Owner-only mutations on a listing.
@@ -30,8 +31,6 @@ import { listingSchema, type ListingInput } from "@/lib/validation/listing";
  * relying entirely on the policy being correct today and tomorrow.
  */
 
-const UUID_PATTERN = /^[0-9a-f-]{36}$/i;
-
 type ServerSupabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 /** State handed back to the listing form after a failed submit. */
@@ -40,16 +39,28 @@ export type ListingFormState = {
   fieldErrors?: Record<string, string>;
 };
 
-function readListingId(formData: FormData): string {
-  const id = String(formData.get("id") ?? "");
+/** State handed back to the owner controls (mark sold, delete). */
+export type OwnerActionState = {
+  error?: string;
+};
 
-  if (!UUID_PATTERN.test(id)) {
-    // The id comes from a hidden input, so a malformed one means the form was
-    // tampered with rather than mistyped. Fail rather than query.
-    throw new Error("Invalid listing id.");
-  }
+const CHECKLIST_REJECTED =
+  "The condition details did not match this category. Reload the page and try again.";
+const PHOTO_REQUIRED = "Add a photo of the item before saving.";
+const NOT_YOURS = "That listing is not yours to change.";
+const TRY_AGAIN = "That did not go through. Check your connection and try again.";
 
-  return id;
+/**
+ * The listing id from a hidden input, or null when it is not a UUID.
+ *
+ * A malformed id means the form was tampered with rather than mistyped, so it
+ * is refused before any query runs. It is returned as null rather than thrown:
+ * a thrown error lands the user on the generic error page, while a returned one
+ * can be shown next to the button they pressed.
+ */
+function readListingId(formData: FormData): string | null {
+  const id = formData.get("id");
+  return isUuid(id) ? id : null;
 }
 
 /** Refresh every view that could be showing this listing. */
@@ -126,8 +137,13 @@ function readImagePath(formData: FormData, userId: string): string | null | unde
 }
 
 /** Validated form input -> column names. */
-function toListingColumns(input: ListingInput, imagePath: string | null) {
+function toListingColumns(
+  input: ListingInput,
+  imagePath: string | null,
+  conditionChecks: ConditionChecks,
+) {
   return {
+    condition_checks: conditionChecks,
     title: input.title,
     description: input.description,
     price: input.price,
@@ -164,13 +180,27 @@ export async function createListingAction(
     return { formError: "That photo could not be attached. Please choose it again." };
   }
 
+  // A new listing must have a photo. The form checks this too, but a request
+  // built by hand skips the form.
+  if (imagePath === null) {
+    return { formError: PHOTO_REQUIRED };
+  }
+
+  // Validated against the checklist for THIS category, strictly: a key from
+  // another category is an error, not something quietly stored.
+  const conditionChecks = readConditionChecks(parsed.data.category, formData);
+
+  if (conditionChecks === null) {
+    return { formError: CHECKLIST_REJECTED };
+  }
+
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("listings")
     // seller_id comes from the session, never from the form. RLS would refuse a
     // mismatched value anyway (WITH CHECK seller_id = auth.uid()).
-    .insert({ ...toListingColumns(parsed.data, imagePath), seller_id: user.id })
+    .insert({ ...toListingColumns(parsed.data, imagePath, conditionChecks), seller_id: user.id })
     .select("id")
     .single();
 
@@ -192,6 +222,10 @@ export async function updateListingAction(
   const user = await requireSessionUser();
   const id = readListingId(formData);
 
+  if (id === null) {
+    return { formError: "That listing could not be found. Go back and try again." };
+  }
+
   const parsed = listingSchema.safeParse(readListingFields(formData));
 
   if (!parsed.success) {
@@ -202,6 +236,14 @@ export async function updateListingAction(
 
   if (imagePath === undefined) {
     return { formError: "That photo could not be attached. Please choose it again." };
+  }
+
+  // Re-derived from the submitted category, so switching a listing from
+  // Electronics to Books drops the electronics ticks rather than keeping them.
+  const conditionChecks = readConditionChecks(parsed.data.category, formData);
+
+  if (conditionChecks === null) {
+    return { formError: CHECKLIST_REJECTED };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -224,11 +266,17 @@ export async function updateListingAction(
     return { formError: "That listing is not yours to edit." };
   }
 
+  // An edit may keep its photo or replace it, but may not strip it. A listing
+  // that predates the rule and never had a photo is left alone.
+  if (existing.image_path && imagePath === null) {
+    return { formError: PHOTO_REQUIRED };
+  }
+
   const { data: updated, error } = await supabase
     .from("listings")
     // status and seller_id are deliberately not part of an edit: status changes
     // go through setListingStatusAction, and ownership never changes.
-    .update(toListingColumns(parsed.data, imagePath))
+    .update(toListingColumns(parsed.data, imagePath, conditionChecks))
     .eq("id", id)
     .eq("seller_id", user.id)
     .select("id");
@@ -251,14 +299,25 @@ export async function updateListingAction(
   redirect(`/listings/${id}`);
 }
 
-export async function setListingStatusAction(formData: FormData): Promise<void> {
+/**
+ * Mark a listing sold, or available again.
+ *
+ * Failures are RETURNED, not thrown. These used to throw, which sent the owner
+ * to the full-page error boundary for something as ordinary as a dropped
+ * connection - losing the page they were on. A returned message is shown next
+ * to the button instead, and they can simply press it again.
+ */
+export async function setListingStatusAction(
+  _previous: OwnerActionState,
+  formData: FormData,
+): Promise<OwnerActionState> {
   const user = await requireSessionUser();
   const id = readListingId(formData);
 
   const requested = String(formData.get("status") ?? "");
 
-  if (!(STATUSES as readonly string[]).includes(requested)) {
-    throw new Error("Invalid status.");
+  if (id === null || !(STATUSES as readonly string[]).includes(requested)) {
+    return { error: TRY_AGAIN };
   }
 
   const status = requested as ListingStatus;
@@ -275,22 +334,31 @@ export async function setListingStatusAction(formData: FormData): Promise<void> 
     .select("id");
 
   if (error) {
-    throw new Error(`Could not update the listing: ${error.message}`);
+    console.error("Could not update listing status", { message: error.message });
+    return { error: TRY_AGAIN };
   }
 
   // A blocked UPDATE under RLS does not error - the row simply falls outside the
   // policy and nothing matches. Checking the row count is the only way to tell
   // "not allowed" from "done".
   if ((data?.length ?? 0) === 0) {
-    throw new Error("That listing is not yours to change.");
+    return { error: NOT_YOURS };
   }
 
   revalidateListingViews(id);
+  return {};
 }
 
-export async function deleteListingAction(formData: FormData): Promise<void> {
+export async function deleteListingAction(
+  _previous: OwnerActionState,
+  formData: FormData,
+): Promise<OwnerActionState> {
   const user = await requireSessionUser();
   const id = readListingId(formData);
+
+  if (id === null) {
+    return { error: TRY_AGAIN };
+  }
 
   const supabase = await createSupabaseServerClient();
 
@@ -302,11 +370,12 @@ export async function deleteListingAction(formData: FormData): Promise<void> {
     .select("id, image_path");
 
   if (error) {
-    throw new Error(`Could not delete the listing: ${error.message}`);
+    console.error("Could not delete listing", { message: error.message });
+    return { error: TRY_AGAIN };
   }
 
   if ((data?.length ?? 0) === 0) {
-    throw new Error("That listing is not yours to delete.");
+    return { error: NOT_YOURS };
   }
 
   // The photo goes with the listing, so Storage does not fill with orphans.

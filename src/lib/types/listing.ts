@@ -21,6 +21,7 @@ export const CATEGORIES = [
   "electronics",
   "furniture",
   "hostel",
+  "lab",
   "notes",
   "other",
 ] as const;
@@ -39,9 +40,46 @@ export const CATEGORY_LABELS: Record<ListingCategory, string> = {
   electronics: "Electronics",
   furniture: "Furniture",
   hostel: "Hostel essentials",
+  lab: "Lab coats & gear",
   notes: "Notes",
   other: "Other",
 };
+
+/** Lab coat sizes. Must match the list in migration 0006. */
+export const LAB_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const;
+export type LabSize = (typeof LAB_SIZES)[number];
+
+/**
+ * The things a seller can confirm about an item, by category.
+ *
+ * Every item is worded as a POSITIVE claim: a tick always means good news
+ * ("Screen free of scratches", never "Screen scratches"). That rule is what
+ * lets an unticked item mean simply "not stated" - the detail page can then
+ * list those neutrally, instead of an empty box reading as an admission.
+ *
+ * The keys are stored in the database and validated there by a trigger
+ * (migration 0006), so this map and that trigger must list the same keys. The
+ * LABELS are only ever read from here: the detail page looks a stored key up in
+ * this map and renders the label from code, never a string from the database.
+ */
+export const CONDITION_CHECKS: Partial<Record<ListingCategory, { key: string; label: string }[]>> = {
+  electronics: [
+    { key: "charger_included", label: "Charger included" },
+    { key: "battery_ok", label: "Battery holds charge" },
+    { key: "screen_unscratched", label: "Screen free of scratches" },
+  ],
+  books: [
+    { key: "no_highlighting", label: "No highlighting or notes" },
+    { key: "all_pages_intact", label: "All pages intact" },
+  ],
+  lab: [{ key: "no_stains", label: "No stains" }],
+};
+
+/** Categories whose checklist also asks for a size. */
+export const CATEGORIES_WITH_SIZE: readonly ListingCategory[] = ["lab"];
+
+/** Stored shape: a tick is `true`; `size` is one of LAB_SIZES. */
+export type ConditionChecks = Record<string, true | string>;
 
 /** Ordered best to worst, which is also the order the filter UI shows. */
 export const CONDITION_LABELS: Record<ItemCondition, string> = {
@@ -90,6 +128,7 @@ export type ListingRow = {
   isbn: string | null;
   book_author: string | null;
   original_price: number | null;
+  condition_checks: ConditionChecks;
   sold_at: string | null;
   created_at: string;
   updated_at: string;

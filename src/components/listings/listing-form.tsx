@@ -18,6 +18,7 @@ import {
 } from "@/app/listings/actions";
 import type { BookAutofill } from "@/app/listings/book-actions";
 import { BookLookup } from "@/components/listings/book-lookup";
+import { ConditionChecklist } from "@/components/listings/condition-checklist";
 import { Field, SECONDARY_BUTTON_CLASS } from "@/components/listings/form-field";
 import { Alert } from "@/components/ui/alert";
 import { fairPriceHint, formatPrice } from "@/lib/pricing";
@@ -36,6 +37,7 @@ import {
   CONDITION_VALUE_FACTOR,
   CONDITIONS,
   type ItemCondition,
+  type ListingCategory,
   type ListingRow,
   type PickupSpot,
 } from "@/lib/types/listing";
@@ -123,6 +125,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
 
   const shownImage = previewUrl ?? listingImageUrl(imagePath || null);
   const isBusy = isUploading || isSaving;
+  const photoRequired = !listing || Boolean(listing.image_path);
   const isBook = category === "books";
 
   /**
@@ -286,6 +289,16 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
     setClientErrors({});
     setTouched({});
 
+    // A listing needs a photo. The one exception is an older listing that never
+    // had one: editing its price should not suddenly demand a photo, so the
+    // rule applies to new listings and to any listing that already has one.
+    // The Server Action enforces the same rule.
+    if (photoRequired && imagePath === "" && !pendingFile) {
+      setImageError("Add a photo of the item. Buyers want to see what they are getting.");
+      fileInputRef.current?.focus();
+      return;
+    }
+
     let pathToSave = imagePath;
 
     if (pendingFile) {
@@ -356,7 +369,9 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
 
       {/* --- Photo ------------------------------------------------------ */}
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-ink">Photo</span>
+        <span className="text-sm font-medium text-ink">
+          Photo{photoRequired ? "" : " (optional)"}
+        </span>
 
         <div className="flex items-start gap-4">
           <div className="relative aspect-4/3 w-32 shrink-0 overflow-hidden rounded-lg border border-hairline bg-surface-soft">
@@ -534,6 +549,17 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
       </div>
 
       <PriceGuide price={price} originalPrice={originalPrice} condition={condition} />
+
+      {/* Keyed by category: switching category remounts it, so ticks for one
+          kind of item are never carried over to another. Saved ticks are only
+          offered back while the category is still the one they were saved for. */}
+      {(CATEGORIES as readonly string[]).includes(category) ? (
+        <ConditionChecklist
+          key={category}
+          category={category as ListingCategory}
+          defaults={listing?.category === category ? listing.condition_checks : undefined}
+        />
+      ) : null}
 
       {/* --- Course ----------------------------------------------------- */}
       <fieldset className="rounded-[14px] border border-hairline p-4">
