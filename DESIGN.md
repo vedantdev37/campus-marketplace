@@ -112,8 +112,9 @@ The hero's headline, search box and pause button sit on a photograph that is dar
 
 ## Type
 
-Two typefaces, one job each.
+Three typefaces, one job each.
 
+- **Kalam** (class `caption-hand`): the caption on a polaroid card, and nowhere else. Never a price, a button or a label.
 - **Anton** (class `title-card`): headlines only. Always upper-case, line-height 0.95, tracking 0.01em. Chosen over Bebas Neue, which has no lower-case letters at all.
 - **Plus Jakarta Sans**: everything that is read or typed.
 
@@ -143,23 +144,24 @@ Two typefaces, one job each.
 - **Primary button:** yellow fill, `on-accent` text, 8px radius, 48px tall. Disabled: `surface-soft` fill, muted text.
 - **Secondary button:** transparent, 1px ink outline, ink text.
 - **Chip:** fully round, 1px `control-border`, 14px medium text. Used for facts on a listing and pickup spots.
-- **Listing card:** the photo is the card. 4:5, 14px radius, the price on a solid canvas-coloured pill at the bottom-left of the photo, then a two-line title and one line of meta.
-- **SOLD, marked four ways, never by colour alone:** a tilted yellow SOLD stamp over a dimmed photo, the word "Sold" beside the price, the price struck through, and the photo desaturated. The card link's accessible name begins with "Sold".
+- **Polaroid card, one design for all six kinds of post:** a pale print frame (`polaroid` token: `#f2efe6` on dark, white with a hairline on light), a square photo, a caption in handwriting (Kalam 700, two lines), then a price line and a meta line in Jakarta. The frame is pale in both themes, so text on it uses fixed dark colours, not tokens. A post with no photo (a skill, a call for teammates) shows a panel in its badge colour with its first three tags.
+- **Type badge, always with its word:** top-left on the photo. White 11px bold capitals on a colour per kind: SALE `#4338ca`, RENT `#0f766e`, FREE `#15803d`, LOST & FOUND `#c2410c`, SKILL `#be185d`, TEAM `#0369a1`. The colour helps the eye; the word is what says which kind it is. None is yellow.
+- **The price line** says what a price would: `₹320`, `₹30/day`, `FREE`, `Found at Food Court`, `Skill on offer`, `For Saturday hackathon`. It is never in the handwriting face.
+- **A finished post, marked four ways, never by colour alone:** a tilted stamp over a dimmed photo, the same word beside the price line, the price line struck through, and the photo desaturated. The stamp's word depends on the kind: SOLD, RENTED OUT, CLAIMED, NOT AVAILABLE, TEAM FULL. The card link's accessible name begins with it.
+- **SOLD stays the loud one:** yellow, larger, with "Mission passed" in small type beneath. The other end states use an ink stamp, so a page of mixed posts has one kind of shouting.
 - **Listing page:** a large 4:3 photo, category kicker, title, fact chips, description, "What's in the box" (the seller's checklist), then details. The price card on the right holds the 56px price, the fair-price guide, the meetup and the chat action. On a phone a sticky bar keeps the price and the chat action in reach.
+- **Phone tab bar:** Home, Explore, Post, Inbox, Me, fixed to the bottom below `md`, 56px plus the safe area. The current tab has a bar above it, a heavier label and `aria-current`. Post is the one yellow circle. The bar is hidden on a conversation and on a listing with its own action bar, which already have something pinned there. From `md` up the same destinations are in the header.
 - **Chat:** your messages are indigo with white text, theirs are `surface-soft`. The meetup bar turns `success-surface` once a meetup is agreed.
 - **Text input:** canvas fill, 1px `control-border`, 8px radius, 56px tall; ink border on focus.
 
-## The home page: five scenes
+## The home page
 
-One idea per screen, each with a kicker, a title card and a short paragraph.
-
-1. **Hero.** Campus photographs drifting slowly, graded dark with an indigo multiply, under still film grain. Title card, one sentence, the search box, and how a reviewer can sign up.
-2. **Scan it. List it.** An illustration of the ISBN scanner in three steps.
-3. **Meet on campus.** A sample chat with an agreed meetup, and the pickup spots as chips.
+1. **Hero.** Campus photographs drifting slowly, graded dark with an indigo multiply, under still film grain. Title card, one sentence, the search box, and how a reviewer can sign up. 70% of the screen height, so the next section shows.
+2. **Six tiles**, one per kind of post, each going straight to its form.
+3. **Fresh drops, Rent it, Free this week, Squad up, Lost & Found.** Each has a kicker, a title card, at most four cards and "See all". A section with nothing in it is left out.
 4. **Locked to NITTE.** Live counts and the security test result, linking to `/security`.
-5. **Fresh drops.** Recent listings, including one that has sold.
 
-Then the end credits and the site footer, which carries the disclaimer on every page.
+Then the end credits and the site footer, which carries the disclaimer on every page. The earlier "Scan it" and "Meet on campus" scenes were removed when these sections arrived: nine full-height scenes on a phone is too long.
 
 **Every number on the page is read, not written.** Counts come from `public_stats()`; the test figure comes from `src/lib/security-run.json`, which `npm run verify:rls` writes. If a source cannot be read, that part of the page is left out.
 
@@ -168,7 +170,6 @@ Then the end credits and the site footer, which carries the disclaimer on every 
 - **Scroll reveals:** fade and rise 28px over 700ms. One `IntersectionObserver` for the page (`RevealObserver`); no scroll listeners.
 - **Digit rollers:** each digit is a column of 0 to 9 that slides to its value over 1.4s when its scene arrives.
 - **SOLD stamp:** wipes in from the left with `clip-path` on the home page.
-- **Scan demo:** plays once when it scrolls into view, then rests on its last frame. It does not loop.
 - **Parallax:** a 24px drift, only in browsers with native scroll-driven animations. Elsewhere the element stays still.
 - **Hero drift:** 30 seconds each way, with a pause button, because it moves on its own for more than five seconds.
 

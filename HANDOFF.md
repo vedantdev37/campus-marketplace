@@ -27,6 +27,7 @@ updated after Phase 5b (chat and meetups).
 | 5 | Design pass (DESIGN.md), home page, hero, dark mode | Done; migration 0007 applied |
 | 5b | Listing chat, Inbox, unread counts, meetup booking | Done; migration 0008 applied |
 | 5c | "After dark" redesign, rename to Nitte Mart, five-scene home, `/security` | Done; migration 0009 |
+| 5d-A | Six post types, Explore, Post, Me, polaroid cards, tab bar | Done; migration 0010 applied |
 | 6 | Docs, diagrams, write-up, video, final review | **Not started** |
 
 Supabase dashboard settings already made: "Before User Created" hook enabled
@@ -38,7 +39,7 @@ Vercel env vars set, including `GOOGLE_BOOKS_API_KEY`.
 ```bash
 npm run dev            # dev server
 npm run build && npm run start   # production build - test against THIS, not dev
-npm run verify:rls     # 39 checks; must stay 39/39 (run reseed:demo first). Writes
+npm run verify:rls     # 59 checks; must stay 59/59 (run reseed:demo first). Writes
                        # src/lib/security-run.json, which the site displays: commit it.
 npm run reseed:demo    # wipe + recreate demo listings with images; run before submitting
 ```
@@ -96,6 +97,20 @@ Reviewers can sign up with any `@reviewer.test` address.
   prefetched link would otherwise mark messages read.
 - **Sold listings** refuse new conversations; existing ones stay open for the handover.
   **Deleting a listing deletes its chats** (cascade), and the confirm prompt says so.
+- **Six kinds of post, one table** (migration 0010): `listings.type` is sale, rent, free,
+  lost_found, skill_offer or team_request. Everything that differs by type is in
+  `TYPE_INFO` (`src/lib/types/listing.ts`): badge word, end-state label, button label,
+  whether it has a price or needs a photo.
+- **`status = 'sold'` means "finished" for every type.** The label differs (Sold, Rented
+  out, Claimed, Team full); the stored value does not, so every older rule that reads
+  `status` is already right. Marking returned or claimed is the owner's ordinary update.
+- **A post's type is fixed** by a trigger. The edit action reads it from the row, never
+  from the form.
+- **Rent it, Claim it, I'm in and Hire only open a chat** with a prefilled message. Nothing
+  is booked or paid for on the site and no label says so.
+- **Routes:** `/explore`, `/post`, `/me` are current. `/listings/[id]` is still the detail
+  page. `/listings`, `/listings/new` and `/listings/mine` redirect, because the README's
+  reviewer steps and old links use them.
 - **Dropped from scope**: wishlist UI, push. The `wishlist_items` table exists with no UI.
 
 ## Gotchas
@@ -130,6 +145,11 @@ Reviewers can sign up with any `@reviewer.test` address.
 - **Migrations are applied by hand** in the Supabase SQL Editor. Never push code that
   depends on a migration before confirming it is applied.
 - **0008 drops `inquiries`**, so `0002` can no longer be re-run as written.
+- **`listListings` always filters by type** (default: sale). A row of another type drawn
+  by code that did not expect it shows as a 0-rupee sale. Any new query on `listings`
+  must say which types it wants.
+- **Seeding non-sale rows before the code that understands them is deployed** puts them
+  on the live browse page as 0-rupee sales: local and live share one database.
 - **0009 adds `home_listing_teasers()` and leaves 0007's function alone on purpose.** The
   local and live sites share one database: replacing a function the deployed code calls
   changes the live site the moment the SQL runs, before the new code is pushed.

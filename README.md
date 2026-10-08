@@ -43,7 +43,7 @@ npm run verify:rls
 
 attacks the public API directly: as a signed-in non-owner against listings,
 and as a third account against a conversation between the buyer and the
-seller. It makes 39 assertions. Most are things that must be refused - a
+seller. It makes 59 assertions. Most are things that must be refused - a
 price change, a forged message sender, reading someone else's chat, accepting
 your own meetup proposal - and three confirm the public home page receives
 only what a listing card shows. The result of each run is written to
@@ -136,6 +136,11 @@ check — see
       behind a toggle, and a [`/security`](https://nmit-campus-marketplace.vercel.app/security)
       page that explains the access-control tests in plain language.
 
+- [x] **Six kinds of post in one model.** Sell, rent out, give away, post a
+      found item, offer a skill, or look for teammates. They share one table,
+      one card, one detail page, one chat and one set of access rules; a post's
+      type cannot be changed after it is made.
+
 **Dropped from scope**, deliberately, rather than left half-built: wishlist UI
 and push notifications. The `wishlist_items` table and its RLS policies exist
 in the schema but have no UI.
@@ -205,6 +210,7 @@ Open **Supabase → SQL Editor** and run each file in `supabase/migrations/`
 | 7 | `0007_listing_teasers.sql` | *Optional.* Lets the public home page show a few recent listings |
 | 8 | `0008_chat_meetups.sql` | Conversations, messages and meetups, their policies and functions. Drops the unused `inquiries` table; do not re-run `0002` afterwards |
 | 9 | `0009_public_stats.sql` | Three read-only functions for the public home page: live counts, pickup spot names, and recent listings including one sold. Without it the home page shows fewer things, not an error |
+| 10 | `0010_listing_types.sql` | A `type` on listings (sale, rent, free, lost and found, skill, team) with rules per type, and skills, bio, photo and GitHub username on profiles |
 
 They are written to be re-runnable, so running one twice is harmless.
 
@@ -286,7 +292,10 @@ src/
     (auth)/       # /login and /signup, plus their Server Actions
     inbox/        # conversations, the chat page, and their Server Actions
     security/     # the public "receipts" page about the access-control tests
-    listings/     # browse, detail, create/edit, My Listings
+    explore/      # browse, with a tab per kind of post
+    post/         # choose a kind of post, then the form for it
+    me/           # my posts and settings
+    listings/     # the detail and edit pages; the old browse URLs redirect
     error.tsx     # route-level error boundary
   components/
     auth/         # login and sign-up forms (client)

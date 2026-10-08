@@ -999,6 +999,108 @@ in the repository; the choice is still open.
 
 ---
 
+## Phase 5d, Batch A — Six kinds of post, Explore, Post, Me
+
+**Asked for**
+
+> "Core model: generalise listings with a `type`: `sale | rent | free |
+> lost_found | skill_offer | team_request`. Reuse photos, search, filters,
+> chat, RLS and validation instead of separate systems. One migration …
+> Mobile bottom tab bar: Home · Explore · ➕ Post · Inbox · Me … ➕ Post: a
+> sheet with 6 large tiles … One form that adapts … Explore: tabs Buy · Rent ·
+> Free · Squad up · Lost & Found, sharing one search … One card design for all
+> types, polaroid style with a handwritten-style caption, and a fixed coloured
+> type badge that always includes the word … Clear end states: SOLD · RENTED
+> OUT · CLAIMED · TEAM FULL. 'SOLD' stays dominant, with 'Mission passed' as a
+> small subtitle … `verify:rls` must cover the new types."
+
+and separately, while this was being built:
+
+> "Demo photos upgrade. Replace the illustrated demo images with real-looking
+> product photos (no people or models) … on Unsplash or Pexels (free licence
+> only) … Add a docs/credits.md crediting each photographer + link."
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `supabase/migrations/0010_listing_types.sql` | `type` and type-only columns on `listings`, CHECK rules per type, a fixed-type trigger, profile columns with a narrowed update grant, `home_sections()` |
+| `src/lib/types/listing.ts`, `listing-display.ts`, `validation/listing.ts` | `TYPE_INFO` (everything that varies by type), price and meta lines, per-type validation and tag parsing |
+| `src/app/explore/`, `post/`, `me/` | The new pages; `/listings`, `/listings/new` and `/listings/mine` became redirects |
+| `listing-form.tsx`, `listings/actions.ts` | One form and one pair of actions for all six types |
+| `listing-card.tsx`, `listings/[id]/page.tsx`, `owner-actions.tsx`, `ask-seller.tsx` | The polaroid card and badge, the detail page and its per-type wording |
+| `components/layout/bottom-tabs.tsx`, `site-header.tsx` | Phone tab bar; the hamburger menu was removed |
+| `src/app/page.tsx` | Home rebuilt around tiles and five listing sections |
+| `scripts/seed-demo.mjs`, `demo-images.mjs`, `verify-rls.mjs` | Eight seeded posts of the new types; 20 new assertions |
+| `scripts/fetch-demo-photos.mjs`, `scripts/demo-photos/`, `docs/credits.md` | Thirteen stock photos, compressed, with a generated credits file |
+
+**What the reviewers found (AI reviewing AI)**
+
+- *Auditor:* do not add enum values for "rented out" or "claimed" - reuse
+  `sold` as one finished state and label it per type, so every existing rule
+  that reads `status` stays correct. Leave the search column alone. Make type
+  immutable. Narrow the profile update grant, which had allowed a user to
+  change their own `created_at`. Store a GitHub username, never a URL. And the
+  deployed browse page has no type filter, so non-sale rows would show there as
+  0-rupee sales until the new code is live.
+- *Judge:* keep the old URLs as redirects, because the README's reviewer steps
+  use them. Make "Rent it", "Claim it", "I'm in" and "Hire" open a chat and
+  nothing more, and never say "booked" or "paid". Hide the tab bar where a page
+  already has a bottom bar.
+- *Designer:* badge colours with white text, none of them yellow; a pale
+  polaroid frame in both themes with fixed dark text on it; Kalam for the
+  caption only, never for a price.
+- *QA agent:* twelve scenarios, all passed, including posting and closing each
+  type and the original sale flow. Six defects, all fixed: the screen-reader
+  announcement said "sold" when a rental was marked rented out; **a team
+  request showed as "₹0" in the inbox and chat header**; a skill post listed
+  one tag twice; the same line appeared up to four times on a phone's found-item
+  page; the no-photo panel on the detail page repeated the chips below it; and
+  "Mission passed" was 9 px.
+
+**AI mistakes in this phase**
+
+- The "₹0" in chat is the exact failure the Auditor had warned about for
+  listings, and AI then left it in the one place that reads a price without a
+  type.
+- **Photographer names were first written from guesswork.** AI filled in names
+  inferred from Unsplash usernames; six of the first twelve were wrong. It then read
+  each photo's own page and replaced all of them before anything was committed.
+  The script now says where the names come from.
+- Three of the first photos chosen were unsuitable and were replaced after
+  looking at them: one had a person in a printed page, one was unrelated
+  handwriting, one a poor match.
+- Batch A was due at 12:45 am and finished late. Nothing
+  was cut to hide that.
+- Posts created during QA appeared on the live browse page as 0-rupee sales
+  until this batch was pushed. The author was told beforehand.
+
+**Verified by testing** (production build)
+
+- `npm run verify:rls`: 59 of 59 against the live database.
+- QA agent, scenarios A-L, at 1280 px and 390 px in both themes. Contrast
+  measured: badges 5.02 to 7.9:1, tab bar labels 5.81:1 or better.
+- `next build`, `tsc --noEmit` and `eslint` clean.
+
+**Not verified**
+
+- Nothing in this batch has been run on the deployed site.
+- "Returned to owner" on a found item and "not available" on a skill were not
+  exercised in the browser, only their siblings.
+- The home sections were looked at in the dark theme at 390 px only.
+- Whether each stock photo is still under the free Unsplash licence tomorrow.
+  They were taken from results filtered to it.
+- No real phone, no Safari or Firefox, no screen reader.
+
+**Author changed / verified**
+
+- Set the model, the information architecture, the card design and the batch
+  order. Applied migration 0010.
+- Asked for stock photos and a credits file, with their own photos preferred.
+- _Code review of the above files: **pending author review**._
+
+---
+
 ## Skills used
 
 Agent skills installed in this repository under `.claude/skills/`, and where

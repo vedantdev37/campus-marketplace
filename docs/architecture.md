@@ -250,6 +250,16 @@ Moved to the "Not verified / known limitations" list in
 [`write-up.md`](write-up.md#8-testing-and-verification), which is kept current.
 The migrations have been applied and exercised by the seed and verify scripts.
 
+## Post types *(migration 0010)*
+
+`listings.type` is one of `sale`, `rent`, `free`, `lost_found`, `skill_offer`,
+`team_request`, fixed at creation by a trigger. Type-only fields
+(`rent_max_days`, `found_on`, `event_name`, `event_date`, `tags`) and the
+price rule are CHECK constraints. `status = 'sold'` is the single finished
+state for every type. `profiles` gains `bio`, `skills`, `avatar_path` and
+`github_username`, with its update grant narrowed to the editable columns.
+Reasoning: [`write-up.md`](write-up.md#six-kinds-of-post-in-one-model).
+
 ## What the public home page can read *(migration 0009)*
 
 The home page is public, and `anon` has no privilege on any table. Three
