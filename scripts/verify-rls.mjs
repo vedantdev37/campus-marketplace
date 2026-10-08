@@ -186,6 +186,56 @@ async function main() {
     );
   }
 
+  // --- 5b. An owner cannot forge a post's timestamps ---------------------
+  // Explore and the public home page are ordered by created_at, and the home
+  // page shows the most recently sold item. Both columns are set by triggers
+  // (migration 0011), whatever a request says. These are the seller's own
+  // rows, so RLS allows the writes: what must hold is that they change nothing.
+  {
+    const before = await seller
+      .from("listings")
+      .select("created_at, sold_at")
+      .eq("id", target.id)
+      .single();
+
+    await seller.from("listings").update({ created_at: "2099-01-01T00:00:00Z" }).eq("id", target.id);
+
+    const after = await seller
+      .from("listings")
+      .select("created_at, sold_at")
+      .eq("id", target.id)
+      .single();
+
+    check(
+      "an owner cannot move their post to the top by forging created_at",
+      after.data?.created_at === before.data?.created_at,
+      `created_at is now ${after.data?.created_at}`,
+    );
+
+    const { data: sold } = await seller
+      .from("listings")
+      .select("id, sold_at")
+      .eq("seller_id", sellerId)
+      .eq("status", "sold")
+      .limit(1);
+
+    if (sold?.[0]) {
+      await seller.from("listings").update({ sold_at: "2099-01-01T00:00:00Z" }).eq("id", sold[0].id);
+
+      const { data: soldAfter } = await seller
+        .from("listings")
+        .select("sold_at")
+        .eq("id", sold[0].id)
+        .single();
+
+      check(
+        "an owner cannot forge sold_at on a sold post",
+        soldAfter?.sold_at === sold[0].sold_at,
+        `sold_at is now ${soldAfter?.sold_at}`,
+      );
+    }
+  }
+
   // --- 6. Wishlists are private ----------------------------------------
   {
     const { data, error } = await seller
@@ -197,6 +247,45 @@ async function main() {
       "seller cannot read the buyer's wishlist",
       !error && (data?.length ?? 0) === 0,
       error ? `unexpected error: ${error.message}` : `rows visible: ${data?.length}`,
+    );
+  }
+
+  // --- 6b. Nobody can write to someone else's wishlist ------------------
+  // The seed gives the buyer one saved post. The seller tries to add a row in
+  // the buyer's name, and then to remove the buyer's row.
+  {
+    const forged = await seller
+      .from("wishlist_items")
+      .insert({ user_id: buyerId, listing_id: target.id })
+      .select("listing_id");
+
+    check(
+      "seller cannot add to the buyer's wishlist",
+      Boolean(forged.error) || (forged.data?.length ?? 0) === 0,
+      "the row was accepted",
+    );
+
+    const removed = await seller
+      .from("wishlist_items")
+      .delete()
+      .eq("user_id", buyerId)
+      .select("listing_id");
+
+    check(
+      "seller cannot remove items from the buyer's wishlist",
+      !removed.error && (removed.data?.length ?? 0) === 0,
+      removed.error ? `unexpected error: ${removed.error.message}` : `rows removed: ${removed.data?.length}`,
+    );
+
+    const { count } = await buyer
+      .from("wishlist_items")
+      .select("listing_id", { count: "exact", head: true })
+      .eq("user_id", buyerId);
+
+    check(
+      "the buyer's wishlist still has its saved item afterwards",
+      (count ?? 0) >= 1,
+      `items left: ${count}`,
     );
   }
 
