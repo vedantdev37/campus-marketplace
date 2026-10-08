@@ -24,9 +24,10 @@ It is for students only, so sign-up is restricted to approved email domains and 
 | My Listings | Built and verified |
 | Owner-only mark-sold and delete | Built and verified |
 | RLS on every table + `npm run verify:rls` | Built and verified |
-| Create / edit listing with image upload | Built and verified in a real browser (30 scripted checks, see section 8) |
+| Create / edit listing with image upload | Built and verified in a real browser (30 scripted checks, see section 9) |
 | ISBN lookup, barcode scan, autofill, live fair-price guide | Built and verified in a browser (section 6); TODO: try on a real phone |
-| Realtime sold updates | TODO: not built (publication exists, no client subscription) |
+| Realtime sold updates | Built and verified with two browser sessions (section 7) |
+| Category-specific condition checklists | Built and verified (section 7) |
 | Wishlist UI, inquiry messaging, push notifications | Dropped from scope |
 
 ## 2. Tech stack and why
@@ -203,7 +204,49 @@ Seven of the nine are access-control checks; 1 is a credential-hygiene check and
 - TODO: confirm on a real phone. I tested the scanner with Chromium given a fake webcam showing a generated barcode, which exercises the fallback path. The native Android path and iOS Safari are untested.
 - TODO: repeat one lookup on the deployed site to confirm the key is picked up on Vercel.
 
-## 7. Key decisions and trade-offs
+## 7. Realtime updates, condition checklists and the states audit
+
+### Realtime sold updates
+
+When a seller marks a listing sold, every open browse page and every open copy of that listing updates without a refresh.
+
+- A small hook, [`useListingChanges`](../src/lib/use-listing-changes.ts), subscribes to changes on the `listings` table through Supabase Realtime. The table was added to the `supabase_realtime` publication in migration 0002.
+- **The event is a signal, not the data.** Realtime delivers the changed row, but the hook passes on only the id and the status. Everything a page displays still comes from the server through the normal RLS-filtered queries, via `router.refresh()`. A bug in this code can make a page stale; it cannot make a page show something a query would refuse.
+- **The socket carries the user's JWT.** The `anon` role has no access to `listings`, so an unauthenticated socket would connect and then silently receive nothing. `setAuth()` is called before subscribing.
+- **On browse, a sold card greys out in place** ([`LiveListingGrid`](../src/components/listings/live-listing-grid.tsx)) instead of disappearing. Browse hides sold items, so a plain re-fetch would make the card someone was looking at vanish with no explanation. It leaves on the next navigation or filter change.
+- Refreshes are debounced, so a burst of changes causes one re-render. The channel is removed when the component unmounts. Each page has one polite screen-reader announcement, and the visual change uses `motion-safe:` transitions so it is instant for anyone who has asked for reduced motion.
+
+Trade-offs: every signed-in user already may read every listing, so a subscriber learns nothing a query would not tell them. I did not set `REPLICA IDENTITY FULL`, so a delete event carries only the id, which is all the page needs. A listing that sells stays visible as sold on an already-open browse page until that page next re-fetches.
+
+### Condition checklists
+
+A seller can tick category-specific facts about an item: for electronics, charger included, battery holds charge, screen free of scratches; for books, no highlighting, all pages intact; for lab coats, a size and no stains. The listing page shows them under "Seller confirms".
+
+- **Every item is a positive claim.** A tick always means good news, so an unticked item can simply mean "not stated". The listing page shows those under "Not stated: ask the seller" with a dash, never a cross and never in the error colour. A cross would claim the item is bad when the seller only said nothing.
+- Stored as one `jsonb` column, `condition_checks`, because the items differ by category: a column per item would be mostly empty and every new item would need a schema change.
+- **Validated in three places.** The form and the Server Action use a strict zod schema built per category ([`conditionChecksSchemaFor`](../src/lib/validation/listing.ts)), so a key from another category is an error. The third is a trigger in [migration 0006](../supabase/migrations/0006_condition_checks.sql), and it is the one that matters: a signed-in user can insert their own row through the REST API directly and never run my code, and RLS allows it because it is their row. Without the trigger a crafted request could store arbitrary keys or strings. The trigger allows only the keys for that category, only `true` for a tick and only a known size, and a separate constraint caps the column at 1 KB.
+- Labels are looked up in code from the stored key. No string from this column is rendered as text except a size, and only if it is one of the six known sizes.
+- The same migration adds two constraints an audit found missing: a length limit on the author, and a rule that a listing's photo path must sit in its own seller's folder.
+
+Lab coats needed a category of their own, so "Lab coats & gear" was added to the category enum.
+
+### What the validation and states audit found
+
+Before this phase I had an AI reviewer audit every form and page (see [`AI_USAGE.md`](../AI_USAGE.md)). The gaps were real:
+
+| Gap | Fix |
+| --- | --- |
+| Mark-sold and delete **threw** on failure, sending the owner to the full-page error screen for something as ordinary as a dropped connection | They return a message shown next to the button; Delete gained a pending state |
+| Route ids were checked with a pattern that only counted characters, so a URL of 36 hyphens passed, Postgres rejected it, and the page returned a 500 | A real UUID check ([`src/lib/uuid.ts`](../src/lib/uuid.ts)) everywhere an id is read |
+| No `not-found` page, so a bad URL showed the framework's bare 404 | A site-wide one, and a listing-specific "This listing is gone" page |
+| No boundary for an error in the root layout itself | `global-error.tsx` |
+| Detail and My Listings inherited a browse skeleton that matched neither | Each has its own, shaped like its page |
+| The search query was unbounded | Capped at 100 characters |
+| Sign-up could show a raw internal error message | Only 4xx messages, which are written for the user, are passed through |
+| The price rule rejected valid prices such as 19.99 (floating-point rounding) | Decimal places are counted on the text before conversion |
+| A photo was optional, though the brief names it as a listing field | Required on create; an edit may replace a photo but not remove it |
+
+## 8. Key decisions and trade-offs
 
 - **Cache Components disabled.** `create-next-app` enabled `cacheComponents` and `partialPrefetching`. With them on, reading `cookies()` outside a `<Suspense>` boundary is a build error, and `@supabase/ssr` reads cookies on every authenticated request. A marketplace where a listing can sell at any moment also wants fresh reads. I gave up Partial Prerendering; `loading.tsx` still gives streamed loading states.
 - **`proxy.ts`, not `middleware.ts`.** Next 16 renamed the convention. Every Supabase guide still says `middleware.ts`; a file with that name would not run, and the only symptom would be sessions expiring because nothing refreshed the token.
@@ -219,13 +262,15 @@ Seven of the nine are access-control checks; 1 is a credential-hygiene check and
 - **Checking affected row counts.** A write blocked by RLS does not raise an error; zero rows match. The actions and the verify script use `.select("id")` after the write and treat zero rows as "not allowed". Checking only `error` would report a refused write as success and make the RLS tests pass vacuously.
 - **The ambiguous-embed bug.** `seller:profiles(full_name)` failed at runtime because PostgREST can reach `profiles` from `listings` three ways (directly, and through `wishlist_items` and `inquiries`). `next build` and `tsc` both passed, because the select string is opaque to them. I only found it by running the query against the real database, and fixed it by naming the constraint: `profiles!listings_seller_id_fkey`. The lesson I took is that a green build says nothing about query strings.
 
-## 8. Testing and verification
+## 9. Testing and verification
 
 **Verified, and how**
 
 - `next build`, `tsc --noEmit` and `eslint` clean, re-run after the create/edit work.
 - A scripted browser pass with `playwright-cli` against a local production build (`next build` + `next start`), 30 of 30 checks passing: sign-in; the Sell an item link; an empty form blocked client-side; a bad price rejected on blur; a non-image file refused; photo preview; create; the photo stored at `<uid>/<uuid>.png` and publicly fetchable; the edit form pre-filled; edit saving title, price and a replacement photo; the replaced photo removed from Storage; mark sold; the sold item hidden from default browse and shown with a Sold label when included; My Listings; a second user seeing no owner controls and a not-found page on the edit URL; delete with its confirm dialog, both cancelled and accepted; and the deleted listing and its photo both gone.
-- `npm run verify:rls`: 9 of 9 assertions pass against the live database.
+- `npm run verify:rls`: 12 of 12 assertions pass against the live database. Three were added in the last phase and attack the new checklist and photo-path rules through the API directly.
+- Realtime: two separate browser sessions, a buyer watching and a seller acting. The buyer's browse card gained its Sold label in place, and the buyer's open listing page gained its sold banner. In both cases a marker set on `window` beforehand was still there afterwards, which shows the page had not reloaded.
+- The checklist trigger: seven crafted inserts through the API (a key from another category, an unknown key, a script-like string, `false`, a bad size, a checklist on a category without one, and a photo in another user's folder) were all rejected.
 - `npm run seed:demo` and `npm run reseed:demo` succeed using only the publishable key, which exercises the migrations, the domain hook, the profile trigger and the `sold_at` trigger.
 - Against the live database: search by a plain word, a course code and an author name each return rows; punctuation-only input returns nothing without erroring; category filtering works.
 - On the production URL: `/`, `/login`, `/signup` return 200; `/listings` and `/listings/mine` redirect to `/login?next=...` when signed out; `?next=https://evil.example` is rejected.
@@ -248,11 +293,10 @@ Seven of the nine are access-control checks; 1 is a credential-hygiene check and
 - The demo account passwords that were originally committed remain in git history and in the two scripts. They have been rotated, and the first `verify:rls` assertion checks the old seller password no longer works.
 - TODO: `README.md` and `docs/architecture.md` are partly out of date (feature checklist, project structure, an "Open items" section saying the migrations have not been run). Update before submitting.
 
-## 9. What I would do next
+## 10. What I would do next
 
 1. Repeat the create/edit browser pass on the deployed site.
 2. Test the barcode scanner on real Android and iOS devices.
-3. Add the Realtime subscription on `listings` so a sold item greys out for everyone viewing it. The table is already in the `supabase_realtime` publication, so this is client work only.
 4. Extend `verify:rls` to cover Storage (cross-folder upload and delete) and `inquiries`.
 5. Add pagination to browse and rank search results by relevance instead of only by date.
 6. Add a small end-to-end suite for the sign-up, list, mark-sold path so regressions do not rely on manual checks.

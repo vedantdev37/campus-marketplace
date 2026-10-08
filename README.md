@@ -107,19 +107,19 @@ check — see
       enters), adjusted for condition. Sellers see it live while pricing; buyers
       see it on the listing.
 
-### Bonus features, in priority order
-Built in this order, as time allows. Anything not reached is left unbuilt rather
-than half-built.
+### Beyond the core
 
-1. [ ] **Realtime sold updates.** A listing marked sold greys out for everyone
-       currently viewing it, without a refresh.
-2. [ ] **Campus pickup spots.** Each listing names a handover point (library,
-       main gate, canteen…); browse can be filtered by spot.
-3. [ ] **Wishlist with sold alerts.** Save a listing; get told when something
-       you saved is sold.
-4. [ ] **Buyer–seller inquiry messaging.** Ask the seller a question about a
-       listing.
-5. [ ] **Push notifications.** Only if time genuinely allows.
+- [x] **Realtime sold updates.** A listing marked sold greys out for everyone
+      currently viewing it, without a refresh.
+- [x] **Campus pickup spots.** Each listing names a handover point (library,
+      main gate, food court…); browse can be filtered by spot.
+- [x] **Condition checklists.** Category-specific facts the seller confirms
+      (charger included, no highlighting, lab coat size…), shown as ticks on
+      the listing and validated by a database trigger.
+
+**Dropped from scope**, deliberately, rather than left half-built: wishlist UI,
+buyer–seller messaging, and push notifications. The `wishlist_items` and
+`inquiries` tables and their RLS policies exist in the schema but have no UI.
 
 ---
 
@@ -181,6 +181,7 @@ Open **Supabase → SQL Editor** and run each file in `supabase/migrations/`
 | 3 | `0003_storage.sql` | `listing-images` bucket and its object policies |
 | 4 | `0004_signup_domain_allowlist.sql` | Email-domain gate for sign-up |
 | 5 | `0005_seed.sql` | Pickup spots and the allowed sign-up domains |
+| 6 | `0006_condition_checks.sql` | Condition checklists, the lab category, and two extra constraints. Run it on its own |
 
 They are written to be re-runnable, so running one twice is harmless.
 
