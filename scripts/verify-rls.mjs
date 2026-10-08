@@ -215,6 +215,37 @@ async function main() {
     );
   }
 
+  // --- Checklist and photo rules hold for direct API writes --------------
+  // These rows are the seller's OWN, so RLS allows the insert. What must stop
+  // them is the trigger and constraints from migration 0006: the app's zod
+  // validation is skipped entirely by a request made straight to the API.
+  {
+    const base = {
+      seller_id: sellerId,
+      title: "verify-rls probe",
+      description: "Inserted by verify-rls and expected to be rejected.",
+      price: 10,
+      condition: "good",
+    };
+
+    const probes = [
+      ["a checklist key from another category is rejected", { ...base, category: "books", condition_checks: { charger_included: true } }],
+      ["a script-like string where a tick belongs is rejected", { ...base, category: "electronics", condition_checks: { battery_ok: "<script>alert(1)</script>" } }],
+      ["a photo path in another user's folder is rejected", { ...base, category: "other", condition_checks: {}, image_path: `${buyerId}/stolen.png` }],
+    ];
+
+    for (const [description, row] of probes) {
+      const { data, error } = await seller.from("listings").insert(row).select("id");
+
+      check(description, Boolean(error), error ? undefined : "the row was accepted");
+
+      // If one ever gets through, do not leave it behind.
+      if (!error && data?.[0]?.id) {
+        await seller.from("listings").delete().eq("id", data[0].id);
+      }
+    }
+  }
+
   // --- 9. Nothing above actually changed anything -----------------------
   {
     const { data } = await buyer

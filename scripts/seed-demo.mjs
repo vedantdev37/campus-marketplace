@@ -29,6 +29,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 
+import { renderDemoImage } from "./demo-images.mjs";
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -81,7 +83,12 @@ for (const [name, account] of [
   }
 }
 
-/** `pickupSpot` is matched by name against the seeded pickup_spots rows. */
+/**
+ * `pickupSpot` is matched by name against the seeded pickup_spots rows.
+ * `image` describes the placeholder photo to draw (see demo-images.mjs).
+ * `condition_checks` uses the keys allowed for the listing's category; the
+ * database trigger from migration 0006 rejects any that do not belong.
+ */
 const SELLER_LISTINGS = [
   {
     title: "Higher Engineering Mathematics - B.S. Grewal",
@@ -95,7 +102,15 @@ const SELLER_LISTINGS = [
     isbn: "9788193328491",
     book_author: "B.S. Grewal",
     original_price: 650,
+    condition_checks: { all_pages_intact: true },
     pickupSpot: "Central Library",
+    image: {
+      art: "book",
+      title: "Higher Engineering Mathematics",
+      author: "B.S. Grewal",
+      cover: "#8c2f39",
+      accent: "#e9c46a",
+    },
   },
   {
     title: "Data Structures and Algorithms in C++",
@@ -109,7 +124,15 @@ const SELLER_LISTINGS = [
     isbn: "9780132847377",
     book_author: "Michael T. Goodrich",
     original_price: 899,
+    condition_checks: { no_highlighting: true, all_pages_intact: true },
     pickupSpot: "Main Block Lobby",
+    image: {
+      art: "book",
+      title: "Data Structures and Algorithms in C++",
+      author: "Michael T. Goodrich",
+      cover: "#1f4e5f",
+      accent: "#f4a261",
+    },
   },
   {
     title: "Casio FX-991EX scientific calculator",
@@ -118,7 +141,10 @@ const SELLER_LISTINGS = [
     price: 850,
     category: "electronics",
     condition: "good",
+    original_price: 1495,
+    condition_checks: { battery_ok: true, screen_unscratched: true },
     pickupSpot: "Food Court",
+    image: { art: "calculator" },
   },
   {
     title: "Study table lamp, adjustable neck",
@@ -128,6 +154,7 @@ const SELLER_LISTINGS = [
     category: "hostel",
     condition: "good",
     pickupSpot: "Boys' Hostel Gate",
+    image: { art: "lamp" },
   },
   {
     title: "Operating Systems handwritten notes, full syllabus",
@@ -139,6 +166,19 @@ const SELLER_LISTINGS = [
     course_code: "21CS43",
     semester: 4,
     pickupSpot: "Central Library",
+    image: { art: "notes", title: "Operating Systems" },
+  },
+  {
+    title: "Lab coat, full sleeve, size M",
+    description:
+      "White cotton lab coat used for one semester of chemistry lab. Washed and ironed, all buttons present, both pockets intact. No stains or burn marks.",
+    price: 220,
+    category: "lab",
+    condition: "like_new",
+    original_price: 450,
+    condition_checks: { size: "M", no_stains: true },
+    pickupSpot: "Main Block Lobby",
+    image: { art: "labCoat" },
   },
   {
     title: "Folding study chair",
@@ -148,6 +188,7 @@ const SELLER_LISTINGS = [
     category: "furniture",
     condition: "fair",
     pickupSpot: "Girls' Hostel Gate",
+    image: { art: "chair" },
   },
 ];
 
@@ -176,6 +217,59 @@ function fail(message, error) {
   }
 
   process.exit(1);
+}
+
+/**
+ * Draws a placeholder photo and uploads it into the seller's own folder.
+ *
+ * Uploaded as the seller, through the public API, so it is subject to the same
+ * Storage policy as a photo uploaded from the form: the first path segment
+ * must be the uploader's uid. The returned path is what the listing stores.
+ */
+async function uploadDemoImage(client, userId, image) {
+  const bytes = await renderDemoImage(image);
+  const path = `${userId}/${crypto.randomUUID()}.webp`;
+
+  const { error } = await client.storage
+    .from("listing-images")
+    .upload(path, bytes, { contentType: "image/webp", cacheControl: "31536000" });
+
+  if (error) {
+    fail("could not upload a demo image", error);
+  }
+
+  return path;
+}
+
+/**
+ * Empties a user's Storage folder.
+ *
+ * The reset deletes listing rows directly rather than through the app's delete
+ * action, so nothing would otherwise remove their photos and each reseed would
+ * leave another set of orphaned files behind.
+ */
+async function clearImageFolder(client, userId) {
+  const { data: files, error } = await client.storage
+    .from("listing-images")
+    .list(userId, { limit: 1000 });
+
+  if (error) {
+    fail("could not list the seller's images", error);
+  }
+
+  if (!files || files.length === 0) {
+    return 0;
+  }
+
+  const { error: removeError } = await client.storage
+    .from("listing-images")
+    .remove(files.map((file) => `${userId}/${file.name}`));
+
+  if (removeError) {
+    fail("could not remove old demo images", removeError);
+  }
+
+  return files.length;
 }
 
 /** A fresh client per account: each one carries exactly one user's session. */
@@ -287,7 +381,9 @@ async function resetDemoData(sellerClient, sellerId, buyerClient, buyerId) {
     }
   }
 
-  console.log("  cleared existing demo listings and wishlist");
+  const removed = await clearImageFolder(sellerClient, sellerId);
+
+  console.log(`  cleared existing demo listings, wishlist and ${removed} stored image(s)`);
 }
 
 async function main() {
@@ -340,11 +436,20 @@ async function main() {
         "\n  (use `npm run reseed:demo` to replace them)",
     );
   } else {
-    const rows = SELLER_LISTINGS.map(({ pickupSpot, ...listing }) => ({
-      ...listing,
-      seller_id: sellerId,
-      pickup_spot_id: spotIdByName.get(pickupSpot) ?? null,
-    }));
+    const rows = [];
+
+    for (const { pickupSpot, image, ...listing } of SELLER_LISTINGS) {
+      rows.push({
+        ...listing,
+        // Explicit on every row: in a bulk insert a key missing from one row is
+        // sent as null rather than left to the column default, and this column
+        // is not null.
+        condition_checks: listing.condition_checks ?? {},
+        seller_id: sellerId,
+        pickup_spot_id: spotIdByName.get(pickupSpot) ?? null,
+        image_path: await uploadDemoImage(sellerClient, sellerId, image),
+      });
+    }
 
     const { data: inserted, error: insertError } = await sellerClient
       .from("listings")
