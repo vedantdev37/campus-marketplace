@@ -1,4 +1,26 @@
+import { readdirSync } from "node:fs";
+import path from "node:path";
+
 import type { NextConfig } from "next";
+
+/**
+ * The hero photos, listed once when the app is built.
+ *
+ * Whatever image files are in public/hero/ are used, in filename order, so
+ * swapping the placeholders for real campus photographs needs no code change.
+ * See src/lib/hero-images.ts for why this is done here and not per request.
+ */
+function listHeroImages(): string[] {
+  try {
+    return readdirSync(path.join(process.cwd(), "public", "hero"))
+      .filter((file) => /\.(webp|jpe?g|png|avif)$/i.test(file))
+      .sort((a, b) => a.localeCompare(b))
+      .slice(0, 6)
+      .map((file) => `/hero/${file}`);
+  } catch {
+    return [];
+  }
+}
 
 const nextConfig: NextConfig = {
   // Cache Components (Next 16 PPR) is deliberately NOT enabled.
@@ -8,6 +30,10 @@ const nextConfig: NextConfig = {
   // is the behaviour we want. See docs/architecture.md.
   //
   // cacheComponents + partialPrefetching must be set together; both are off.
+
+  env: {
+    HERO_IMAGES: JSON.stringify(listHeroImages()),
+  },
 
   images: {
     remotePatterns: [
