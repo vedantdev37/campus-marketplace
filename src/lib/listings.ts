@@ -157,35 +157,25 @@ export async function getMyListings(userId: string): Promise<Listing[]> {
   return (data ?? []) as unknown as Listing[];
 }
 
+type TeaserRow = {
+  id: string;
+  title: string;
+  price: number | string;
+  category: Listing["category"];
+  condition: Listing["condition"];
+  status?: Listing["status"];
+  image_path: string | null;
+  course_code: string | null;
+  pickup_spot_name: string | null;
+};
+
 /**
- * A few recent listings for the home page.
- *
- * A signed-in user gets them through the ordinary query. A signed-out visitor
- * cannot read `listings` at all - that is the point of the RLS policies - so
- * for them this calls `recent_listing_teasers()`, a database function that
- * returns only what a card shows (no seller, no description) for at most eight
- * available listings. See migration 0007 for why that narrow exception is safe.
- *
- * If that optional migration has not been applied the call fails, and this
- * returns an empty list: the home page then simply has no listings row for
- * signed-out visitors, rather than an error.
+ * A teaser row, shaped like a Listing so the same card component can draw it.
+ * The fields a teaser does not carry are filled with harmless blanks; the card
+ * reads none of them.
  */
-export async function getRecentListings(isSignedIn: boolean): Promise<Listing[]> {
-  if (isSignedIn) {
-    return (await listListings()).slice(0, 8);
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("recent_listing_teasers");
-
-  if (error || !Array.isArray(data)) {
-    return [];
-  }
-
-  // Shaped like a Listing so the same card component can draw it. The fields a
-  // teaser does not carry are filled with harmless blanks; the card reads none
-  // of them.
-  return data.map((row) => ({
+function teaserToListing(row: TeaserRow): Listing {
+  return {
     id: row.id,
     seller_id: "",
     title: row.title,
@@ -193,7 +183,7 @@ export async function getRecentListings(isSignedIn: boolean): Promise<Listing[]>
     price: Number(row.price),
     category: row.category,
     condition: row.condition,
-    status: "available",
+    status: row.status ?? "available",
     image_path: row.image_path,
     pickup_spot_id: null,
     course_code: row.course_code,
@@ -207,5 +197,74 @@ export async function getRecentListings(isSignedIn: boolean): Promise<Listing[]>
     updated_at: "",
     seller: null,
     pickup_spot: row.pickup_spot_name ? { id: "", name: row.pickup_spot_name } : null,
-  })) as Listing[];
+  };
+}
+
+/**
+ * A few recent listings for the home page: up to seven that are for sale, and
+ * the most recently sold one, so the page can show what "sold" looks like.
+ *
+ * The home page is public, and a signed-out visitor cannot read `listings` at
+ * all - that is the point of the RLS policies. So this calls
+ * `home_listing_teasers()`, a database function that returns only what a card
+ * shows (no seller, no description). Migration 0009 explains why that narrow
+ * exception is safe. Signed-in visitors get the same rows the same way, so the
+ * page looks identical whether or not you are signed in.
+ *
+ * If 0009 has not been applied, it falls back to the older
+ * `recent_listing_teasers()` (available listings only); if that is missing
+ * too, to an empty list. The page then has fewer cards, not an error.
+ */
+export async function getRecentListings(): Promise<Listing[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const current = await supabase.rpc("home_listing_teasers");
+
+  if (!current.error && Array.isArray(current.data)) {
+    return (current.data as TeaserRow[]).map(teaserToListing);
+  }
+
+  const older = await supabase.rpc("recent_listing_teasers");
+
+  if (!older.error && Array.isArray(older.data)) {
+    return (older.data as TeaserRow[]).map(teaserToListing);
+  }
+
+  return [];
+}
+
+/** The live numbers on the home page, from `public_stats()` (migration 0009). */
+export type PublicStats = {
+  listings_live: number;
+  items_sold: number;
+  pickup_spots: number;
+  meetups_agreed: number;
+  students: number;
+};
+
+/**
+ * Counts for the home page's proof strip, or null if they cannot be read.
+ *
+ * Null is a real answer the page handles: it then shows no live counters at
+ * all. It never substitutes a made-up number for one it could not fetch.
+ */
+export async function getPublicStats(): Promise<PublicStats | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("public_stats");
+
+  const row = Array.isArray(data) ? data[0] : data;
+
+  if (error || !row || typeof row.listings_live !== "number") {
+    return null;
+  }
+
+  return row as PublicStats;
+}
+
+/** Pickup spot names for the public home page, or an empty list. */
+export async function getPublicPickupSpots(): Promise<{ name: string; description: string | null }[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("public_pickup_spots");
+
+  return error || !Array.isArray(data) ? [] : data;
 }

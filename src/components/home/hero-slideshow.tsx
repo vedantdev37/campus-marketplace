@@ -69,7 +69,9 @@ export function HeroSlideshow({ images }: { images: string[] }) {
 
   return (
     <>
-      <div aria-hidden="true" className="absolute inset-0 overflow-hidden bg-[#1b1b1f]">
+      {/* `grain` lays a still film-grain texture over the photographs (see
+          globals.css). */}
+      <div aria-hidden="true" className="grain absolute inset-0 overflow-hidden bg-[#0b0b12]">
         {images.map((src, index) => (
           <Image
             key={src}
@@ -83,7 +85,12 @@ export function HeroSlideshow({ images }: { images: string[] }) {
             style={{ animationPlayState: isPaused ? "paused" : "running" }}
             className={[
               "object-cover motion-safe:transition-opacity motion-safe:duration-[1500ms]",
-              "motion-safe:animate-[hero-drift_24s_ease-in-out_infinite_alternate]",
+              // Slow enough to read as a camera move, not a slideshow.
+              "motion-safe:animate-[hero-drift_30s_ease-in-out_infinite_alternate]",
+              // The "after dark" grade: pulled down and slightly desaturated,
+              // so any photograph - including a bright midday one - sits
+              // inside the palette.
+              "brightness-75 saturate-[0.8]",
               index === shown ? "opacity-100" : "opacity-0",
             ].join(" ")}
           />
@@ -94,7 +101,8 @@ export function HeroSlideshow({ images }: { images: string[] }) {
          * The text over it is literal white, and this gradient is what
          * guarantees its contrast whatever photograph ends up underneath.
          */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.3)_40%,rgba(0,0,0,0.8)_100%)]" />
+        <div className="absolute inset-0 bg-[#2a2470]/40 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,11,18,0.55)_0%,rgba(11,11,18,0.35)_35%,rgba(11,11,18,0.94)_100%)]" />
       </div>
 
       {/* Not offered when nothing is moving to begin with. */}

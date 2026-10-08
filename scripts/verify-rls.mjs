@@ -8,9 +8,16 @@
  * public API directly as a signed-in non-owner - which is exactly what a
  * motivated user with the browser console open would do.
  *
- * Run it after `npm run seed:demo`. It makes no changes: every write it attempts
- * is expected to be rejected.
+ * Run it after `npm run seed:demo`. It makes no changes to the database: every
+ * write it attempts is expected to be rejected.
+ *
+ * The one thing it does write is a small local file, src/lib/security-run.json,
+ * recording how the run went and when. The home page and the /security page
+ * show that file, so the "tests passed" figure on the site is whatever this
+ * script last measured - never a number typed into the page.
  */
+
+import { writeFileSync } from "node:fs";
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -30,6 +37,7 @@ const BURNED_PASSWORD = "DemoSeller#2026";
 
 let passed = 0;
 let failed = 0;
+let skipped = 0;
 
 function check(description, didHold, detail) {
   if (didHold) {
@@ -547,6 +555,7 @@ async function main() {
           outsiderAccept.error ? undefined : "the proposal was accepted",
         );
       } else {
+        skipped += 2;
         console.log("  SKIP  self-accept checks: no pending proposal (run `npm run reseed:demo`)");
       }
     }
@@ -558,6 +567,54 @@ async function main() {
         "the conversation has exactly the messages it started with",
         messagesAfter === messagesBefore,
         `before: ${messagesBefore}, after: ${messagesAfter}`,
+      );
+    }
+  }
+
+  // --- The public home page functions give away only what a card shows ----
+  // Migration 0009 lets a signed-out visitor call three functions. These are
+  // the opposite kind of check: the calls must SUCCEED, and what comes back
+  // must contain nothing beyond the fields listed in that migration.
+  {
+    const anon = newClient();
+
+    const onlyKeys = (rows, allowed) =>
+      Array.isArray(rows) &&
+      rows.length > 0 &&
+      rows.every((row) => Object.keys(row).every((key) => allowed.includes(key)));
+
+    {
+      const { data, error } = await anon.rpc("home_listing_teasers");
+
+      check(
+        "home page teasers carry card fields only: no seller, no description",
+        !error &&
+          onlyKeys(data, [
+            "id", "title", "price", "category", "condition", "status",
+            "image_path", "course_code", "pickup_spot_name",
+          ]),
+        error ? `the call failed: ${error.message}` : `keys: ${Object.keys(data?.[0] ?? {})}`,
+      );
+    }
+
+    {
+      const { data, error } = await anon.rpc("public_stats");
+      const row = Array.isArray(data) ? data[0] : data;
+
+      check(
+        "public stats are whole numbers and nothing else",
+        !error && row && Object.values(row).every((value) => Number.isInteger(value)),
+        error ? `the call failed: ${error.message}` : JSON.stringify(row),
+      );
+    }
+
+    {
+      const { data, error } = await anon.rpc("public_pickup_spots");
+
+      check(
+        "public pickup spots are names and descriptions only",
+        !error && onlyKeys(data, ["name", "description"]),
+        error ? `the call failed: ${error.message}` : `keys: ${Object.keys(data?.[0] ?? {})}`,
       );
     }
   }
@@ -582,7 +639,14 @@ async function main() {
     );
   }
 
-  console.log(`\n${passed} passed, ${failed} failed\n`);
+  console.log(`\n${passed} passed, ${failed} failed${skipped ? `, ${skipped} skipped` : ""}\n`);
+
+  // Recorded whatever the outcome: a failing run is written down as failing.
+  writeFileSync(
+    new URL("../src/lib/security-run.json", import.meta.url),
+    `${JSON.stringify({ passed, failed, skipped, total: passed + failed + skipped, ranAt: new Date().toISOString() }, null, 2)}\n`,
+  );
+
   process.exit(failed > 0 ? 1 : 0);
 }
 
