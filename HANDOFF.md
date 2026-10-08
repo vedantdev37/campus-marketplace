@@ -28,6 +28,7 @@ updated after Phase 5b (chat and meetups).
 | 5b | Listing chat, Inbox, unread counts, meetup booking | Done; migration 0008 applied |
 | 5c | "After dark" redesign, rename to Nitte Mart, five-scene home, `/security` | Done; migration 0009 |
 | 5d-A | Six post types, Explore, Post, Me, polaroid cards, tab bar | Done; migration 0010 applied |
+| 5d-B | Profiles, Squad up, chat quick replies and typing, showcase profile | Done; no migration |
 | 6 | Docs, diagrams, write-up, video, final review | **Not started** |
 
 Supabase dashboard settings already made: "Before User Created" hook enabled
@@ -39,7 +40,7 @@ Vercel env vars set, including `GOOGLE_BOOKS_API_KEY`.
 ```bash
 npm run dev            # dev server
 npm run build && npm run start   # production build - test against THIS, not dev
-npm run verify:rls     # 59 checks; must stay 59/59 (run reseed:demo first). Writes
+npm run verify:rls     # 61 checks; must stay 61/61 (run reseed:demo first). Writes
                        # src/lib/security-run.json, which the site displays: commit it.
 npm run reseed:demo    # wipe + recreate demo listings with images; run before submitting
 ```
@@ -111,6 +112,14 @@ Reviewers can sign up with any `@reviewer.test` address.
 - **Routes:** `/explore`, `/post`, `/me` are current. `/listings/[id]` is still the detail
   page. `/listings`, `/listings/new` and `/listings/mine` redirect, because the README's
   reviewer steps and old links use them.
+- **Profiles are readable by any signed-in student and by nobody signed out.** A GitHub
+  link is built from a stored username, never a stored URL.
+- **The typing indicator is a Realtime broadcast on a channel named after the
+  conversation, and that channel is not access-controlled.** Someone who knew a
+  conversation id could see that somebody is typing, or fake it. No message can be read
+  or written that way. Locking it needs a Realtime authorisation policy (a migration).
+- **Reseed resets profiles too**, and re-uploads the showcase photo: clearing a Storage
+  folder while a row still points into it leaves a broken image.
 - **Dropped from scope**: wishlist UI, push. The `wishlist_items` table exists with no UI.
 
 ## Gotchas

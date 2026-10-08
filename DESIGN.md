@@ -151,6 +151,9 @@ Three typefaces, one job each.
 - **SOLD stays the loud one:** yellow, larger, with "Mission passed" in small type beneath. The other end states use an ink stamp, so a page of mixed posts has one kind of shouting.
 - **Listing page:** a large 4:3 photo, category kicker, title, fact chips, description, "What's in the box" (the seller's checklist), then details. The price card on the right holds the 56px price, the fair-price guide, the meetup and the chat action. On a phone a sticky bar keeps the price and the chat action in reach.
 - **Phone tab bar:** Home, Explore, Post, Inbox, Me, fixed to the bottom below `md`, 56px plus the safe area. The current tab has a bar above it, a heavier label and `aria-current`. Post is the one yellow circle. The bar is hidden on a conversation and on a listing with its own action bar, which already have something pinned there. From `md` up the same destinations are in the header.
+- **Avatar:** a round photo, or the person's initials on indigo when there is none or it fails to load.
+- **Quick replies:** a row of chips above the message box, shown only while it is empty. A chip fills the box and does not send. Which chips appear depends on the kind of post.
+- **Typing indicator:** one muted line at the end of the thread, announced politely.
 - **Chat:** your messages are indigo with white text, theirs are `surface-soft`. The meetup bar turns `success-surface` once a meetup is agreed.
 - **Text input:** canvas fill, 1px `control-border`, 8px radius, 56px tall; ink border on focus.
 

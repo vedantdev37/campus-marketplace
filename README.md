@@ -43,7 +43,7 @@ npm run verify:rls
 
 attacks the public API directly: as a signed-in non-owner against listings,
 and as a third account against a conversation between the buyer and the
-seller. It makes 59 assertions. Most are things that must be refused - a
+seller. It makes 61 assertions. Most are things that must be refused - a
 price change, a forged message sender, reading someone else's chat, accepting
 your own meetup proposal - and three confirm the public home page receives
 only what a listing card shows. The result of each run is written to
@@ -190,6 +190,7 @@ Then fill in `.env.local` from **Supabase → Settings → API**:
 | `DEMO_SELLER_PASSWORD`          | Any 8+ character password, for the seeded seller account  |
 | `DEMO_BUYER_PASSWORD`           | Any 8+ character password, for the seeded buyer account   |
 | `DEMO_OUTSIDER_PASSWORD`        | Any 8+ character password, for the third account `verify:rls` attacks chats with |
+| `DEMO_VEDANT_PASSWORD`          | Any 8+ character password, for the author's showcase profile |
 
 The app validates these on startup and names any variable that's missing, so a
 typo produces a readable error rather than a crash deep inside a library.

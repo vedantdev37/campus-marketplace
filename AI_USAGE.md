@@ -1101,6 +1101,78 @@ and separately, while this was being built:
 
 ---
 
+## Phase 5d, Batch B — Profiles, Squad up, chat upgrade, showcase profile
+
+**Asked for**
+
+> "Squad up: skills on profiles; 'I offer' and 'Looking for' posts; skill-tag
+> filters; contact via chat. Chat upgrade: works for every post type;
+> quick-reply chips …; typing indicator via Realtime presence; keep the meetup
+> booking. Showcase profile: seed a real profile for me, Vedant Sharma, with my
+> photo …, skills …, my GitHub …, and 2 posts."
+
+The bio, skills and GitHub username on the showcase profile were supplied by
+the author; the two posts' wording is AI's, from the titles the author gave.
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `src/app/u/[id]/page.tsx`, `src/lib/profiles.ts`, `components/profile/` | Profile page, avatar with initials fallback, edit form with photo upload |
+| `src/app/me/actions.ts`, `me/profile/page.tsx`, `me/page.tsx` | Saving a profile; my skills on Me |
+| `components/chat/chat-thread.tsx`, `inbox/[id]/page.tsx` | Quick replies, typing indicator, type-aware chat header |
+| `scripts/seed-demo.mjs`, `verify-rls.mjs`, `public/vedant.webp` | The showcase account, profile and posts; a Squad up conversation; two new assertions |
+
+**What the reviewers and QA found (AI reviewing AI)**
+
+- *Auditor (before the batch):* a typing channel named after the conversation
+  can be joined and spoofed by anyone who has the id. AI built it that way
+  anyway, sending no content, and documented the limit in the code, the
+  write-up and HANDOFF instead of adding a migration at 2 am.
+- *QA agent:* nine scenarios; eight passed outright. **The showcase profile's
+  photo was broken.** The reseed emptied the Storage folder and then skipped
+  the re-upload because the row still held the old path. Also: the price was
+  cut off in the phone chat header; the skills field's errors said "tags"; a
+  broken photo showed alt text in a circle instead of initials. All fixed.
+
+**AI mistakes in this phase**
+
+- The broken showcase photo, above. AI had run the seed once without a reset,
+  seen "with photo" printed, and not looked at the page.
+- Fixing that exposed a second seed bug the same night: the seller's demo
+  conversation was skipped because the buyer "already had a conversation" -
+  with the showcase profile. `verify:rls` stopped with "No demo conversation
+  found", which is how it was caught.
+- "Realtime presence" was asked for; AI used Realtime broadcast, which is the
+  simpler of the two and enough for "is typing".
+- The author's photo arrived as a 5 MB file stored sideways. AI committed a
+  14 KB upright crop and gitignored the original so it would not be published.
+
+**Verified by testing** (production build)
+
+- `npm run verify:rls`: 61 of 61 after the fixes and a reseed.
+- QA agent, scenarios A-I at 1280 px and 390 px: profile page, edit and
+  validation, the signed-out redirect, quick replies per post type, the typing
+  indicator between two sessions (shown within about 0.3 s, gone about 2.8 s
+  after typing stops), chat wording, no console errors.
+- After the fix, the showcase photo's Storage URL answers 200 with an image.
+
+**Not verified**
+
+- The four fixes were checked by type-check, build and the Storage request
+  above, not by a second browser pass.
+- A tampered profile save from the browser (the database rules for it are
+  covered by `verify:rls`).
+- Nothing in this batch has been run on the deployed site.
+
+**Author changed / verified**
+
+- Supplied the photo, the bio, the skills and the GitHub username, and
+  confirmed "First-year CSE" is correct.
+- _Code review of the above files: **pending author review**._
+
+---
+
 ## Skills used
 
 Agent skills installed in this repository under `.claude/skills/`, and where
