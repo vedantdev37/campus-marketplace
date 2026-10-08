@@ -165,7 +165,30 @@ function labCoat() {
     <rect x="634" y="520" width="56" height="70" rx="4" fill="none" stroke="#c5d0d8" stroke-width="4"/>`;
 }
 
-const PAINTERS = { book, calculator, lamp, notes, chair, labCoat };
+/** A mini drafter: a drawing board with its sliding arm and scale. */
+function drafter() {
+  return `
+    ${backdrop("#ece6da", "#d8cfbd")}
+    <rect x="300" y="200" width="600" height="420" rx="14" fill="#f7f3e9" stroke="#b9ad94" stroke-width="6"/>
+    <rect x="330" y="300" width="540" height="26" rx="6" fill="#2f6f8f"/>
+    <rect x="560" y="230" width="30" height="360" rx="6" fill="#2f6f8f"/>
+    <circle cx="575" cy="313" r="26" fill="#1d4c63"/>
+    <g stroke="#1d4c63" stroke-width="3">
+      ${Array.from({ length: 16 }, (_, i) => `<line x1="${350 + i * 32}" y1="300" x2="${350 + i * 32}" y2="${i % 4 === 0 ? 286 : 292}"/>`).join("")}
+    </g>`;
+}
+
+/** A steel water bottle. */
+function bottle() {
+  return `
+    ${backdrop("#e4ecef", "#cbd8dd")}
+    <rect x="555" y="170" width="90" height="60" rx="10" fill="#27445a"/>
+    <rect x="520" y="225" width="160" height="440" rx="46" fill="#3d7ea6"/>
+    <rect x="520" y="380" width="160" height="90" fill="#2c5f80"/>
+    <rect x="548" y="250" width="22" height="380" rx="11" fill="#ffffff" opacity="0.25"/>`;
+}
+
+const PAINTERS = { book, calculator, lamp, notes, chair, labCoat, drafter, bottle };
 
 /**
  * Renders one demo image.

@@ -47,3 +47,7 @@ next-env.d.ts
 
 # playwright-cli session artefacts
 .playwright-cli/
+
+# The original profile photo. Only the compressed public/vedant.webp is committed.
+/public/vedant.JPG
+/public/vedant.jpg

@@ -108,6 +108,7 @@ async function main() {
     .from("listings")
     .select("id, title, price, status, seller_id")
     .eq("seller_id", sellerId)
+    .eq("type", "sale")
     .eq("status", "available")
     .limit(1);
 
@@ -571,6 +572,146 @@ async function main() {
     }
   }
 
+  // --- Six kinds of post: closing them, and the rules per type -----------
+  // A rental, a giveaway and a found item are rows in the same table as a
+  // sale (migration 0010). "Returned" and "claimed" are the owner changing
+  // `status`, so the question is the same one as for a sale: can anyone else?
+  {
+    const outsiderPassword = process.env.DEMO_OUTSIDER_PASSWORD;
+    const outsider = await signIn("outsider@reviewer.test", outsiderPassword);
+
+    const { data: posts } = await buyer
+      .from("listings")
+      .select("id, type, status, title")
+      .eq("seller_id", sellerId)
+      .eq("status", "available")
+      .in("type", ["rent", "lost_found", "free", "team_request"]);
+
+    const byType = Object.fromEntries((posts ?? []).map((post) => [post.type, post]));
+
+    for (const [type, description] of [
+      ["rent", "a non-owner cannot mark someone else's rental as rented out or returned"],
+      ["lost_found", "a non-owner cannot mark someone else's found item as claimed"],
+      ["free", "a non-owner cannot mark someone else's giveaway as claimed"],
+      ["team_request", "a non-owner cannot close someone else's team request"],
+    ]) {
+      const post = byType[type];
+
+      if (!post) {
+        skipped += 1;
+        console.log(`  SKIP  ${description}: no seeded ${type} post (run \`npm run reseed:demo\`)`);
+        continue;
+      }
+
+      const { data, error } = await outsider
+        .from("listings")
+        .update({ status: "sold" })
+        .eq("id", post.id)
+        .select("id");
+
+      check(
+        description,
+        !error && (data?.length ?? 0) === 0,
+        error ? `unexpected error: ${error.message}` : `rows affected: ${data?.length}`,
+      );
+    }
+
+    if (byType.free) {
+      const { data, error } = await seller
+        .from("listings")
+        .update({ type: "sale", price: 500 })
+        .eq("id", byType.free.id)
+        .select("id");
+
+      check(
+        "an owner cannot turn a FREE post into a sale after posting it",
+        Boolean(error) || (data?.length ?? 0) === 0,
+        "the type change was accepted",
+      );
+    }
+
+    // The seller's OWN rows, so RLS allows the insert. What must stop these
+    // is the per-type CHECK constraints: the app's validation is skipped by a
+    // request made straight to the API.
+    const base = {
+      seller_id: sellerId,
+      title: "verify-rls probe",
+      description: "Inserted by verify-rls and expected to be rejected.",
+    };
+
+    for (const [description, row] of [
+      ["a FREE post with a price on it is rejected", { ...base, type: "free", price: 250 }],
+      ["a sale with a found-on date is rejected", { ...base, type: "sale", price: 10, found_on: "2026-01-01" }],
+      ["a rental with no maximum days is rejected", { ...base, type: "rent", price: 30 }],
+      ["a rental for 365 days is rejected", { ...base, type: "rent", price: 30, rent_max_days: 365 }],
+      ["a post of a made-up type is rejected", { ...base, type: "auction", price: 10 }],
+      ["an upper-case tag is rejected", { ...base, type: "skill_offer", price: 0, tags: ["React"] }],
+      ["nine tags are rejected", { ...base, type: "team_request", price: 0, tags: ["a", "b", "c", "d", "e", "f", "g", "h", "i"] }],
+      ["tags on a sale are rejected", { ...base, type: "sale", price: 10, tags: ["react"] }],
+    ]) {
+      const { data, error } = await seller.from("listings").insert(row).select("id");
+
+      check(description, Boolean(error), error ? undefined : "the row was accepted");
+
+      if (!error && data?.[0]?.id) {
+        await seller.from("listings").delete().eq("id", data[0].id);
+      }
+    }
+
+    // -- Profiles: only your own, and only the columns meant to be edited ----
+    {
+      const { data, error } = await outsider
+        .from("profiles")
+        .update({ bio: "verify-rls: defaced" })
+        .eq("id", sellerId)
+        .select("id");
+
+      check(
+        "a user cannot edit someone else's profile",
+        !error && (data?.length ?? 0) === 0,
+        error ? `unexpected error: ${error.message}` : `rows affected: ${data?.length}`,
+      );
+    }
+
+    for (const [description, change] of [
+      ["a GitHub field holding a javascript: URL is rejected", { github_username: "javascript:alert(1)" }],
+      ["a profile photo in another user's folder is rejected", { avatar_path: `${sellerId}/stolen.webp` }],
+      ["a profile cannot change its own created_at", { created_at: "2000-01-01T00:00:00Z" }],
+      ["an upper-case skill is rejected", { skills: ["React"] }],
+    ]) {
+      const { error } = await outsider
+        .from("profiles")
+        .update(change)
+        .eq("id", (await outsider.auth.getUser()).data.user.id)
+        .select("id");
+
+      check(description, Boolean(error), error ? undefined : "the change was accepted");
+    }
+
+    // -- A closed post takes no new conversations ----------------------------
+    {
+      const { data: closedPosts } = await buyer
+        .from("listings")
+        .select("id")
+        .eq("seller_id", sellerId)
+        .eq("status", "sold")
+        .limit(1);
+
+      if (closedPosts?.[0]) {
+        const { error } = await outsider.rpc("start_conversation", {
+          p_listing_id: closedPosts[0].id,
+          p_body: "verify-rls: is this still available?",
+        });
+
+        check(
+          "a finished post refuses a new conversation",
+          error?.message === "listing_sold",
+          error ? `refused, but for another reason: ${error.message}` : "the conversation was created",
+        );
+      }
+    }
+  }
+
   // --- The public home page functions give away only what a card shows ----
   // Migration 0009 lets a signed-out visitor call three functions. These are
   // the opposite kind of check: the calls must SUCCEED, and what comes back
@@ -592,6 +733,20 @@ async function main() {
           onlyKeys(data, [
             "id", "title", "price", "category", "condition", "status",
             "image_path", "course_code", "pickup_spot_name",
+          ]),
+        error ? `the call failed: ${error.message}` : `keys: ${Object.keys(data?.[0] ?? {})}`,
+      );
+    }
+
+    {
+      const { data, error } = await anon.rpc("home_sections");
+
+      check(
+        "home page sections carry card fields only: no poster, no description",
+        !error &&
+          onlyKeys(data, [
+            "id", "type", "title", "price", "image_path", "pickup_spot_name",
+            "tags", "rent_max_days", "found_on", "event_name", "event_date",
           ]),
         error ? `the call failed: ${error.message}` : `keys: ${Object.keys(data?.[0] ?? {})}`,
       );

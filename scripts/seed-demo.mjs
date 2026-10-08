@@ -27,7 +27,11 @@
  *   3. Email confirmation turned off, so sign-up returns a session directly.
  */
 
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 
 import { renderDemoImage } from "./demo-images.mjs";
 
@@ -208,6 +212,160 @@ const SELLER_LISTINGS = [
   },
 ];
 
+/**
+ * Which photograph each demo post uses, by title.
+ *
+ * The key is a file name. For each one the script looks, in this order, for:
+ *
+ *   1. public/demo-photos/<key>.jpg|jpeg|png|webp   your own photo, if you put
+ *                                                   one there: it always wins
+ *   2. scripts/demo-photos/<key>.webp               the stock photo committed
+ *                                                   with the project (credits
+ *                                                   in docs/credits.md)
+ *   3. the drawn illustration from demo-images.mjs  if neither exists
+ *
+ * So the seed works with no photos at all, and one listing's photo can be
+ * replaced by dropping in a single file.
+ */
+const PHOTO_FOR = {
+  "Grewal - Higher Engineering Mathematics (44th ed.)": "maths-book",
+  "Data Structures and Algorithms in C++ (Goodrich)": "dsa-book",
+  "Casio FX-991EX scientific calculator": "calculator",
+  "Study lamp with desk clamp, adjustable neck": "lamp",
+  "Operating Systems handwritten notes, all 5 modules": "os-notes",
+  "Lab coat, full sleeve, size M": "lab-coat-rack",
+  "Folding study chair": "chair",
+  "Mini drafter with case": "drafter",
+  "Lab coat for the week, size L": "lab-coat",
+  "First-year chemistry notes, take them": "chem-notes",
+  "Desk lamp, works, slightly wobbly": "free-lamp",
+  "Blue steel water bottle": "bottle",
+  "Calculator left in a classroom": "lost-calculator",
+};
+
+const OWN_PHOTOS_DIR = new URL("../public/demo-photos/", import.meta.url);
+const STOCK_PHOTOS_DIR = new URL("./demo-photos/", import.meta.url);
+
+/** The photograph for a post as WebP bytes, or null if there is none. */
+async function loadDemoPhoto(title) {
+  const key = PHOTO_FOR[title];
+
+  if (!key) {
+    return null;
+  }
+
+  for (const extension of ["jpg", "jpeg", "png", "webp", "JPG", "JPEG", "PNG"]) {
+    const own = new URL(`${key}.${extension}`, OWN_PHOTOS_DIR);
+
+    if (existsSync(own)) {
+      // A phone photo can be 5 MB and stored sideways. Turn it upright, crop
+      // it to the 4:3 a listing shows, and compress it.
+      return sharp(await readFile(own))
+        .rotate()
+        .resize(1200, 900, { fit: "cover", position: sharp.strategy.attention })
+        .webp({ quality: 80 })
+        .toBuffer();
+    }
+  }
+
+  const stock = new URL(`${key}.webp`, STOCK_PHOTOS_DIR);
+  return existsSync(stock) ? readFile(stock) : null;
+}
+
+/** A campus-time date `days` from today, as YYYY-MM-DD. */
+function campusDay(days) {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+/**
+ * The other five kinds of post (migration 0010). Same table, same insert; what
+ * differs is `type` and the one or two fields that kind uses. `found_on` and
+ * `event_date` are worked out when the script runs, so they are always recent.
+ */
+const OTHER_POSTS = [
+  {
+    type: "rent",
+    title: "Mini drafter with case",
+    description:
+      "You need it for exactly one ED lab a week, so do not buy one. Clean, the arm slides smoothly, case included. Give it back the same evening and we are friends.",
+    price: 30,
+    rent_max_days: 3,
+    category: "other",
+    condition: "good",
+    pickupSpot: "Main Block Lobby",
+    image: { art: "drafter" },
+  },
+  {
+    type: "rent",
+    title: "Lab coat for the week, size L",
+    description:
+      "Forgot yours at home and the lab is tomorrow? Borrow mine. Washed after every use. Return it clean, please.",
+    price: 20,
+    rent_max_days: 7,
+    category: "lab",
+    condition: "good",
+    condition_checks: { size: "L", no_stains: true },
+    pickupSpot: "Girls' Hostel Gate",
+    image: { art: "labCoat" },
+  },
+  {
+    type: "free",
+    title: "First-year chemistry notes, take them",
+    description:
+      "Cleared my shelf. Full set of sem 1 chemistry notes, a bit dog-eared but complete. Free to whoever asks first. Juniors, this one is for you.",
+    category: "notes",
+    condition: "fair",
+    pickupSpot: "Central Library",
+    image: { art: "notes", title: "Chemistry" },
+  },
+  {
+    type: "free",
+    title: "Desk lamp, works, slightly wobbly",
+    description:
+      "The neck droops unless you prop it. The light is fine. Not worth selling, too good to throw away. Come and take it.",
+    category: "hostel",
+    condition: "fair",
+    pickupSpot: "Boys' Hostel Gate",
+    image: { art: "lamp" },
+  },
+  {
+    type: "lost_found",
+    title: "Blue steel water bottle",
+    description:
+      "Found on a bench near the food court after lunch. It has a sticker on it. Tell me what the sticker is and it is yours.",
+    found_on: campusDay(-1),
+    pickupSpot: "Food Court",
+    image: { art: "bottle" },
+  },
+  {
+    type: "lost_found",
+    title: "Calculator left in a classroom",
+    description:
+      "Picked up from a desk in the main block after the last class. There is a name scratched on the back. Tell me the name to claim it.",
+    found_on: campusDay(-2),
+    pickupSpot: "Main Block Lobby",
+    image: { art: "calculator" },
+  },
+  {
+    type: "team_request",
+    title: "Need a backend dev for Saturday's hackathon",
+    description:
+      "Two of us so far, both frontend. We have the idea and the UI, and nobody who wants to touch a database. If you like Postgres or Node, come and save us.",
+    tags: ["node", "postgres", "apis"],
+    event_name: "Saturday hackathon",
+    event_date: campusDay(5),
+  },
+  {
+    type: "skill_offer",
+    title: "I will make your project report look good",
+    description:
+      "Formatting, diagrams, a proper cover page and a contents list that matches. I have done four of these. Send me the draft two days before the deadline, not two hours.",
+    tags: ["latex", "figma", "design"],
+  },
+];
+
 /** The listing marked sold, so reviewers can see the sold treatment. */
 const SOLD_TITLE = "Folding study chair";
 
@@ -251,14 +409,15 @@ function fail(message, error) {
 }
 
 /**
- * Draws a placeholder photo and uploads it into the seller's own folder.
+ * Uploads a demo post's photo (a photograph if there is one for it, a drawn
+ * placeholder if not) into the seller's own folder.
  *
  * Uploaded as the seller, through the public API, so it is subject to the same
  * Storage policy as a photo uploaded from the form: the first path segment
  * must be the uploader's uid. The returned path is what the listing stores.
  */
-async function uploadDemoImage(client, userId, image) {
-  const bytes = await renderDemoImage(image);
+async function uploadDemoImage(client, userId, image, title) {
+  const bytes = (await loadDemoPhoto(title)) ?? (await renderDemoImage(image));
   const path = `${userId}/${crypto.randomUUID()}.webp`;
 
   const { error } = await client.storage
@@ -412,6 +571,21 @@ async function resetDemoData(sellerClient, sellerId, buyerClient, buyerId) {
     }
   }
 
+  // The buyer is meant to have no posts of their own. Anything they posted
+  // while the app was being tried out goes too, with its photos.
+  if (buyerId) {
+    const { error: buyerListingsError } = await buyerClient
+      .from("listings")
+      .delete()
+      .eq("seller_id", buyerId);
+
+    if (buyerListingsError) {
+      fail("could not delete the buyer's listings", buyerListingsError);
+    }
+
+    await clearImageFolder(buyerClient, buyerId);
+  }
+
   const removed = await clearImageFolder(sellerClient, sellerId);
 
   console.log(`  cleared existing demo listings, chats, wishlist and ${removed} stored image(s)`);
@@ -479,13 +653,44 @@ async function main() {
         condition_checks: listing.condition_checks ?? {},
         seller_id: sellerId,
         pickup_spot_id: spotIdByName.get(pickupSpot) ?? null,
-        image_path: await uploadDemoImage(sellerClient, sellerId, image),
+        image_path: await uploadDemoImage(sellerClient, sellerId, image, listing.title),
       });
     }
 
+    for (const { pickupSpot, image, ...post } of OTHER_POSTS) {
+      rows.push({
+        ...post,
+        seller_id: sellerId,
+        pickup_spot_id: pickupSpot ? (spotIdByName.get(pickupSpot) ?? null) : null,
+        image_path: image ? await uploadDemoImage(sellerClient, sellerId, image, post.title) : null,
+      });
+    }
+
+    // Every row carries every key. In a bulk insert a key missing from one row
+    // is sent as null, not left to the column default - and several of these
+    // columns are NOT NULL with a default (type, tags, category, condition).
+    const complete = rows.map((row) => ({
+      type: "sale",
+      price: 0,
+      category: "other",
+      condition: "good",
+      condition_checks: {},
+      tags: [],
+      rent_max_days: null,
+      found_on: null,
+      event_name: null,
+      event_date: null,
+      course_code: null,
+      semester: null,
+      isbn: null,
+      book_author: null,
+      original_price: null,
+      ...row,
+    }));
+
     const { data: inserted, error: insertError } = await sellerClient
       .from("listings")
-      .insert(rows)
+      .insert(complete)
       .select("id, title");
 
     if (insertError) {
@@ -517,6 +722,7 @@ async function main() {
   const { data: available, error: availableError } = await buyerClient
     .from("listings")
     .select("id, title")
+    .eq("type", "sale")
     .eq("status", "available")
     .limit(1);
 
@@ -559,6 +765,7 @@ async function main() {
       .from("listings")
       .select("id, pickup_spot_id")
       .eq("seller_id", sellerId)
+      .eq("type", "sale")
       .eq("title", CHAT_TITLE)
       .eq("status", "available")
       .maybeSingle();
