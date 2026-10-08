@@ -132,6 +132,10 @@ Three typefaces, one job each.
 
 **Where Anton must not be used:** body text, form labels and inputs, chat messages, prices, and anything a user typed (listing titles, names). It is a display face with no weights; in a sentence it is hard to read, and a seller's title in tall capitals looks like shouting. Its rupee sign has not been checked, which is one more reason prices stay in Jakarta.
 
+## Logo
+
+A student in a hoodie with a backpack, crouched in a shopping cart tipped forward at speed, back wheel lifted, three speed lines behind. Flat, two colours, no gradients (`src/components/layout/logo-mark.tsx`). It sits left of the "NITTE MART" wordmark in Anton: yellow on the dark theme, ink on the light one. The favicon (`src/app/icon.svg`) is the cart and speed lines only, yellow on near-black, so it still reads at 32px.
+
 ## Shape and elevation
 
 - Radii: 8px for buttons and inputs, 14px for cards and panels, 20px for the listing photo and price card, fully round for chips, pills and icon buttons.
@@ -197,7 +201,6 @@ Cheeky, and clear. The joke comes first and the instruction second, but the inst
 
 ## Known gaps
 
-- The logo is not chosen. The header uses a text wordmark in Anton and the favicon is the letters NM.
 - The hero photographs are generated placeholders.
 - Contrast ratios were calculated, not measured. No screen reader has been used.
 - The loading skeletons still use the older page widths, so the layout shifts slightly when content arrives.

@@ -1,4 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#0b0b12"/>
-  <text x="32" y="45" text-anchor="middle" font-family="Impact, 'Arial Narrow Bold', 'Arial Narrow', sans-serif" font-weight="700" font-size="34" letter-spacing="0.5" fill="#ffd60a">NM</text>
+  <g fill="#ffd60a" stroke="#ffd60a" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke-width="5" fill="none">
+      <line x1="4" y1="22" x2="18" y2="22"/>
+      <line x1="8" y1="32" x2="16" y2="32"/>
+      <line x1="3" y1="42" x2="15" y2="42"/>
+    </g>
+    <g transform="rotate(9 46 52)">
+      <path d="M22 22 L60 22 L54 42 L28 42 Z" stroke-width="3"/>
+      <path d="M23 22 L15 13 L10 13" fill="none" stroke-width="5"/>
+      <circle cx="31" cy="52" r="5.5" stroke="none"/>
+      <circle cx="52" cy="52" r="5.5" stroke="none"/>
+    </g>
+  </g>
 </svg>

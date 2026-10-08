@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { UnreadPill } from "@/components/chat/unread";
+import { LogoMark } from "@/components/layout/logo-mark";
 import { NavLink } from "@/components/layout/nav-link";
 import { ThemeToggle, type Theme } from "@/components/layout/theme-toggle";
 import type { SessionUser } from "@/lib/auth";
@@ -24,10 +25,13 @@ export function SiteHeader({ user, theme }: { user: SessionUser | null; theme: T
           href="/"
           // A brand name: translation tools should leave it alone.
           translate="no"
-          // A text-only wordmark for now; the logo is still to be chosen.
-          className="title-card flex h-11 items-center pt-0.5 text-[26px] whitespace-nowrap text-ink md:text-[30px]"
+          className="flex h-11 items-center gap-2 whitespace-nowrap text-ink"
         >
-          Nitte Mart
+          {/* Yellow on the dark theme, ink on the light one: the same token
+              the price uses, because yellow on cream cannot be seen. On the
+              very narrowest phones the mark steps aside for the buttons. */}
+          <LogoMark className="hidden h-9 w-auto shrink-0 text-price min-[380px]:block md:h-10" />
+          <span className="title-card pt-0.5 text-[26px] md:text-[30px]">Nitte Mart</span>
         </Link>
 
         {user ? (
@@ -53,7 +57,11 @@ export function SiteHeader({ user, theme }: { user: SessionUser | null; theme: T
           </>
         ) : (
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            <ThemeToggle initial={theme} />
+            {/* On a phone the logo, the wordmark and two buttons fill the bar.
+                The theme toggle is in the footer of every page as well. */}
+            <div className="hidden sm:block">
+              <ThemeToggle initial={theme} />
+            </div>
             <Link
               href="/login"
               className="flex h-11 items-center rounded-full px-3 text-sm font-semibold whitespace-nowrap text-ink hover:bg-surface-soft sm:px-4"

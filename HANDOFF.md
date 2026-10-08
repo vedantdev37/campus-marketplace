@@ -222,14 +222,10 @@ Reviewers can sign up with any `@reviewer.test` address.
 
 ## What is left
 
-### 1. Logo (before Phase 6)
+### 1. Logo: done
 
-Three options were drawn and shown: A Silhouette, B Outline, C Badge. Source:
-`docs/brand/cart-logo-options.html` (symbols `markA`, `markB`, `fav`). **The author has
-not chosen yet.** When chosen: put the mark beside the Anton wordmark in
-`site-header.tsx` (yellow on dark, ink on light), replace `src/app/icon.svg` with the
-`fav` symbol, update `DESIGN.md`, delete the options file, QA at 390 px and desktop in
-both themes, commit, push.
+Option A (Silhouette) is applied: `src/components/layout/logo-mark.tsx` in the header,
+`src/app/icon.svg` as the favicon, described in `DESIGN.md`.
 
 ### 2. Phase 6: deliverables (the author's brief, in order)
 
@@ -248,7 +244,7 @@ Nothing in Phase 6 is committed except what is listed under "Already prepared".
 3. **`AI_USAGE.md`:** final summary at the top (tools, models: commits credit Claude
    Opus 5 and Opus 5.5; skills; the reviewer and QA process). In every phase add a clearly
    marked, EMPTY "What I did / checked" section for the author. Do not write it for them.
-   Add a Phase 6 entry and the logo.
+   Add a Phase 6 entry, and a line for the logo (three options drawn by AI, A chosen by the author).
 4. **`/security-review`:** done this session (see `AI_USAGE.md`, Batch C). Re-run only if
    code changes.
 5. **Fresh demo passwords:** generate new `DEMO_*_PASSWORD` values, rotate each account
@@ -274,7 +270,6 @@ Nothing in Phase 6 is committed except what is listed under "Already prepared".
 
 ### Open questions for the author
 
-- Logo choice (A, B or C).
 - The Hinglish and Kanglish lines shipped as drafted; the author has not confirmed them.
   The Kanglish needs a Kannada speaker.
 - Real hero photos (`public/hero/`) and real course codes are still placeholders.
