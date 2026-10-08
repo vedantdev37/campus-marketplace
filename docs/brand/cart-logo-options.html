@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nitte Mart cart logo options</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --canvas:#0b0b12; --soft:#15151f; --ink:#f5f3ec; --muted:#9a99ab; --y:#ffd60a; --hair:#2a2a3a; --cream:#faf8f2; --dark:#12111c; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--canvas); color:var(--ink); font-family:"Plus Jakarta Sans",sans-serif; }
+  .sheet { width:1200px; height:675px; padding:30px 40px; display:none; grid-template-rows:auto 1fr auto; gap:18px; }
+  .sheet.on { display:grid; }
+  h1 { font:700 15px "Plus Jakarta Sans"; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  h1 b { color:var(--y); }
+  .hero { display:flex; align-items:center; justify-content:center; gap:36px; border:1px solid var(--hair); border-radius:18px;
+          background:radial-gradient(900px 380px at 50% 110%, #1b1840 0%, var(--canvas) 70%); }
+  .wm { font-family:Anton, sans-serif; text-transform:uppercase; letter-spacing:.01em; line-height:.95; }
+  .row { display:grid; grid-template-columns:1.2fr 1.2fr 1fr; gap:14px; }
+  .tile { height:112px; border-radius:14px; display:flex; align-items:center; padding:0 22px; gap:12px; border:1px solid var(--hair); position:relative; }
+  .tile.dark { background:var(--canvas); }
+  .tile.light { background:var(--cream); border-color:#e4e0d6; }
+  .tile.fav { background:var(--soft); gap:18px; justify-content:center; }
+  .tile small { position:absolute; right:12px; bottom:8px; font-size:11px; color:var(--muted); }
+  .tile.light small { color:#625f73; }
+  .fav figure { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:10px; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- ============ A: solid silhouette ============ -->
+    <symbol id="markA" viewBox="0 0 210 150">
+      <g fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <!-- three speed lines -->
+        <g stroke-width="7" fill="none">
+          <line x1="6" y1="62" x2="44" y2="62"/>
+          <line x1="16" y1="82" x2="40" y2="82"/>
+          <line x1="2" y1="102" x2="36" y2="102"/>
+        </g>
+        <!-- cart and rider, tipped forward: nose down, back wheel in the air -->
+        <g transform="rotate(9 150 128)">
+          <!-- backpack -->
+          <rect x="74" y="26" width="24" height="34" rx="8" stroke="none"/>
+          <!-- crouched body in a hoodie -->
+          <path d="M94 66 L98 38 Q112 18 132 34 L140 66 Z" stroke="none"/>
+          <!-- hood -->
+          <circle cx="134" cy="24" r="17" stroke="none"/>
+          <!-- arm reaching for the front rail -->
+          <line x1="120" y1="42" x2="164" y2="62" stroke-width="9" fill="none"/>
+          <!-- basket -->
+          <path d="M60 64 L176 64 L162 104 L74 104 Z" stroke-width="4"/>
+          <!-- handle -->
+          <path d="M62 64 L44 46 L30 46" fill="none" stroke-width="8"/>
+          <!-- legs of the cart -->
+          <path d="M80 104 L84 118 M156 104 L152 118 M80 118 L156 118" fill="none" stroke-width="6"/>
+          <!-- wheels -->
+          <circle cx="86" cy="130" r="10" stroke="none"/>
+          <circle cx="150" cy="130" r="10" stroke="none"/>
+        </g>
+      </g>
+      <!-- the face opening of the hood, and the basket's slats, cut out -->
+      <g transform="rotate(9 150 128)" fill="var(--cut)" stroke="var(--cut)" stroke-linecap="round">
+        <circle cx="141" cy="27" r="7.5" stroke="none"/>
+        <g stroke-width="4" fill="none">
+          <line x1="88" y1="72" x2="92" y2="98"/><line x1="108" y1="72" x2="110" y2="98"/>
+          <line x1="128" y1="72" x2="128" y2="98"/><line x1="148" y1="72" x2="146" y2="98"/>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- ============ B: bold outline ============ -->
+    <symbol id="markB" viewBox="0 0 210 150">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="7">
+        <line x1="6" y1="62" x2="44" y2="62"/>
+        <line x1="16" y1="82" x2="40" y2="82"/>
+        <line x1="2" y1="102" x2="36" y2="102"/>
+        <g transform="rotate(9 150 128)">
+          <rect x="74" y="28" width="22" height="32" rx="8"/>
+          <path d="M98 64 L100 40 Q112 22 128 34"/>
+          <circle cx="134" cy="24" r="15"/>
+          <line x1="122" y1="44" x2="164" y2="62"/>
+          <path d="M60 64 L176 64 L162 104 L74 104 Z"/>
+          <path d="M62 64 L44 46 L30 46"/>
+          <path d="M96 64 L100 104 M130 64 L130 104" stroke-width="5"/>
+          <path d="M80 104 L84 118 M156 104 L152 118"/>
+          <circle cx="86" cy="130" r="8"/>
+          <circle cx="150" cy="130" r="8"/>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- ============ favicon: cart and speed lines only ============ -->
+    <symbol id="fav" viewBox="0 0 64 64">
+      <g fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <g stroke-width="5" fill="none">
+          <line x1="4" y1="22" x2="18" y2="22"/>
+          <line x1="8" y1="32" x2="16" y2="32"/>
+          <line x1="3" y1="42" x2="15" y2="42"/>
+        </g>
+        <g transform="rotate(9 46 52)">
+          <path d="M22 22 L60 22 L54 42 L28 42 Z" stroke-width="3"/>
+          <path d="M23 22 L15 13 L10 13" fill="none" stroke-width="5"/>
+          <circle cx="31" cy="52" r="5.5" stroke="none"/>
+          <circle cx="52" cy="52" r="5.5" stroke="none"/>
+        </g>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ============ A ============ -->
+<section class="sheet" id="a">
+  <h1>Option A · <b>Silhouette</b> · solid shapes, hood and slats cut out</h1>
+  <div class="hero" style="color:var(--y); --cut:#0b0b12">
+    <svg width="340" height="243"><use href="#markA"/></svg>
+    <span class="wm" style="font-size:150px; color:var(--ink)">Nitte<br>Mart</span>
+  </div>
+  <div class="row">
+    <div class="tile dark" style="color:var(--y); --cut:#0b0b12"><svg width="78" height="56"><use href="#markA"/></svg><span class="wm" style="font-size:30px;color:var(--ink)">Nitte Mart</span><small>header · dark</small></div>
+    <div class="tile light" style="color:var(--dark); --cut:#faf8f2"><svg width="78" height="56"><use href="#markA"/></svg><span class="wm" style="font-size:30px;color:var(--dark)">Nitte Mart</span><small>header · light</small></div>
+    <div class="tile fav">
+      <figure><svg width="64" height="64" style="background:#0b0b12;border-radius:14px;color:var(--y)"><use href="#fav"/></svg>64</figure>
+      <figure><svg width="32" height="32" style="background:#0b0b12;border-radius:7px;color:var(--y)"><use href="#fav"/></svg>32</figure>
+      <figure><svg width="16" height="16" style="background:#0b0b12;border-radius:3px;color:var(--y)"><use href="#fav"/></svg>16</figure>
+      <small>favicon</small>
+    </div>
+  </div>
+</section>
+
+<!-- ============ B ============ -->
+<section class="sheet" id="b">
+  <h1>Option B · <b>Outline</b> · one bold line weight, nothing filled</h1>
+  <div class="hero" style="color:var(--y)">
+    <svg width="340" height="243"><use href="#markB"/></svg>
+    <span class="wm" style="font-size:150px; color:var(--ink)">Nitte<br>Mart</span>
+  </div>
+  <div class="row">
+    <div class="tile dark" style="color:var(--y)"><svg width="78" height="56"><use href="#markB"/></svg><span class="wm" style="font-size:30px;color:var(--ink)">Nitte Mart</span><small>header · dark</small></div>
+    <div class="tile light" style="color:var(--dark)"><svg width="78" height="56"><use href="#markB"/></svg><span class="wm" style="font-size:30px;color:var(--dark)">Nitte Mart</span><small>header · light</small></div>
+    <div class="tile fav">
+      <figure><svg width="64" height="64" style="background:#0b0b12;border-radius:14px;color:var(--y)"><use href="#fav"/></svg>64</figure>
+      <figure><svg width="32" height="32" style="background:#0b0b12;border-radius:7px;color:var(--y)"><use href="#fav"/></svg>32</figure>
+      <figure><svg width="16" height="16" style="background:#0b0b12;border-radius:3px;color:var(--y)"><use href="#fav"/></svg>16</figure>
+      <small>favicon</small>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C ============ -->
+<section class="sheet" id="c">
+  <h1>Option C · <b>Badge</b> · the silhouette in near-black on a yellow tile</h1>
+  <div class="hero">
+    <span style="display:flex;align-items:center;justify-content:center;width:300px;height:240px;border-radius:44px;background:var(--y);color:#0b0b12;--cut:#ffd60a">
+      <svg width="270" height="193"><use href="#markA"/></svg>
+    </span>
+    <span class="wm" style="font-size:150px; color:var(--ink)">Nitte<br>Mart</span>
+  </div>
+  <div class="row">
+    <div class="tile dark"><span style="display:flex;align-items:center;justify-content:center;width:74px;height:56px;border-radius:12px;background:var(--y);color:#0b0b12;--cut:#ffd60a"><svg width="66" height="47"><use href="#markA"/></svg></span><span class="wm" style="font-size:30px;color:var(--ink)">Nitte Mart</span><small>header · dark</small></div>
+    <div class="tile light"><span style="display:flex;align-items:center;justify-content:center;width:74px;height:56px;border-radius:12px;background:var(--y);color:#12111c;--cut:#ffd60a;box-shadow:inset 0 0 0 1.5px #12111c"><svg width="66" height="47"><use href="#markA"/></svg></span><span class="wm" style="font-size:30px;color:var(--dark)">Nitte Mart</span><small>header · light</small></div>
+    <div class="tile fav">
+      <figure><svg width="64" height="64" style="background:var(--y);border-radius:14px;color:#0b0b12"><use href="#fav"/></svg>64</figure>
+      <figure><svg width="32" height="32" style="background:var(--y);border-radius:7px;color:#0b0b12"><use href="#fav"/></svg>32</figure>
+      <figure><svg width="16" height="16" style="background:var(--y);border-radius:3px;color:#0b0b12"><use href="#fav"/></svg>16</figure>
+      <small>favicon</small>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.getElementById((location.hash || "#a").slice(1)).classList.add("on");
+</script>
+</body>
+</html>

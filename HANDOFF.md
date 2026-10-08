@@ -203,32 +203,83 @@ Reviewers can sign up with any `@reviewer.test` address.
 7. New UI follows `DESIGN.md`. Never leave a feature half-done. Do not use the Vercel
    connector; the author deploys from his own account.
 
+## Since the first handoff (all pushed, all live)
+
+- **Rename and design:** the product is Nitte Mart; dark-first "after dark" system in
+  `DESIGN.md` (near-black, indigo, one yellow, Anton title cards, polaroid cards).
+- **Chat and meetups** (0008), **six post types** (0010: sale, rent, free, lost_found,
+  skill_offer, team_request), Explore / Post / Me, phone tab bar, **Squad up**,
+  **profiles** with skills and photo, showcase profile for Vedant Sharma.
+- **Wishlist** with a "saved item just sold" alert, **browser notifications** (open tab
+  only, not push), **deal meter** (`src/lib/deal-meter.ts`, `npm run test:deal`),
+  **Hinglish / Kanglish** headline lines, `/commentary`, `/security`, loading tips,
+  console `credits()`.
+- **Security review** done: one medium finding (forgeable `created_at` / `sold_at`) fixed
+  in 0011, plus three small hardenings.
+- **Migrations 0001 to 0011 are all applied.** `verify:rls` is **66/66**; `test:deal` 9/9.
+- Demo accounts: seller, buyer, outsider, vedant `@reviewer.test`; passwords in
+  `.env.local` as `DEMO_*_PASSWORD`. Stock demo photos credited in `docs/credits.md`.
+
 ## What is left
 
-In order. Items 1–3 and 6–7 are required; 4–5 only if time remains.
+### 1. Logo (before Phase 6)
 
-1. **Docs.** `docs/write-up.md` is about twice the target length and has 11 `TODO:`
-   markers — trim it (sections 9 and 10 first) and resolve every TODO. Reconcile
-   `README.md` and `docs/architecture.md` with it: the README project-structure block and
-   some feature notes are stale, and `architecture.md` lacks the later tables.
-2. **Diagrams.** The write-up has one mermaid ER diagram. Add a request-flow diagram
-   (proxy → Server Component → Server Action → RLS) and one for the ISBN lookup chain.
-3. **`AI_USAGE.md`**: every phase says code review is "pending author review", while the
-   honesty note says AI code was not accepted unreviewed. Only the author can resolve
-   that, in his own words, along with the "What I did" section in Phase 0.
-4. **Real photos** for the demo listings: upload through the app's edit form. Note that
-   `npm run reseed:demo` will replace them with the drawn placeholders again.
-5. **Campus hero photos**: drop 3–5 wide WebPs into `public/hero/` (see its README),
-   delete the placeholders, redeploy. They are graded dark in CSS, so daytime shots work.
-   **Logo**: undecided. The header is a text wordmark and the favicon is `src/app/icon.svg`
-   ("NM"). Three options were drawn and shown to the author; none is in the repo.
-   **Course codes** in the seed are plausible, not real: the author may send real ones.
-6. **Giveaway / free badge** (optional): price 0 already validates; needs a "Free" label
-   on card and detail, and a filter. Run reviewers first, QA after.
-7. **Video walkthrough.** Suggested path: sign-up with `gmail.com` refused, then
-   `@reviewer.test`; scan or type an ISBN and watch autofill; publish; second browser
-   sees it; mark sold and watch it update live; `npm run verify:rls` in a terminal.
-8. **Final review.** Not yet done on the deployed site: create/edit, ISBN lookup with
-   the Vercel key, realtime, and the redesign. Also untested anywhere: a real phone, the
-   native Android barcode path, iOS Safari, Firefox, and a screen reader. Run
-   `npm run reseed:demo` last, and copy the demo passwords into the submission notes.
+Three options were drawn and shown: A Silhouette, B Outline, C Badge. Source:
+`docs/brand/cart-logo-options.html` (symbols `markA`, `markB`, `fav`). **The author has
+not chosen yet.** When chosen: put the mark beside the Anton wordmark in
+`site-header.tsx` (yellow on dark, ink on light), replace `src/app/icon.svg` with the
+`fav` symbol, update `DESIGN.md`, delete the options file, QA at 390 px and desktop in
+both themes, commit, push.
+
+### 2. Phase 6: deliverables (the author's brief, in order)
+
+Nothing in Phase 6 is committed except what is listed under "Already prepared".
+
+1. **README:** replace with the author's text (pasted in the previous session; ask for it
+   again). Keep the voice exactly. Only: fill `[N]` with the `verify:rls` count (66), put
+   the existing setup steps inside "run it locally", turn file names into links, and
+   verify every claim on the live site, reporting anything untrue instead of rewriting.
+   Known issues to raise: it says "search 21CS32" but the seed uses `22CS32`; "testing on
+   real phones" is the author's own claim, nothing automated used a phone.
+2. **Write-up:** `docs/write-up-draft.md` is a finished ~1,500-word draft with no TODOs.
+   Review it (it says "four" public functions and "64 assertions": make those "five" and
+   "66"), replace `docs/write-up.md` with it, delete the draft, export a PDF
+   (`playwright-cli pdf` works; no pandoc here).
+3. **`AI_USAGE.md`:** final summary at the top (tools, models: commits credit Claude
+   Opus 5 and Opus 5.5; skills; the reviewer and QA process). In every phase add a clearly
+   marked, EMPTY "What I did / checked" section for the author. Do not write it for them.
+   Add a Phase 6 entry and the logo.
+4. **`/security-review`:** done this session (see `AI_USAGE.md`, Batch C). Re-run only if
+   code changes.
+5. **Fresh demo passwords:** generate new `DEMO_*_PASSWORD` values, rotate each account
+   (sign in with the old one, `updateUser`, ideally sign out globally: a QA agent printed a
+   buyer session cookie into its own output), then `npm run reseed:demo` and
+   `npm run verify:rls`. Never print passwords in chat: they go in `SUBMISSION.md`.
+6. **Final live check** with `playwright-cli` on the live URL as seller, buyer and
+   outsider: every required feature and bonus, as a pass/fail table; fix fails.
+7. **Video script:** a 3-minute shot list (hook in 10 s; gmail refused then
+   `@reviewer.test`; ISBN scan; search and filter; owner-only edit and sold, buyer
+   blocked; chat and meetup; live SOLD on two devices; deal meter; rent, free, Squad up),
+   marking phone vs laptop shots.
+8. **`SUBMISSION.md`**, not committed (add it to `.gitignore`): links, demo credentials,
+   short summary.
+9. Commit and push. After that nothing else is pushed.
+
+### Already prepared for Phase 6
+
+- `docs/diagrams/architecture.png`, `rls-sequence.png`, `isbn-flow.png`, and their source
+  `docs/diagrams/diagrams.html`. Drawn by hand as SVG: there is no "Archify" tool here.
+  The draft write-up already embeds them.
+- `docs/write-up-draft.md`.
+
+### Open questions for the author
+
+- Logo choice (A, B or C).
+- The Hinglish and Kanglish lines shipped as drafted; the author has not confirmed them.
+  The Kanglish needs a Kannada speaker.
+- Real hero photos (`public/hero/`) and real course codes are still placeholders.
+
+### Not verified anywhere
+
+A real phone, the native Android barcode path, iOS Safari, Firefox, a screen reader. On
+the deployed site only page loads have been checked since Batch A; step 6 covers the rest.

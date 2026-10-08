@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nitte Mart diagrams</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing:border-box; margin:0; }
+  body { background:#fff; font-family:"Plus Jakarta Sans",sans-serif; color:#12111c; }
+  .d { display:none; width:1400px; padding:36px 40px; background:#fff; }
+  .d.on { display:block; }
+  h1 { font-size:26px; font-weight:800; }
+  p.sub { margin-top:4px; font-size:15px; color:#55535f; }
+  svg { display:block; margin-top:22px; width:100%; height:auto; }
+  text { font-family:"Plus Jakarta Sans",sans-serif; fill:#12111c; }
+  .box { fill:#fff; stroke:#12111c; stroke-width:2.5; }
+  .soft { fill:#f3f1ea; stroke:#12111c; stroke-width:2.5; }
+  .dark { fill:#12111c; stroke:#12111c; stroke-width:2.5; }
+  .yel { fill:#ffd60a; stroke:#12111c; stroke-width:2.5; }
+  .t { font-size:19px; font-weight:700; }
+  .s { font-size:15px; fill:#3a3948; }
+  .w { fill:#fff; }
+  .a { stroke:#12111c; stroke-width:2.5; fill:none; marker-end:url(#ah); }
+  .ad { stroke:#12111c; stroke-width:2.5; fill:none; stroke-dasharray:7 6; marker-end:url(#ah); }
+  .l { font-size:14px; font-weight:600; fill:#3a3948; paint-order:stroke; stroke:#fff; stroke-width:7px; stroke-linejoin:round; }
+  .life { stroke:#9a99ab; stroke-width:2; stroke-dasharray:5 6; }
+  .no { fill:#b42318; font-weight:800; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#12111c"/></marker>
+</defs></svg>
+
+<!-- ================= 1. ARCHITECTURE ================= -->
+<section class="d" id="architecture">
+  <h1>Architecture</h1>
+  <p class="sub">Every request runs as the signed-in user. Row Level Security in Postgres is the one place access is decided.</p>
+  <svg viewBox="0 0 1320 600">
+    <!-- browser -->
+    <rect class="box" x="20" y="60" width="250" height="400" rx="14"/>
+    <text class="t" x="145" y="96" text-anchor="middle">Browser</text>
+    <rect class="soft" x="44" y="118" width="202" height="64" rx="10"/><text class="s" x="145" y="146" text-anchor="middle">Pages and forms</text><text class="s" x="145" y="166" text-anchor="middle">(React Client Components)</text>
+    <rect class="soft" x="44" y="198" width="202" height="64" rx="10"/><text class="s" x="145" y="226" text-anchor="middle">Photo upload</text><text class="s" x="145" y="246" text-anchor="middle">straight to Storage</text>
+    <rect class="soft" x="44" y="278" width="202" height="64" rx="10"/><text class="s" x="145" y="306" text-anchor="middle">Realtime socket</text><text class="s" x="145" y="326" text-anchor="middle">(carries the user's JWT)</text>
+    <rect class="soft" x="44" y="358" width="202" height="76" rx="10"/><text class="s" x="145" y="386" text-anchor="middle">Barcode scanner</text><text class="s" x="145" y="406" text-anchor="middle">BarcodeDetector or</text><text class="s" x="145" y="424" text-anchor="middle">WebAssembly fallback</text>
+
+    <!-- vercel -->
+    <rect class="box" x="400" y="60" width="330" height="400" rx="14"/>
+    <text class="t" x="565" y="96" text-anchor="middle">Next.js 16 on Vercel</text>
+    <rect class="soft" x="424" y="118" width="282" height="64" rx="10"/><text class="s" x="565" y="146" text-anchor="middle">proxy.ts</text><text class="s" x="565" y="166" text-anchor="middle">refresh session, gate routes</text>
+    <rect class="soft" x="424" y="198" width="282" height="64" rx="10"/><text class="s" x="565" y="226" text-anchor="middle">Server Components</text><text class="s" x="565" y="246" text-anchor="middle">read as the signed-in user</text>
+    <rect class="soft" x="424" y="278" width="282" height="76" rx="10"/><text class="s" x="565" y="306" text-anchor="middle">Server Actions</text><text class="s" x="565" y="326" text-anchor="middle">re-check session, re-validate (zod),</text><text class="s" x="565" y="344" text-anchor="middle">count the rows that changed</text>
+    <rect class="soft" x="424" y="370" width="282" height="64" rx="10"/><text class="s" x="565" y="398" text-anchor="middle">Book lookup action</text><text class="s" x="565" y="418" text-anchor="middle">holds the Google key</text>
+
+    <!-- supabase -->
+    <rect class="box" x="860" y="20" width="440" height="470" rx="14"/>
+    <text class="t" x="1080" y="56" text-anchor="middle">Supabase</text>
+    <rect class="soft" x="884" y="76" width="392" height="64" rx="10"/><text class="s" x="1080" y="104" text-anchor="middle">Auth  +  "Before User Created" hook</text><text class="s" x="1080" y="124" text-anchor="middle">allowlist of email domains, deny by default</text>
+    <rect class="dark" x="884" y="156" width="392" height="150" rx="10"/>
+    <text class="t w" x="1080" y="188" text-anchor="middle">Postgres with Row Level Security</text>
+    <text class="s w" x="1080" y="214" text-anchor="middle" style="fill:#fff">policies on every table</text>
+    <text class="s w" x="1080" y="236" text-anchor="middle" style="fill:#fff">CHECK constraints and triggers</text>
+    <text class="s w" x="1080" y="258" text-anchor="middle" style="fill:#fff">security definer functions for chat and meetups</text>
+    <text class="s w" x="1080" y="286" text-anchor="middle" style="fill:#ffd60a;font-weight:700">no service-role key anywhere</text>
+    <rect class="soft" x="884" y="322" width="392" height="64" rx="10"/><text class="s" x="1080" y="350" text-anchor="middle">Storage: listing-images bucket</text><text class="s" x="1080" y="370" text-anchor="middle">write only inside your own &lt;uid&gt;/ folder</text>
+    <rect class="soft" x="884" y="402" width="392" height="64" rx="10"/><text class="s" x="1080" y="430" text-anchor="middle">Realtime</text><text class="s" x="1080" y="450" text-anchor="middle">applies the SELECT policy per subscriber</text>
+
+    <!-- external -->
+    <rect class="box" x="400" y="510" width="330" height="70" rx="14"/>
+    <text class="t" x="565" y="540" text-anchor="middle">Google Books → Open Library</text>
+    <text class="s" x="565" y="562" text-anchor="middle">ISBN to title, author, cover</text>
+
+    <!-- arrows -->
+    <path class="a" d="M270 150 H400"/><text class="l" x="335" y="140" text-anchor="middle">HTTPS</text>
+    <path class="a" d="M730 230 H884"/><text class="l" x="806" y="220" text-anchor="middle">queries, user's JWT</text>
+    <path class="a" d="M730 316 H810 V250 H884"/>
+    <path class="a" d="M730 150 H810 V108 H884"/><text class="l" x="806" y="98" text-anchor="middle">session</text>
+    <path class="ad" d="M246 230 H330 V480 H820 V354 H884"/><text class="l" x="590" y="500" text-anchor="start">upload, checked by the Storage policy</text>
+    <path class="ad" d="M884 434 H790 V470 H300 V310 H246"/><text class="l" x="392" y="300" text-anchor="end">"something changed"</text>
+    <path class="a" d="M565 434 V510"/>
+  </svg>
+</section>
+
+<!-- ================= 2. RLS SEQUENCE ================= -->
+<section class="d" id="rls-sequence">
+  <h1>A buyer tries to mark someone else's listing sold</h1>
+  <p class="sub">The page hides the button and the Server Action checks ownership. This is what happens when both are skipped and the API is called directly.</p>
+  <svg viewBox="0 0 1320 560">
+    <g>
+      <rect class="soft" x="40" y="20" width="220" height="56" rx="10"/><text class="t" x="150" y="55" text-anchor="middle">Buyer's browser</text>
+      <rect class="soft" x="400" y="20" width="220" height="56" rx="10"/><text class="t" x="510" y="55" text-anchor="middle">Supabase REST API</text>
+      <rect class="dark" x="760" y="20" width="240" height="56" rx="10"/><text class="t" x="880" y="55" text-anchor="middle" style="fill:#fff">Postgres + RLS</text>
+      <rect class="soft" x="1100" y="20" width="200" height="56" rx="10"/><text class="t" x="1200" y="55" text-anchor="middle">verify:rls script</text>
+      <line class="life" x1="150" y1="76" x2="150" y2="540"/><line class="life" x1="510" y1="76" x2="510" y2="540"/><line class="life" x1="880" y1="76" x2="880" y2="540"/><line class="life" x1="1200" y1="76" x2="1200" y2="540"/>
+    </g>
+    <path class="a" d="M150 130 H510"/><text class="l" x="330" y="120" text-anchor="middle">PATCH /listings?id=eq.X  {status: "sold"}</text><text class="l" x="330" y="150" text-anchor="middle">with the buyer's own JWT</text>
+    <path class="a" d="M510 200 H880"/><text class="l" x="695" y="190" text-anchor="middle">UPDATE listings SET status … WHERE id = X</text>
+    <rect class="yel" x="720" y="230" width="320" height="96" rx="10"/>
+    <text class="t" x="880" y="260" text-anchor="middle">Policy listings_update_own</text>
+    <text class="s" x="880" y="284" text-anchor="middle">USING (seller_id = auth.uid())</text>
+    <text class="s no" x="880" y="308" text-anchor="middle" style="fill:#b42318;font-weight:800">row X is not the buyer's: no row matches</text>
+    <path class="ad" d="M880 362 H510"/><text class="l" x="695" y="352" text-anchor="middle">0 rows updated, no error</text>
+    <path class="ad" d="M510 412 H150"/><text class="l" x="330" y="402" text-anchor="middle">200 OK, empty array</text>
+    <rect class="box" x="40" y="440" width="560" height="84" rx="10"/>
+    <text class="s" x="60" y="468">"No error" is not "it worked". The app asks for the changed rows back</text>
+    <text class="s" x="60" y="490">and counts them: zero rows means "that is not yours to change".</text>
+    <text class="s" x="60" y="512">Checking only for an error would report a refused write as done.</text>
+    <path class="a" d="M1200 130 V200 H1010" style="marker-end:url(#ah)"/><text class="l" x="1200" y="112" text-anchor="middle">makes the same request</text>
+    <rect class="box" x="1010" y="440" width="290" height="84" rx="10"/>
+    <text class="s" x="1030" y="468">asserts 0 rows changed, then</text>
+    <text class="s" x="1030" y="490">re-reads the row to confirm it</text>
+    <text class="s" x="1030" y="512">is exactly as it was</text>
+    <path class="ad" d="M880 380 H1200 V440"/>
+  </svg>
+</section>
+
+<!-- ================= 3. ISBN FLOW ================= -->
+<section class="d" id="isbn-flow">
+  <h1>ISBN lookup</h1>
+  <p class="sub">Typed or scanned. Google Books first, Open Library when it has nothing, and a plain message when neither does.</p>
+  <svg viewBox="0 0 1320 520">
+    <rect class="soft" x="20" y="40" width="210" height="76" rx="10"/><text class="t" x="125" y="72" text-anchor="middle">Scan barcode</text><text class="s" x="125" y="96" text-anchor="middle">or type the ISBN</text>
+    <rect class="box" x="290" y="40" width="210" height="76" rx="10"/><text class="t" x="395" y="72" text-anchor="middle">Check digit valid?</text><text class="s" x="395" y="96" text-anchor="middle">in the browser, then again</text>
+    <rect class="box" x="560" y="40" width="230" height="76" rx="10"/><text class="t" x="675" y="66" text-anchor="middle">Server Action</text><text class="s" x="675" y="88" text-anchor="middle">signed in? within the</text><text class="s" x="675" y="106" text-anchor="middle">per-user rate limit?</text>
+    <rect class="yel" x="850" y="40" width="210" height="76" rx="10"/><text class="t" x="955" y="72" text-anchor="middle">Google Books</text><text class="s" x="955" y="96" text-anchor="middle">key stays on the server</text>
+    <rect class="yel" x="850" y="200" width="210" height="76" rx="10"/><text class="t" x="955" y="232" text-anchor="middle">Open Library</text><text class="s" x="955" y="256" text-anchor="middle">no key needed</text>
+    <rect class="dark" x="1110" y="120" width="190" height="76" rx="10"/><text class="t" x="1205" y="152" text-anchor="middle" style="fill:#fff">Book found</text><text class="s" x="1205" y="176" text-anchor="middle" style="fill:#fff">title, author, cover</text>
+
+    <rect class="box" x="850" y="370" width="210" height="96" rx="10"/><text class="t" x="955" y="400" text-anchor="middle">Not found</text><text class="s" x="955" y="424" text-anchor="middle">"fill it in yourself"</text><text class="s" x="955" y="444" text-anchor="middle">the ISBN is kept</text>
+    <rect class="box" x="290" y="200" width="210" height="76" rx="10"/><text class="t" x="395" y="232" text-anchor="middle">"Not a valid ISBN"</text><text class="s" x="395" y="256" text-anchor="middle">no request is made</text>
+
+    <rect class="soft" x="1110" y="270" width="190" height="196" rx="10"/>
+    <text class="t" x="1205" y="300" text-anchor="middle">Form</text>
+    <text class="s" x="1205" y="326" text-anchor="middle">fills EMPTY fields only</text>
+    <text class="s" x="1205" y="350" text-anchor="middle">cover copied into the</text>
+    <text class="s" x="1205" y="368" text-anchor="middle">seller's own folder</text>
+    <text class="s" x="1205" y="392" text-anchor="middle">price only if in INR,</text>
+    <text class="s" x="1205" y="410" text-anchor="middle">else type the MRP</text>
+    <text class="s" x="1205" y="434" text-anchor="middle">everything stays</text>
+    <text class="s" x="1205" y="452" text-anchor="middle">editable</text>
+
+    <path class="a" d="M230 78 H290"/>
+    <path class="a" d="M500 78 H560"/><text class="l" x="530" y="68" text-anchor="middle">yes</text>
+    <path class="a" d="M395 116 V200"/><text class="l" x="410" y="162">no</text>
+    <path class="a" d="M790 78 H850"/>
+    <path class="a" d="M1060 78 H1205 V120"/><text class="l" x="1130" y="68" text-anchor="middle">match</text>
+    <path class="a" d="M955 116 V200"/><text class="l" x="940" y="162" text-anchor="end">no match, or an error</text>
+    <path class="a" d="M1060 238 H1085 V170 H1110"/><text class="l" x="1085" y="226" text-anchor="middle">match</text>
+    <path class="a" d="M955 276 V370"/><text class="l" x="970" y="328">no match</text>
+    <path class="a" d="M1205 196 V270"/>
+    <path class="ad" d="M1060 418 H1110"/>
+  </svg>
+</section>
+
+<script>
+  document.getElementById((location.hash || "#architecture").slice(1)).classList.add("on");
+</script>
+</body>
+</html>
