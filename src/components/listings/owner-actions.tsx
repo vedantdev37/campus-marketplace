@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { FormEvent } from "react";
 
 import { deleteListingAction, setListingStatusAction } from "@/app/listings/actions";
@@ -39,7 +40,14 @@ export function OwnerActions({
         Only you can see these controls, and only you can perform them.
       </p>
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
+        <Link
+          href={`/listings/${listingId}/edit`}
+          className="mt-1 rounded-lg border border-border bg-surface px-4 py-2.5 text-center text-base font-medium transition-colors hover:bg-background"
+        >
+          Edit
+        </Link>
+
         <form action={setListingStatusAction} className="flex-1">
           <input type="hidden" name="id" value={listingId} />
           <input type="hidden" name="status" value={isSold ? "available" : "sold"} />

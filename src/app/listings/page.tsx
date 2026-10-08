@@ -38,7 +38,13 @@ export default async function ListingsPage({
           <h1 className="text-2xl font-semibold tracking-tight">Browse</h1>
           <p className="mt-0.5 text-xs text-muted">{user.email}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Link
+            href="/listings/new"
+            className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+          >
+            Sell an item
+          </Link>
           <Link
             href="/listings/mine"
             className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface-muted"
@@ -85,6 +91,12 @@ export default async function ListingsPage({
               <p className="mt-1 text-sm text-muted">
                 The marketplace is empty. Be the first to list something.
               </p>
+              <Link
+                href="/listings/new"
+                className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+              >
+                Sell an item
+              </Link>
             </>
           )}
         </div>

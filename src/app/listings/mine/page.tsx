@@ -22,12 +22,20 @@ export default async function MyListingsPage() {
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-6">
       <header className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">My listings</h1>
-        <Link
-          href="/listings"
-          className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface-muted"
-        >
-          Browse
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/listings/new"
+            className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+          >
+            Sell an item
+          </Link>
+          <Link
+            href="/listings"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface-muted"
+          >
+            Browse
+          </Link>
+        </div>
       </header>
 
       {listings.length === 0 ? (
@@ -36,6 +44,12 @@ export default async function MyListingsPage() {
           <p className="mt-1 text-sm text-muted">
             Anything you list will appear here, sold items included.
           </p>
+          <Link
+            href="/listings/new"
+            className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+          >
+            Sell your first item
+          </Link>
         </div>
       ) : (
         <>
