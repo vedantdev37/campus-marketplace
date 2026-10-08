@@ -21,7 +21,8 @@ import { BookLookup } from "@/components/listings/book-lookup";
 import { ConditionChecklist } from "@/components/listings/condition-checklist";
 import { Field, SECONDARY_BUTTON_CLASS } from "@/components/listings/form-field";
 import { Alert } from "@/components/ui/alert";
-import { fairPriceHint, formatPrice } from "@/lib/pricing";
+import { dealMeter } from "@/lib/deal-meter";
+import { formatPrice } from "@/lib/pricing";
 import {
   buildListingImagePath,
   LISTING_IMAGE_BUCKET,
@@ -34,11 +35,9 @@ import {
   CATEGORIES,
   CATEGORY_LABELS,
   CONDITION_LABELS,
-  CONDITION_VALUE_FACTOR,
   CONDITIONS,
   RENT_MAX_DAYS,
   TYPE_INFO,
-  type ItemCondition,
   type ListingCategory,
   type ListingRow,
   type ListingType,
@@ -735,7 +734,12 @@ export function ListingForm({ userId, pickupSpots, type, today, listing }: Listi
       ) : null}
 
       {isSale ? (
-        <PriceGuide price={price} originalPrice={originalPrice} condition={condition} />
+        <PriceGuide
+          price={price}
+          originalPrice={originalPrice}
+          condition={condition}
+          category={category}
+        />
       ) : null}
 
       {/* Keyed by category: switching category remounts it, so ticks for one
@@ -829,48 +833,64 @@ function toAmount(value: string): number | null {
 }
 
 /**
- * Live pricing guidance while the seller fills in the form.
+ * The deal meter, live, while the seller types a price.
  *
- * The same `fairPriceHint` a buyer sees on the listing page, shown to the
- * seller before they publish - so the person who can act on "this is above the
- * usual price" finds out while they can still change it.
+ * It is the same `dealMeter` a buyer sees on the card and the listing page,
+ * shown to the one person who can still do something about "Overpriced".
  *
- * Renders nothing until there is an original price and a condition to reason
- * from. A guide built on missing data would be a guess presented as advice.
+ * Renders nothing until there is an MRP, a category and a condition to reason
+ * from. A verdict built on missing data would be a guess presented as advice.
  */
 function PriceGuide({
   price,
   originalPrice,
   condition,
+  category,
 }: {
   price: string;
   originalPrice: string;
   condition: string;
+  category: string;
 }) {
   const original = toAmount(originalPrice);
+  const asking = toAmount(price);
 
-  if (original === null || !(CONDITIONS as readonly string[]).includes(condition)) {
+  // With no asking price yet, the meter is run at the fair price itself: that
+  // yields the fair figure to show as a starting point, and no verdict.
+  const probe = dealMeter({
+    type: "sale",
+    price: asking ?? 0,
+    originalPrice: original,
+    condition,
+    category,
+  });
+
+  if (!probe || probe.fair === null) {
     return null;
   }
 
-  const itemCondition = condition as ItemCondition;
-  const expected = original * CONDITION_VALUE_FACTOR[itemCondition];
-  const asking = toAmount(price);
-  const hint = asking !== null ? fairPriceHint(asking, original, itemCondition) : null;
-
-  const VERDICT_LABEL = { great: "A good deal", fair: "Fairly priced", high: "On the high side" };
-
   return (
     <div aria-live="polite" className="rounded-lg bg-surface-soft px-4 py-3 text-sm text-ink">
-      <p className="font-semibold">
-        {hint ? VERDICT_LABEL[hint.verdict] : "Price guide"}
-        {hint ? <span className="font-normal"> — {hint.percentOfOriginal}% of the original price</span> : null}
-      </p>
-      <p className="mt-0.5 text-ink-body">
-        Items in {CONDITION_LABELS[itemCondition].toLowerCase()} condition usually go for about{" "}
-        {formatPrice(expected * 0.85)}–{formatPrice(expected * 1.15)}. Buyers see this comparison
-        on your listing.
-      </p>
+      {asking === null ? (
+        <>
+          <p className="font-semibold">Deal meter</p>
+          <p className="mt-0.5 text-ink-body">
+            A fair second-hand price for this is about {formatPrice(probe.fair)}. Type your price
+            to see how it compares.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="font-bold">
+            <span aria-hidden="true" className="mr-1.5">
+              {probe.mark}
+            </span>
+            {probe.label}
+          </p>
+          <p className="mt-0.5 text-ink-body">{probe.reasoning}</p>
+          <p className="mt-0.5 text-xs text-ink-muted">Buyers see this badge on your listing.</p>
+        </>
+      )}
     </div>
   );
 }

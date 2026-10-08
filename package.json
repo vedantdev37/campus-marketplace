@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed:demo": "node --env-file=.env.local scripts/seed-demo.mjs",
     "reseed:demo": "node --env-file=.env.local scripts/seed-demo.mjs --reset",
-    "verify:rls": "node --env-file=.env.local scripts/verify-rls.mjs"
+    "verify:rls": "node --env-file=.env.local scripts/verify-rls.mjs",
+    "test:deal": "node scripts/test-deal-meter.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

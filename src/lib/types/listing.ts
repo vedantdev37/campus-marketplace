@@ -232,23 +232,10 @@ export const CONDITION_LABELS: Record<ItemCondition, string> = {
   new: "New",
   like_new: "Like new",
   good: "Good",
-  fair: "Fair",
-  poor: "Poor",
-};
-
-/**
- * How much of the original price each condition is reasonably worth.
- *
- * Used only for the fair-price hint, and deliberately kept in code rather than
- * the database: it is a heuristic to be tuned by feel, not a fact about a row,
- * so changing it should not need a migration.
- */
-export const CONDITION_VALUE_FACTOR: Record<ItemCondition, number> = {
-  new: 0.9,
-  like_new: 0.75,
-  good: 0.6,
-  fair: 0.45,
-  poor: 0.3,
+  // Not "Fair" and "Poor": the stored values keep those names, but on screen
+  // "Fair" sat next to the deal meter's "Fair price" and meant something else.
+  fair: "Used",
+  poor: "Heavily used",
 };
 
 export type PickupSpot = {
