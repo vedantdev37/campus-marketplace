@@ -688,6 +688,42 @@ async function main() {
       check(description, Boolean(error), error ? undefined : "the change was accepted");
     }
 
+    // -- Squad up chats are as private as any other ---------------------------
+    // A conversation about a team request is a row in the same tables as one
+    // about a sale, so the same policies should cover it. This checks that
+    // they do, against the one the seed creates.
+    {
+      const { data: teamChats } = await buyer
+        .from("conversations")
+        .select("id, listing:listings!conversations_listing_id_fkey(type)")
+        .eq("buyer_id", buyerId);
+
+      const teamChat = (teamChats ?? []).find((chat) => chat.listing?.type === "team_request");
+
+      if (teamChat) {
+        const messages = await outsider.from("messages").select("id").eq("conversation_id", teamChat.id);
+
+        check(
+          "a third user cannot read a Squad up conversation",
+          !messages.error && (messages.data?.length ?? 0) === 0,
+          messages.error ? `unexpected error: ${messages.error.message}` : `rows visible: ${messages.data?.length}`,
+        );
+
+        const post = await outsider
+          .from("messages")
+          .insert({ conversation_id: teamChat.id, body: "verify-rls: this must be refused" });
+
+        check(
+          "a third user cannot post in a Squad up conversation",
+          Boolean(post.error),
+          post.error ? undefined : "THE MESSAGE WAS ACCEPTED and cannot be deleted through the API",
+        );
+      } else {
+        skipped += 2;
+        console.log("  SKIP  Squad up chat checks: no seeded team conversation (run `npm run reseed:demo`)");
+      }
+    }
+
     // -- A closed post takes no new conversations ----------------------------
     {
       const { data: closedPosts } = await buyer

@@ -85,10 +85,44 @@ const OUTSIDER = {
   fullName: "Kavya Nair",
 };
 
+/**
+ * The author's own profile, as a showcase of what a filled-in profile looks
+ * like: a photo, a bio, skills, a GitHub link and two Squad up posts. The
+ * details below were supplied by the author. The photo is public/vedant.webp,
+ * a compressed crop of a photograph the author provided.
+ */
+const VEDANT = {
+  email: "vedant@reviewer.test",
+  password: process.env.DEMO_VEDANT_PASSWORD,
+  fullName: "Vedant Sharma",
+  bio: "First-year CSE. I make films, beats and websites. Usually all three at once.",
+  skills: ["react", "next.js", "supabase", "video-editing", "filmmaking", "graphic-design", "beatboxing"],
+  github: "vedantdev37",
+};
+
+const VEDANT_POSTS = [
+  {
+    type: "skill_offer",
+    title: "I'll edit your fest aftermovie",
+    description:
+      "Send me the raw footage from your fest, club event or hackathon and I will cut it into something people actually watch to the end. Colour, sound, titles, the lot. I have shot and edited a few of these. Tell me the date you need it by.",
+    tags: ["video-editing", "filmmaking", "graphic-design"],
+  },
+  {
+    type: "team_request",
+    title: "Looking for a teammate for the next hackathon",
+    description:
+      "I build the frontend and the database (React, Next.js, Supabase) and I will make the demo video. I am looking for someone who enjoys the part I do not: a strong backend or ML person, or a designer with opinions. Message me and we will find a hackathon.",
+    tags: ["react", "next.js", "supabase"],
+    event_name: "the next hackathon",
+  },
+];
+
 for (const [name, account] of [
   ["DEMO_SELLER_PASSWORD", SELLER],
   ["DEMO_BUYER_PASSWORD", BUYER],
   ["DEMO_OUTSIDER_PASSWORD", OUTSIDER],
+  ["DEMO_VEDANT_PASSWORD", VEDANT],
 ]) {
   if (!account.password || account.password.length < 8) {
     console.error(
@@ -586,6 +620,19 @@ async function resetDemoData(sellerClient, sellerId, buyerClient, buyerId) {
     await clearImageFolder(buyerClient, buyerId);
   }
 
+  // Profiles edited while trying the app go back to blank, and their photos
+  // were removed with the folder above.
+  if (buyerId) {
+    const { error: buyerProfileError } = await buyerClient
+      .from("profiles")
+      .update({ full_name: BUYER.fullName, bio: null, skills: [], github_username: null, avatar_path: null })
+      .eq("id", buyerId);
+
+    if (buyerProfileError) {
+      fail("could not reset the buyer's profile", buyerProfileError);
+    }
+  }
+
   const removed = await clearImageFolder(sellerClient, sellerId);
 
   console.log(`  cleared existing demo listings, chats, wishlist and ${removed} stored image(s)`);
@@ -598,6 +645,9 @@ async function main() {
   const sellerClient = await ensureAccount(SELLER);
   const buyerClient = await ensureAccount(BUYER);
   await ensureAccount(OUTSIDER);
+  const vedantClient = await ensureAccount(VEDANT);
+  const { data: vedantAuth } = await vedantClient.auth.getUser();
+  const vedantId = vedantAuth?.user?.id;
 
   const { data: sellerAuth } = await sellerClient.auth.getUser();
   const sellerId = sellerAuth?.user?.id;
@@ -752,7 +802,10 @@ async function main() {
   const { count: chatCount, error: chatCountError } = await buyerClient
     .from("conversations")
     .select("id", { count: "exact", head: true })
-    .eq("buyer_id", buyerId);
+    .eq("buyer_id", buyerId)
+    // With the seller specifically: the buyer may also be talking to the
+    // showcase profile, and that conversation is not this one.
+    .eq("seller_id", sellerId);
 
   if (chatCountError) {
     fail("could not count the buyer's conversations", chatCountError);
@@ -810,8 +863,125 @@ async function main() {
     }
   }
 
+  // --- The showcase profile ----------------------------------------------
+  // Written as that user, through the same public API, so the column-level
+  // grant and the CHECK constraints on `profiles` (migration 0010) apply to
+  // it exactly as they would to an edit made in the app.
+  if (vedantId) {
+    if (RESET) {
+      const { error } = await vedantClient.from("listings").delete().eq("seller_id", vedantId);
+
+      if (error) {
+        fail("could not delete the showcase posts", error);
+      }
+
+      await clearImageFolder(vedantClient, vedantId);
+    }
+
+    let avatarPath = null;
+    const photo = new URL("../public/vedant.webp", import.meta.url);
+
+    if (existsSync(photo)) {
+      const { data: profile } = await vedantClient
+        .from("profiles")
+        .select("avatar_path")
+        .eq("id", vedantId)
+        .maybeSingle();
+
+      // After a reset the Storage folder has just been emptied, so whatever
+      // path the row holds now points at nothing. Keeping it would leave a
+      // broken image on the one profile meant to show a photo.
+      avatarPath = RESET ? null : (profile?.avatar_path ?? null);
+
+      if (!avatarPath) {
+        avatarPath = `${vedantId}/${crypto.randomUUID()}.webp`;
+
+        const { error } = await vedantClient.storage
+          .from("listing-images")
+          .upload(avatarPath, await readFile(photo), { contentType: "image/webp", cacheControl: "31536000" });
+
+        if (error) {
+          fail("could not upload the showcase profile photo", error);
+        }
+      }
+    }
+
+    const { data: saved, error: profileError } = await vedantClient
+      .from("profiles")
+      .update({
+        full_name: VEDANT.fullName,
+        bio: VEDANT.bio,
+        skills: VEDANT.skills,
+        github_username: VEDANT.github,
+        avatar_path: avatarPath,
+      })
+      .eq("id", vedantId)
+      .select("id");
+
+    if (profileError || (saved?.length ?? 0) === 0) {
+      fail("could not save the showcase profile", profileError);
+    }
+
+    const { count: postCount } = await vedantClient
+      .from("listings")
+      .select("id", { count: "exact", head: true })
+      .eq("seller_id", vedantId);
+
+    if ((postCount ?? 0) === 0) {
+      const { error } = await vedantClient.from("listings").insert(
+        VEDANT_POSTS.map((post) => ({
+          price: 0,
+          category: "other",
+          condition: "good",
+          condition_checks: {},
+          event_name: null,
+          event_date: null,
+          ...post,
+          seller_id: vedantId,
+        })),
+      );
+
+      if (error) {
+        fail("could not insert the showcase posts", error);
+      }
+    }
+
+    // One Squad up conversation: the buyer answering the call for a teammate.
+    // It gives reviewers a chat on a non-sale post to look at, and gives
+    // verify:rls a team conversation for a third user to try to read.
+    const { data: teamPost } = await buyerClient
+      .from("listings")
+      .select("id")
+      .eq("seller_id", vedantId)
+      .eq("type", "team_request")
+      .eq("status", "available")
+      .limit(1)
+      .maybeSingle();
+
+    if (teamPost && buyerId) {
+      const { count: existing } = await buyerClient
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("listing_id", teamPost.id)
+        .eq("buyer_id", buyerId);
+
+      if ((existing ?? 0) === 0) {
+        const { error } = await buyerClient.rpc("start_conversation", {
+          p_listing_id: teamPost.id,
+          p_body: "I'm interested in joining. I do backend: Node and Postgres. Which hackathon are you thinking of?",
+        });
+
+        if (error) {
+          fail("could not start the Squad up conversation", error);
+        }
+      }
+    }
+
+    console.log(`\nShowcase profile: ${VEDANT.fullName}${avatarPath ? ", with photo" : ", no photo found"}, ${VEDANT_POSTS.length} posts`);
+  }
+
   console.log("\nDone.");
-  console.log("  seller@reviewer.test / buyer@reviewer.test / outsider@reviewer.test");
+  console.log("  seller@reviewer.test / buyer@reviewer.test / outsider@reviewer.test / vedant@reviewer.test");
   console.log("  Passwords: DEMO_*_PASSWORD in .env.local\n");
 }
 
