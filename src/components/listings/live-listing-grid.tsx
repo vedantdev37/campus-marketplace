@@ -24,7 +24,18 @@ const REFRESH_DEBOUNCE_MS = 600;
  * the page through the server, so what is displayed always comes from the
  * normal RLS-filtered query. The realtime event only says "look again".
  */
-export function LiveListingGrid({ listings }: { listings: Listing[] }) {
+export function LiveListingGrid({
+  listings,
+  savedIds,
+  viewerId,
+}: {
+  listings: Listing[];
+  /** Ids the viewer has saved, so each card's heart starts in the right state. */
+  savedIds: string[];
+  /** The viewer. Their own posts get no heart: you do not save your own. */
+  viewerId: string;
+}) {
+  const saved = new Set(savedIds);
   const router = useRouter();
 
   /** Ids that sold while this page was open. */
@@ -94,6 +105,7 @@ export function LiveListingGrid({ listings }: { listings: Listing[] }) {
           <li key={listing.id} className="contents">
             <ListingCard
               listing={soldIds.has(listing.id) ? { ...listing, status: "sold" } : listing}
+              saved={listing.seller_id === viewerId ? undefined : saved.has(listing.id)}
             />
           </li>
         ))}

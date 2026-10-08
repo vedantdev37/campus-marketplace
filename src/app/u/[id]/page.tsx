@@ -7,6 +7,7 @@ import { Avatar } from "@/components/profile/avatar";
 import { requireSessionUser } from "@/lib/auth";
 import { getOpenPostsBy, getProfile, initialsOf } from "@/lib/profiles";
 import { isUuid } from "@/lib/uuid";
+import { getSavedIds } from "@/lib/wishlist";
 
 export const metadata: Metadata = {
   title: "Profile · Nitte Mart",
@@ -31,8 +32,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
     notFound();
   }
 
-  const posts = await getOpenPostsBy(id);
   const isMe = profile.id === user.id;
+  const [posts, savedIds] = await Promise.all([getOpenPostsBy(id), getSavedIds(user.id)]);
   const name = profile.full_name || "A student";
 
   return (
@@ -106,7 +107,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4">
             {posts.map((listing) => (
               <li key={listing.id} className="flex flex-col">
-                <ListingCard listing={listing} />
+                <ListingCard listing={listing} saved={isMe ? undefined : savedIds.has(listing.id)} />
               </li>
             ))}
           </ul>

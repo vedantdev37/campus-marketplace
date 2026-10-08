@@ -7,6 +7,7 @@ import { requireSessionUser } from "@/lib/auth";
 import { hasActiveFilters, parseListingFilters, type RawSearchParams } from "@/lib/listing-filters";
 import { getPickupSpots, listListings } from "@/lib/listings";
 import { EXPLORE_TABS, type ExploreTab } from "@/lib/types/listing";
+import { getSavedIds } from "@/lib/wishlist";
 
 export const metadata: Metadata = {
   title: "Explore · Nitte Mart",
@@ -53,7 +54,7 @@ export default async function ExplorePage({
 }) {
   // proxy.ts already blocks unauthenticated requests. This is the second layer,
   // so the page stays safe if the matcher is ever narrowed.
-  await requireSessionUser();
+  const user = await requireSessionUser();
 
   const params = await searchParams;
   const requested = Array.isArray(params.tab) ? params.tab[0] : params.tab;
@@ -62,7 +63,11 @@ export default async function ExplorePage({
   const filters = { ...parseListingFilters(params), types: tab.types };
 
   // Independent queries, so they run concurrently rather than in series.
-  const [listings, pickupSpots] = await Promise.all([listListings(filters), getPickupSpots()]);
+  const [listings, pickupSpots, savedIds] = await Promise.all([
+    listListings(filters),
+    getPickupSpots(),
+    getSavedIds(user.id),
+  ]);
 
   const filtered = hasActiveFilters(filters);
   const empty = EMPTY[tab.key];
@@ -172,7 +177,7 @@ export default async function ExplorePage({
         // A Client Component: it subscribes to Realtime so a post that is
         // closed greys out here without a refresh. The posts are still fetched
         // on the server, above, through RLS.
-        <LiveListingGrid listings={listings} />
+        <LiveListingGrid listings={listings} savedIds={[...savedIds]} viewerId={user.id} />
       )}
     </main>
   );

@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { SaveButton } from "@/components/listings/save-button";
+import { dealMeter } from "@/lib/deal-meter";
 import { closedLabel, metaLine, priceLine, TYPE_BADGE_CLASS } from "@/lib/listing-display";
 import { listingImageUrl } from "@/lib/storage";
 import { TYPE_INFO, type Listing, type ListingType } from "@/lib/types/listing";
@@ -42,19 +44,45 @@ export function TypeBadge({ type, className = "" }: { type: ListingType; classNa
  * The frame is pale in both themes, so the text on it uses fixed dark colours
  * and not theme tokens: a caption must not turn white on a white print.
  */
-export function ListingCard({ listing }: { listing: Listing }) {
+export function ListingCard({
+  listing,
+  saved,
+}: {
+  listing: Listing;
+  /**
+   * Whether the viewer has saved this post. Leave it out to show no heart at
+   * all - for a signed-out visitor, or on a list of your own posts.
+   */
+  saved?: boolean;
+}) {
   const isClosed = listing.status === "sold";
+
+  // The deal meter needs a price when new. Cards drawn from the public home
+  // page functions do not carry one, so they show no verdict - except a free
+  // item, which needs no arithmetic.
+  const deal = isClosed
+    ? null
+    : dealMeter({
+        type: listing.type,
+        price: listing.price,
+        originalPrice: listing.original_price,
+        condition: listing.condition,
+        category: listing.category,
+      });
   const imageUrl = listingImageUrl(listing.image_path);
   const closed = closedLabel(listing.type);
   const price = priceLine(listing);
   const meta = metaLine(listing);
 
   return (
+    // The heart is a sibling of the link, laid over the photo: the whole card
+    // is one link, and a button cannot live inside a link.
+    <div className="relative flex flex-1 flex-col">
     <Link
       href={`/listings/${listing.id}`}
       // Spelled out, so it begins with the state and reads in a sensible order.
       aria-label={`${isClosed ? `${closed}: ` : ""}${TYPE_INFO[listing.type].badge}: ${listing.title}, ${price}`}
-      className="polaroid group flex flex-col rounded-[4px] bg-polaroid p-1.5 pb-2.5 shadow-float motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-0.5"
+      className="polaroid group flex flex-1 flex-col rounded-[4px] bg-polaroid p-1.5 pb-2.5 shadow-float motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-0.5"
     >
       <div className="relative aspect-square w-full overflow-hidden rounded-[2px] bg-[#dedad0]">
         {imageUrl ? (
@@ -125,13 +153,32 @@ export function ListingCard({ listing }: { listing: Listing }) {
 
         {/* Prices stay in the body face: a handwriting font is for the
             caption, and a number someone will pay must be unmistakable. */}
-        <p className="mt-auto pt-1 text-[14px] leading-tight font-extrabold tabular-nums">
-          <span className={isClosed ? "font-semibold text-[#55535f] line-through" : ""}>{price}</span>
-          {isClosed ? <span className="ml-1.5">{closed}</span> : null}
-        </p>
+        {/* Price on the left, verdict on the right, on one line: a card with a
+            verdict is then no taller than one without, and prices in a row
+            stay level. */}
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 pt-1">
+          <p className="text-[14px] leading-tight font-extrabold tabular-nums">
+            <span className={isClosed ? "font-semibold text-[#55535f] line-through" : ""}>{price}</span>
+            {isClosed ? <span className="ml-1.5">{closed}</span> : null}
+          </p>
+
+          {deal ? (
+            // The verdict is the word. The mark repeats it as a shape; no
+            // colour is involved, so it reads the same in greyscale.
+            <p className="rounded-full border border-[#12111c] px-2 py-0.5 text-[11px] leading-tight font-bold whitespace-nowrap">
+              <span aria-hidden="true">{deal.mark} </span>
+              {deal.label}
+            </p>
+          ) : null}
+        </div>
 
         {meta ? <p className="truncate text-[12px] leading-tight text-[#55535f]">{meta}</p> : null}
       </div>
     </Link>
+
+    {saved === undefined ? null : (
+      <SaveButton listingId={listing.id} initialSaved={saved} className="absolute top-1 right-1" />
+    )}
+    </div>
   );
 }

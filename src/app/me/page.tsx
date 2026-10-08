@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { signOutAction } from "@/app/(auth)/actions";
 import { MessagesLiveRefresh } from "@/components/chat/messages-live-refresh";
+import { LanguageToggle } from "@/components/layout/language-toggle";
+import { NotificationsToggle } from "@/components/layout/notifications-toggle";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ListingCard } from "@/components/listings/listing-card";
 import { ListingLiveRefresh } from "@/components/listings/listing-live-refresh";
@@ -11,7 +13,9 @@ import { requireSessionUser } from "@/lib/auth";
 import { getInbox } from "@/lib/chat";
 import { getMyListings } from "@/lib/listings";
 import { getProfile, initialsOf } from "@/lib/profiles";
+import { readLanguage } from "@/lib/language";
 import { readTheme } from "@/lib/theme";
+import { getSavedListings } from "@/lib/wishlist";
 import { isListingType, LISTING_TYPES, TYPE_INFO, type Listing } from "@/lib/types/listing";
 
 export const metadata: Metadata = {
@@ -21,18 +25,21 @@ export const metadata: Metadata = {
 export default async function MePage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string | string[] }>;
+  searchParams: Promise<{ type?: string | string[]; tab?: string | string[] }>;
 }) {
   const user = await requireSessionUser();
-  const { type } = await searchParams;
+  const { type, tab } = await searchParams;
   const shownType = isListingType(type) ? type : null;
+  const showSaved = tab === "saved";
 
-  const [listings, inbox, theme, profile] = await Promise.all([
+  const [listings, inbox, theme, profile, savedListings] = await Promise.all([
     getMyListings(user.id),
     getInbox(),
     readTheme(),
     getProfile(user.id),
+    getSavedListings(user.id),
   ]);
+  const language = await readLanguage();
 
   const name = profile?.full_name || "You";
 
@@ -102,8 +109,64 @@ export default async function MePage({
         </div>
       </section>
 
-      <section aria-labelledby="my-posts" className="mt-8">
-        <h2 id="my-posts" className="text-lg font-semibold">
+      {/* Two lists live here: what I posted, and what I saved. */}
+      <nav aria-label="My lists" className="mt-8">
+        <ul className="flex gap-2">
+          {[
+            { href: "/me", label: `My posts (${listings.length})`, current: !showSaved },
+            { href: "/me?tab=saved", label: `Saved (${savedListings.length})`, current: showSaved },
+          ].map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                aria-current={item.current ? "page" : undefined}
+                className={[
+                  "flex h-11 items-center rounded-full border px-4 text-sm whitespace-nowrap",
+                  item.current
+                    ? "border-ink bg-ink font-bold text-canvas"
+                    : "border-control-border font-medium text-ink hover:bg-surface-soft",
+                ].join(" ")}
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {showSaved ? (
+        <section aria-labelledby="saved-posts" className="mt-4">
+          <h2 id="saved-posts" className="sr-only">
+            Saved
+          </h2>
+
+          {savedListings.length === 0 ? (
+            <div className="mt-2 max-w-md">
+              <p className="text-[22px] leading-tight font-semibold">Nothing saved. Window shopping is free.</p>
+              <p className="mt-2 text-base text-ink-body">
+                Tap the heart on anything you want to come back to. If it sells while you have
+                the site open, you will be told.
+              </p>
+              <Link
+                href="/explore"
+                className="mt-6 inline-flex h-12 items-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active"
+              >
+                Explore
+              </Link>
+            </div>
+          ) : (
+            <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4">
+              {savedListings.map((listing) => (
+                <li key={listing.id} className="flex flex-col">
+                  <ListingCard listing={listing} saved />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : (
+      <section aria-labelledby="my-posts" className="mt-4">
+        <h2 id="my-posts" className="sr-only">
           My posts
         </h2>
 
@@ -175,6 +238,7 @@ export default async function MePage({
           </>
         )}
       </section>
+      )}
 
       <section aria-labelledby="settings" className="mt-12 max-w-md">
         <h2 id="settings" className="text-lg font-semibold">
@@ -182,7 +246,13 @@ export default async function MePage({
         </h2>
 
         <div className="mt-3 flex flex-col rounded-[14px] border border-hairline p-2">
+          <div className="px-3 py-2">
+            <p className="text-sm font-medium text-ink">Language</p>
+            <p className="mb-2 text-sm text-ink-muted">Changes the headline lines only.</p>
+            <LanguageToggle initial={language} />
+          </div>
           <ThemeToggle initial={theme} variant="row" />
+          <NotificationsToggle />
           <form action={signOutAction}>
             <button
               type="submit"

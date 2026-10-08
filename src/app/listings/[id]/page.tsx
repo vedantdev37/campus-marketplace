@@ -7,6 +7,7 @@ import { AskSeller } from "@/components/chat/ask-seller";
 import { MessagesLiveRefresh } from "@/components/chat/messages-live-refresh";
 import { ConditionSummary } from "@/components/listings/condition-summary";
 import { TypeBadge } from "@/components/listings/listing-card";
+import { SaveButton } from "@/components/listings/save-button";
 import { ListingLiveRefresh } from "@/components/listings/listing-live-refresh";
 import { OwnerActions } from "@/components/listings/owner-actions";
 import { requireSessionUser } from "@/lib/auth";
@@ -14,7 +15,9 @@ import { getInbox, getListingChat } from "@/lib/chat";
 import { getListing } from "@/lib/listings";
 import { formatCampusDateTime, formatCampusDay } from "@/lib/campus-time";
 import { closedLabel, priceLine, TYPE_BADGE_CLASS } from "@/lib/listing-display";
-import { fairPriceHint, formatPrice } from "@/lib/pricing";
+import { dealMeter } from "@/lib/deal-meter";
+import { formatPrice } from "@/lib/pricing";
+import { getSavedIds } from "@/lib/wishlist";
 import { listingImageUrl } from "@/lib/storage";
 import { CATEGORY_LABELS, CONDITION_LABELS, TYPE_INFO } from "@/lib/types/listing";
 import { isUuid } from "@/lib/uuid";
@@ -22,17 +25,6 @@ import { isUuid } from "@/lib/uuid";
 export const metadata: Metadata = {
   title: "Listing · Nitte Mart",
 };
-
-/**
- * The verdict is carried by a word and a shape, not by colour: there is no red
- * or green here, so it reads the same in greyscale and to someone who cannot
- * tell those two apart.
- */
-const VERDICT = {
-  great: { mark: "▼", label: "Below the usual price" },
-  fair: { mark: "●", label: "In line with the usual price" },
-  high: { mark: "▲", label: "Above the usual price" },
-} as const;
 
 export default async function ListingDetailPage({
   params,
@@ -63,11 +55,16 @@ export default async function ListingDetailPage({
   const isSale = listing.type === "sale";
   const isSquad = listing.type === "skill_offer" || listing.type === "team_request";
 
-  // The fair-price guide compares an asking price with a price when new, so it
-  // only means something for a sale.
-  const hint = isSale
-    ? fairPriceHint(listing.price, listing.original_price, listing.condition)
-    : null;
+  // The deal meter: null unless this is a sale with an MRP, or a free item.
+  const deal = dealMeter({
+    type: listing.type,
+    price: listing.price,
+    originalPrice: listing.original_price,
+    condition: listing.condition,
+    category: listing.category,
+  });
+
+  const isSaved = isOwner ? false : (await getSavedIds(user.id)).has(listing.id);
 
   // Chat, as far as this viewer is concerned. RLS returns a buyer their own
   // conversation about this listing and its seller every one of them, so the
@@ -263,22 +260,48 @@ export default async function ListingDetailPage({
                 </p>
               ) : null}
 
-              {hint ? (
+              {deal ? (
                 <div className="mt-4 rounded-[14px] bg-surface-soft p-4 text-sm">
-                  <p className="font-semibold">
+                  {/* The verdict is a word, with a shape beside it. No red or
+                      green: it reads the same in greyscale. */}
+                  <p className="text-base font-bold">
                     <span aria-hidden="true" className="mr-1.5">
-                      {VERDICT[hint.verdict].mark}
+                      {deal.mark}
                     </span>
-                    {VERDICT[hint.verdict].label}
+                    {deal.label}
                   </p>
-                  <p className="mt-1 text-ink-body">
-                    {hint.percentOfOriginal}% of the original price. Items in{" "}
-                    {CONDITION_LABELS[listing.condition].toLowerCase()} condition usually go for
-                    around {formatPrice(hint.expected)}.
-                  </p>
-                  <p className="mt-1 text-xs text-ink-muted">
-                    A guide only. The original price is supplied by the seller or a book catalogue.
-                  </p>
+
+                  {deal.reasoning ? (
+                    <>
+                      <p className="mt-1 text-ink-body">{deal.reasoning}</p>
+
+                      <details className="mt-2">
+                        <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold underline">
+                          How is this calculated?
+                        </summary>
+                        <div className="flex flex-col gap-1.5 pb-1 text-ink-body">
+                          <p>
+                            Fair price = MRP × a factor for condition × a factor for category.
+                          </p>
+                          <p>
+                            Condition: new 0.90, like new 0.80, good 0.65, used 0.55, heavily used
+                            0.35. Category: electronics 0.80; furniture, hostel gear and anything
+                            else 0.90; books, notes and lab gear 1.00.
+                          </p>
+                          <p>
+                            Asking up to 85% of fair is a steal, up to 115% is fair, up to 140% is
+                            a bit high, and above that is overpriced.
+                          </p>
+                          <p className="text-xs text-ink-muted">
+                            A rule of thumb, not a valuation: the factors are judgement, and the
+                            MRP is what the seller or a book catalogue says it was.
+                          </p>
+                        </div>
+                      </details>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-ink-body">It costs nothing. Go and get it.</p>
+                  )}
                 </div>
               ) : null}
 
@@ -333,6 +356,15 @@ export default async function ListingDetailPage({
                   opener={info.opener}
                 />
               </div>
+            )}
+
+            {isOwner ? null : (
+              <SaveButton
+                listingId={listing.id}
+                initialSaved={isSaved}
+                variant="row"
+                className="mt-3"
+              />
             )}
 
             {isOwner ? (
