@@ -1,125 +1,178 @@
 @import "tailwindcss";
 
 /*
- * Design tokens.
+ * Design tokens - one system, from DESIGN.md (the Airbnb-inspired reference in
+ * the repo root).
  *
- * Every colour is declared once here and exposed to Tailwind through
- * @theme inline, so `bg-surface` or `text-muted` resolve to these variables
- * rather than hard-coded hexes scattered through components. Dark mode then
- * only has to redefine the variables - no component needs a `dark:` variant
- * for colour.
+ * Every colour is declared once here as a CSS variable and exposed to Tailwind
+ * through @theme inline, so components say `bg-canvas` or `text-ink-muted` and
+ * never a hex. Dark mode then only has to redefine the variables: no component
+ * needs a `dark:` variant for colour.
+ *
+ * WHERE THIS DEPARTS FROM DESIGN.md, AND WHY
+ *
+ * 1. Button fill. The reference puts white text on Rausch (#ff385c). That is
+ *    about 3.5:1, which fails WCAG AA (4.5:1) for a 16px button label. Text
+ *    buttons use `brand-fill` (#e00b41, 4.9:1 with white) instead. The brighter
+ *    Rausch is kept for the wordmark, where it is large display text.
+ * 2. Control borders. A 1px #dddddd outline is 1.4:1 against white, below the
+ *    3:1 that WCAG asks of a form control's boundary. Inputs use
+ *    `control-border`; the lighter hairline stays for dividers and cards, where
+ *    it is decoration rather than the only thing marking an interactive area.
+ * 3. Dark mode. The reference has none. The dark values below were chosen to
+ *    keep the same roles and AA contrast on a near-black canvas.
  */
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --surface: #ffffff;
-  --surface-muted: #f1f5f9;
-  --border: #e2e8f0;
-  --muted: #64748b;
-  --primary: #1d4ed8;
-  --primary-hover: #1a3fb8;
-  --primary-foreground: #ffffff;
-  --danger: #b91c1c;
-  --danger-surface: #fef2f2;
-  --success: #15803d;
-  --success-surface: #f0fdf4;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1120;
-    --foreground: #e8eef8;
-    --surface: #111a2e;
-    --surface-muted: #1a2438;
-    --border: #243049;
-    --muted: #94a3b8;
-    --primary: #5b8cfa;
-    --primary-hover: #7ba2fb;
-    --primary-foreground: #0b1120;
-    --danger: #f87171;
-    --danger-surface: #2a1414;
-    --success: #4ade80;
-    --success-surface: #0f2419;
-  }
-}
-
-/*
- * DESIGN.md tokens (the Airbnb-inspired reference in the repo root).
- *
- * Declared under their own names rather than by redefining the tokens above,
- * so pages built before the design reference keep their current look until
- * they are restyled, while every new page uses these from the start.
- *
- * Deliberately not redefined for dark mode: the reference is a white-canvas
- * system with no dark variant.
- */
-:root {
-  --ds-brand: #ff385c;
-  --ds-brand-active: #e00b41;
-  --ds-brand-disabled: #ffd1da;
+  --ds-canvas: #ffffff;
+  --ds-surface-soft: #f7f7f7;
   --ds-ink: #222222;
   --ds-ink-body: #3f3f3f;
   --ds-ink-muted: #6a6a6a;
   --ds-hairline: #dddddd;
   --ds-hairline-soft: #ebebeb;
-  --ds-canvas: #ffffff;
-  --ds-surface-soft: #f7f7f7;
+  --ds-control-border: #8c8c8c;
+  --ds-brand: #ff385c;
+  --ds-brand-fill: #e00b41;
+  --ds-brand-active: #c40a39;
   --ds-error: #c13515;
+  --ds-error-surface: #fdf0ec;
+  --ds-success: #1a7f4b;
+  --ds-success-surface: #eef8f1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ds-canvas: #121212;
+    --ds-surface-soft: #1e1e1e;
+    --ds-ink: #f2f2f2;
+    --ds-ink-body: #d4d4d4;
+    --ds-ink-muted: #a3a3a3;
+    --ds-hairline: #3d3d3d;
+    --ds-hairline-soft: #2a2a2a;
+    --ds-control-border: #7a7a7a;
+    --ds-brand: #ff5a78;
+    --ds-brand-fill: #e00b41;
+    --ds-brand-active: #c40a39;
+    --ds-error: #ff8a70;
+    --ds-error-surface: #2b1612;
+    --ds-success: #5fd08f;
+    --ds-success-surface: #12261b;
+  }
 }
 
 @theme inline {
-  --color-brand: var(--ds-brand);
-  --color-brand-active: var(--ds-brand-active);
-  --color-brand-disabled: var(--ds-brand-disabled);
+  --color-canvas: var(--ds-canvas);
+  --color-surface-soft: var(--ds-surface-soft);
   --color-ink: var(--ds-ink);
   --color-ink-body: var(--ds-ink-body);
   --color-ink-muted: var(--ds-ink-muted);
   --color-hairline: var(--ds-hairline);
   --color-hairline-soft: var(--ds-hairline-soft);
-  --color-canvas: var(--ds-canvas);
-  --color-surface-soft: var(--ds-surface-soft);
+  --color-control-border: var(--ds-control-border);
+  --color-brand: var(--ds-brand);
+  --color-brand-fill: var(--ds-brand-fill);
+  --color-brand-active: var(--ds-brand-active);
   --color-error: var(--ds-error);
+  --color-error-surface: var(--ds-error-surface);
+  --color-success: var(--ds-success);
+  --color-success-surface: var(--ds-success-surface);
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-surface-muted: var(--surface-muted);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-danger: var(--danger);
-  --color-danger-surface: var(--danger-surface);
-  --color-success: var(--success);
-  --color-success-surface: var(--success-surface);
+  /*
+   * The names the first pages were built with, kept as aliases of the tokens
+   * above. Before the design pass these were a separate blue-and-slate palette,
+   * which is why older and newer pages did not match. Pointing them here made
+   * every page share one palette - and one dark mode - in a single change,
+   * without rewriting class names in files that otherwise needed no edits.
+   */
+  --color-background: var(--ds-canvas);
+  --color-foreground: var(--ds-ink);
+  --color-surface: var(--ds-canvas);
+  --color-surface-muted: var(--ds-surface-soft);
+  --color-border: var(--ds-hairline);
+  --color-muted: var(--ds-ink-muted);
+  --color-primary: var(--ds-brand-fill);
+  --color-primary-hover: var(--ds-brand-active);
+  --color-primary-foreground: #ffffff;
+  --color-danger: var(--ds-error);
+  --color-danger-surface: var(--ds-error-surface);
 
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-app-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* DESIGN.md has exactly one shadow tier. */
+  --shadow-float:
+    rgba(0, 0, 0, 0.02) 0 0 0 1px, rgba(0, 0, 0, 0.04) 0 2px 6px 0, rgba(0, 0, 0, 0.1) 0 4px 8px 0;
+}
+
+html {
+  /* Tells the browser which native form controls and scrollbars to draw. */
+  color-scheme: light dark;
+
+  /*
+   * The header is sticky, so anything scrolled or tabbed into view would
+   * otherwise land underneath it. This reserves its height (80px on desktop)
+   * plus a little air.
+   */
+  scroll-padding-top: 6rem;
+}
+
+@layer base {
+  /* Avoids a single orphaned word on the last line of a heading. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /*
+   * Removes the ~300ms delay some browsers add to taps while they wait to see
+   * whether a double-tap zoom is coming. Pinch zoom is unaffected.
+   */
+  a,
+  button,
+  summary,
+  label,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  /* Use the Geist font loaded in layout.tsx, not Arial. */
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  background: var(--ds-canvas);
+  color: var(--ds-ink);
+  font-family: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/*
- * A single visible focus style for every interactive element. Keyboard users
- * get a clear ring; mouse users do not see it on click, because :focus-visible
- * does that distinction for us.
- */
 @layer base {
   /*
    * Inside the base layer on purpose. Unlayered CSS outranks every Tailwind
    * utility regardless of specificity, so as a bare rule this could not be
-   * turned off by `focus-visible:outline-none` - which the DESIGN.md inputs
-   * need, because they signal focus with an ink border instead of a ring.
+   * turned off by `focus-visible:outline-none` - which the text inputs need,
+   * because they signal focus with an ink border instead of a ring.
+   *
+   * Ink, not the brand colour: a focus ring has to be visible against every
+   * surface it lands on, including a brand-coloured button.
    */
   :focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--ds-ink);
     outline-offset: 2px;
+  }
+}
+
+/*
+ * The home page hero's slow sideways drift. Declared here rather than as a
+ * Tailwind utility because it is a named keyframe animation; it is only ever
+ * applied behind `motion-safe:`, so it does not run for anyone who has asked
+ * their system to reduce motion.
+ */
+@keyframes hero-drift {
+  from {
+    transform: scale(1.08) translateX(-2%);
+  }
+  to {
+    transform: scale(1.08) translateX(2%);
   }
 }
