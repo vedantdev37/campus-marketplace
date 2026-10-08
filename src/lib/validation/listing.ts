@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { normalizeIsbn } from "@/lib/isbn";
 import { CATEGORIES, CONDITIONS } from "@/lib/types/listing";
 
 /**
@@ -59,26 +60,52 @@ export const listingDescriptionSchema = z
  * NaN, so an empty field would silently become a free item. This parses
  * explicitly and rejects anything that is not a finite number.
  */
+const MAX_PRICE = 1_000_000;
+
+/**
+ * The shape of a money amount, checked on the TEXT before it becomes a number.
+ *
+ * The two-decimal rule used to be tested arithmetically, as
+ * `Math.round(value * 100) === value * 100`. That rejected perfectly valid
+ * prices: 19.99 * 100 is 1998.9999999999998 in floating point, so a seller
+ * typing 19.99 was told to "use at most 2 decimal places". Counting the digits
+ * in the string asks the question that was actually meant, and cannot be
+ * confused by binary rounding.
+ */
+const PLAIN_NUMBER = /^\d+(\.\d+)?$/;
+const AT_MOST_TWO_DECIMALS = /^\d+(\.\d{1,2})?$/;
+
 export const priceSchema = z
   .string()
   .transform((value) => value.trim())
   .pipe(z.string().min(1, { error: "Enter a price." }))
-  .transform((value) => Number(value))
-  .refine((value) => Number.isFinite(value), { error: "Enter a price as a number." })
-  .refine((value) => value >= 0, { error: "Price cannot be negative." })
-  .refine((value) => value <= 1_000_000, { error: "That price is too high." })
+  .refine((value) => !value.startsWith("-"), { error: "Price cannot be negative." })
+  .refine((value) => PLAIN_NUMBER.test(value), { error: "Enter a price as a number." })
   // Two decimal places, matching numeric(10,2) - otherwise Postgres rounds
   // silently and the stored price differs from what was typed.
-  .refine((value) => Math.round(value * 100) === value * 100, {
-    error: "Use at most 2 decimal places.",
-  });
+  .refine((value) => AT_MOST_TWO_DECIMALS.test(value), { error: "Use at most 2 decimal places." })
+  .transform((value) => Number(value))
+  .refine((value) => value <= MAX_PRICE, { error: "That price is too high." });
 
+/**
+ * Same rules as the asking price, but blank is allowed and means "unknown".
+ *
+ * The upper bound matters here too: the column is numeric(10,2), so a value of
+ * 100,000,000 or more overflows it and Postgres rejects the whole save with a
+ * message the user cannot act on.
+ */
 export const optionalPriceSchema = z
   .string()
   .transform((value) => value.trim())
-  .transform((value) => (value === "" ? null : Number(value)))
-  .refine((value) => value === null || (Number.isFinite(value) && value >= 0), {
+  .refine((value) => value === "" || PLAIN_NUMBER.test(value), {
     error: "Enter the original price as a number, or leave it blank.",
+  })
+  .refine((value) => value === "" || AT_MOST_TWO_DECIMALS.test(value), {
+    error: "Use at most 2 decimal places.",
+  })
+  .transform((value) => (value === "" ? null : Number(value)))
+  .refine((value) => value === null || value <= MAX_PRICE, {
+    error: "That original price is too high.",
   });
 
 export const courseCodeSchema = optionalText(
@@ -96,9 +123,20 @@ export const semesterSchema = z
     { error: "Semester must be a whole number from 1 to 8." },
   );
 
-export const isbnSchema = optionalText(
-  z.string().regex(/^[0-9Xx-]{10,17}$/, { error: "That does not look like an ISBN." }),
-);
+/**
+ * Blank, or a real ISBN - stored in its normalised form (digits, final X).
+ *
+ * Validated with the check digit rather than a character pattern. The earlier
+ * pattern accepted "----------" and rejected an ISBN typed with spaces, which
+ * is how they are printed on a back cover.
+ */
+export const isbnSchema = z
+  .string()
+  .transform((value) => value.trim())
+  .refine((value) => value === "" || normalizeIsbn(value) !== null, {
+    error: "That does not look like a valid ISBN. Check the digits.",
+  })
+  .transform((value) => (value === "" ? null : normalizeIsbn(value)));
 
 export const listingSchema = z.object({
   title: listingTitleSchema,
