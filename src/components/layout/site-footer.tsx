@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { LanguageToggle } from "@/components/layout/language-toggle";
 import { ThemeToggle, type Theme } from "@/components/layout/theme-toggle";
+import type { Language } from "@/lib/i18n";
 
 /**
  * The footer on every page except a conversation, which fills the screen.
@@ -9,7 +11,7 @@ import { ThemeToggle, type Theme } from "@/components/layout/theme-toggle";
  * borrows from the college's: wherever someone lands, it should be plain that
  * this is a student's project and not an official service.
  */
-export function SiteFooter({ theme }: { theme: Theme }) {
+export function SiteFooter({ theme, language }: { theme: Theme; language: Language }) {
   return (
     <footer className="site-footer mt-auto border-t border-hairline bg-canvas text-ink">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:px-6">
@@ -29,7 +31,14 @@ export function SiteFooter({ theme }: { theme: Theme }) {
           </p>
         </div>
 
-        <nav aria-label="Footer" className="flex items-center gap-1 md:ml-auto">
+        <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-1 gap-y-2 md:ml-auto md:justify-end">
+          <LanguageToggle initial={language} />
+          <Link
+            href="/commentary"
+            className="flex h-11 items-center rounded-lg px-3 text-sm font-semibold text-ink underline hover:bg-surface-soft"
+          >
+            Commentary
+          </Link>
           <Link
             href="/security"
             className="flex h-11 items-center rounded-lg px-3 text-sm font-semibold text-ink underline hover:bg-surface-soft"

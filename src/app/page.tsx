@@ -7,9 +7,12 @@ import { RevealObserver } from "@/components/motion/reveal-observer";
 import { getSessionUser } from "@/lib/auth";
 import { formatCampusDay } from "@/lib/campus-time";
 import { getHeroImages } from "@/lib/hero-images";
+import { linesFor } from "@/lib/i18n";
+import { readLanguage } from "@/lib/language";
 import { getHomeSections, getPublicStats, getRecentListings } from "@/lib/listings";
 import securityRun from "@/lib/security-run.json";
-import { LISTING_TYPES, TYPE_INFO, type Listing } from "@/lib/types/listing";
+import { getSavedIds } from "@/lib/wishlist";
+import { LISTING_TYPES, type Listing } from "@/lib/types/listing";
 
 /**
  * The home page, read by scrolling:
@@ -36,16 +39,14 @@ const ofType = (posts: Listing[], ...types: Listing["type"][]) =>
  * two lists the page loads: recent sales, and the newest of everything else.
  */
 const SECTIONS: {
-  tab: string;
+  tab: "buy" | "rent" | "free" | "squad" | "found";
   kicker: string;
-  title: string;
   body?: string;
   pick: (sales: Listing[], others: Listing[]) => Listing[];
 }[] = [
   {
     tab: "buy",
     kicker: "On campus right now",
-    title: "Fresh drops",
     // Three for sale and the most recently sold one, so the row shows what
     // "sold" looks like without being mostly sold things.
     pick: (sales) => [
@@ -56,27 +57,23 @@ const SECTIONS: {
   {
     tab: "rent",
     kicker: "Use it, return it",
-    title: "Rent it",
     body: "Need a drafter for one ED class? Don’t buy it. Rent it.",
     pick: (_sales, others) => ofType(others, "rent"),
   },
   {
     tab: "free",
     kicker: "No money involved",
-    title: "Free this week",
     pick: (_sales, others) => ofType(others, "free"),
   },
   {
     tab: "squad",
     kicker: "Skills and teammates",
-    title: "Squad up",
     body: "Hackathon on Saturday and no backend dev? Someone here is looking for you too.",
     pick: (_sales, others) => ofType(others, "team_request", "skill_offer"),
   },
   {
     tab: "found",
     kicker: "Posted by students, not the official desk",
-    title: "Lost & Found",
     pick: (_sales, others) => ofType(others, "lost_found"),
   },
 ];
@@ -93,11 +90,14 @@ const SECONDARY_LINK =
 export default async function Home() {
   const user = await getSessionUser();
   const heroImages = getHeroImages();
+  const lines = linesFor(await readLanguage());
 
-  const [recent, others, stats] = await Promise.all([
+  const [recent, others, stats, savedIds] = await Promise.all([
     getRecentListings(),
     getHomeSections(),
     getPublicStats(),
+    // A signed-out visitor has no saved list and sees no hearts.
+    user ? getSavedIds(user.id) : null,
   ]);
 
   const testsAllPassed = securityRun.failed === 0 && securityRun.passed > 0;
@@ -124,13 +124,12 @@ export default async function Home() {
               the second line breaks in the same place on every screen instead
               of stranding its last word. */}
           <h1 className="title-card max-w-[11.5em] text-[clamp(44px,8.4vw,116px)] text-white">
-            <span className="block">Seniors leave.</span>{" "}
-            <span className="block">Their stuff doesn&rsquo;t have to.</span>
+            <span className="block">{lines.heroLine1}</span>{" "}
+            <span className="block">{lines.heroLine2}</span>
           </h1>
 
           <p className="mt-4 max-w-xl text-base text-white/90 md:text-lg">
-            Textbooks, calculators, lab coats and hostel gear, passed on by students at your
-            college. No shipping. You meet on campus.
+            {lines.heroBody}
           </p>
 
           {/* A plain GET form to the browse page, so it works without
@@ -199,7 +198,7 @@ export default async function Home() {
                   className="flex min-h-24 flex-col items-start gap-2 rounded-[14px] border border-control-border p-3.5 hover:bg-surface-soft"
                 >
                   <TypeBadge type={type} />
-                  <span className="text-base leading-tight font-bold">{TYPE_INFO[type].post}</span>
+                  <span className="text-base leading-tight font-bold">{lines.post[type]}</span>
                 </Link>
               </li>
             ))}
@@ -228,7 +227,7 @@ export default async function Home() {
                 <div className="max-w-2xl">
                   <p className={KICKER}>{section.kicker}</p>
                   <h2 id={`section-${section.tab}`} className="title-card mt-3 text-[40px] text-ink md:text-[64px]">
-                    {section.title}
+                    {lines.section[section.tab]}
                   </h2>
                   {section.body ? (
                     <p className="mt-3 text-base text-ink-body md:text-lg">{section.body}</p>
@@ -238,7 +237,7 @@ export default async function Home() {
                   href={`/explore?tab=${section.tab}`}
                   className="flex min-h-11 items-center text-base font-semibold text-ink underline"
                 >
-                  See all
+                  {lines.seeAll}
                 </Link>
               </div>
 
@@ -251,7 +250,7 @@ export default async function Home() {
                     // Cards arrive one after another across a row.
                     style={{ ["--reveal-delay" as string]: `${(position % 4) * 90}ms` }}
                   >
-                    <ListingCard listing={listing} />
+                    <ListingCard listing={listing} saved={savedIds ? savedIds.has(listing.id) : undefined} />
                   </li>
                 ))}
               </ul>
@@ -266,7 +265,7 @@ export default async function Home() {
           <div data-reveal>
             <p className={KICKER}>Students only</p>
             <h2 id="locked-heading" className={`${SCENE_TITLE} mt-3`}>
-              Locked to NITTE.
+              {lines.locked}
             </h2>
             <p className="mt-5 max-w-2xl text-base text-ink-body md:text-lg">
               You need a campus email to sign up, and it is the database that checks, not just

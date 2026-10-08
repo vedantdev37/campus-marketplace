@@ -3,9 +3,12 @@ import { Anton, Geist_Mono, Kalam, Plus_Jakarta_Sans } from "next/font/google";
 
 import { UnreadProvider } from "@/components/chat/unread";
 import { BottomTabs } from "@/components/layout/bottom-tabs";
+import { ConsoleEgg } from "@/components/layout/console-egg";
+import { LiveAlerts } from "@/components/layout/live-alerts";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getSessionUser } from "@/lib/auth";
+import { readLanguage } from "@/lib/language";
 import { readTheme } from "@/lib/theme";
 
 import "./globals.css";
@@ -70,7 +73,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // the same verified, cookie-based read the pages do; with Cache Components
   // off, a session read in a layout does not block anything that could have
   // been static, because these routes are all rendered per request anyway.
-  const [user, theme] = await Promise.all([getSessionUser(), readTheme()]);
+  const [user, theme, language] = await Promise.all([getSessionUser(), readTheme(), readLanguage()]);
 
   return (
     <html
@@ -90,6 +93,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
 
+        {/* A greeting in the browser console, and a credits() function. */}
+        <ConsoleEgg />
+
         {user ? (
           // One unread count, shared by the header link and the tab bar. Keyed
           // to the user so it re-subscribes if someone else signs in here.
@@ -100,8 +106,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               {children}
             </div>
 
-            <SiteFooter theme={theme} />
+            <SiteFooter theme={theme} language={language} />
             <BottomTabs />
+            <LiveAlerts userId={user.id} />
           </UnreadProvider>
         ) : (
           <>
@@ -111,7 +118,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               {children}
             </div>
 
-            <SiteFooter theme={theme} />
+            <SiteFooter theme={theme} language={language} />
           </>
         )}
       </body>

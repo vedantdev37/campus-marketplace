@@ -5,6 +5,8 @@ import { ListingForm } from "@/components/listings/listing-form";
 import { TypeBadge } from "@/components/listings/listing-card";
 import { requireSessionUser } from "@/lib/auth";
 import { campusDate } from "@/lib/campus-time";
+import { linesFor } from "@/lib/i18n";
+import { readLanguage } from "@/lib/language";
 import { getPickupSpots } from "@/lib/listings";
 import { isListingType, LISTING_TYPES, TYPE_INFO } from "@/lib/types/listing";
 
@@ -28,6 +30,7 @@ export default async function PostPage({
 }) {
   const user = await requireSessionUser();
   const { type } = await searchParams;
+  const lines = linesFor(await readLanguage());
 
   if (!isListingType(type)) {
     return (
@@ -43,7 +46,7 @@ export default async function PostPage({
                 className="flex min-h-28 flex-col items-start gap-2 rounded-[14px] border border-control-border p-4 hover:bg-surface-soft"
               >
                 <TypeBadge type={value} />
-                <span className="text-lg leading-tight font-bold">{TYPE_INFO[value].post}</span>
+                <span className="text-lg leading-tight font-bold">{lines.post[value]}</span>
                 <span className="text-sm text-ink-muted">{TYPE_INFO[value].postHint}</span>
               </Link>
             </li>
@@ -68,7 +71,7 @@ export default async function PostPage({
         <div className="mt-2 flex items-center gap-3">
           <TypeBadge type={type} />
         </div>
-        <h1 className="mt-2 text-[28px] leading-tight font-bold">{TYPE_INFO[type].post}</h1>
+        <h1 className="mt-2 text-[28px] leading-tight font-bold">{lines.post[type]}</h1>
         <p className="mt-1 mb-6 text-base text-ink-muted">
           It goes live for everyone on campus as soon as you publish.
         </p>
