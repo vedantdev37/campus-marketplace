@@ -338,7 +338,104 @@ instruction stands regardless.
 
 ## Phase 2b — Creating and editing listings
 
-_(Added when the phase completes.)_
+**Asked for**
+
+> "build Phase 2b: create and edit listing with image upload, one shared form
+> component, a 'Sell an item' nav link, the existing validation schemas on client
+> and server, owner-only edit, Storage upload with the `<uid>/…` path convention,
+> loading/error states. Then verify it with playwright-cli"
+
+and, mid-phase:
+
+> "Once DESIGN.md is installed, build all NEW pages and components in the
+> DESIGN.md style from the start" … "run these as sub-agents. Each touches ONLY
+> its listed files" (Agent A: `src/lib/books.ts`; Agent B: `docs/write-up.md`)
+> … "Review both agents' work, commit each separately"
+
+**AI produced (main session)**
+
+| File | What it is |
+| --- | --- |
+| `src/app/listings/actions.ts` | `createListingAction`, `updateListingAction`, image-path check, Storage cleanup on edit and delete |
+| `src/components/listings/listing-form.tsx` | The one form for create and edit, with direct-to-Storage upload |
+| `src/components/listings/form-skeleton.tsx` | Loading state shared by both routes |
+| `src/app/listings/new/`, `src/app/listings/[id]/edit/` | Pages and `loading.tsx` files |
+| `src/lib/storage.ts` | Upload limits and the file check |
+| `src/app/globals.css` | DESIGN.md tokens under new names; focus rule moved into `@layer base` |
+| `src/app/(auth)/actions.ts` | Network failures no longer reported as a wrong password |
+| Nav links in `listings/page.tsx`, `listings/mine/page.tsx`, `owner-actions.tsx` | "Sell an item" and "Edit" |
+| `.claude/skills/`, `skills-lock.json`, `DESIGN.md` | Installed tooling and the design reference (not AI-written) |
+
+**AI produced (sub-agents, each confined to one file, then reviewed)**
+
+| File | Produced by | Review outcome |
+| --- | --- | --- |
+| `src/lib/books.ts` | Sub-agent A | Read in full and accepted unchanged. Its key finding (keyless requests are refused) was re-tested independently before being believed. |
+| `docs/write-up.md` | Sub-agent B | Read in full; accepted as drafted, then updated in a separate commit where facts had changed since it was written. |
+
+**AI reasoning worth noting**
+
+- **Uploading from the browser, not through the Server Action.** Next caps an
+  action's request body at 1 MB by default (checked in the bundled docs), below
+  a phone photo. The action therefore receives only a path, which is a
+  client-chosen string, so it is accepted only if it lies in the caller's own
+  `<uid>/` folder.
+- **A real bug found by watching a real failure.** When the connection to
+  Supabase dropped mid-test, the login page said "Email or password is
+  incorrect." for correct credentials. Fixed, and then confirmed fixed when the
+  connection dropped again.
+- **A wrong theory, recorded as wrong.** AI attributed intermittent 10-second
+  failures in `next dev` to Node's 250 ms connection-attempt timeout and
+  restarted with a longer one. The failures continued, so the theory was
+  discarded rather than kept. The cause was not found; the failures did not
+  occur in the production build.
+- **Two test assertions were wrong, not the app.** Checks expecting HTTP 404
+  failed with 200. The bundled Next docs confirm that a route with `loading.tsx`
+  starts streaming with a 200 before `notFound()` runs. The assertions were
+  changed to check what the user actually sees.
+- **A defect caught only by looking.** A screenshot showed the old blue focus
+  ring drawn on top of the new ink border. Unlayered CSS outranks every Tailwind
+  utility, so `focus-visible:outline-none` could not turn it off.
+- **Sub-agent B found documentation errors in earlier AI work**, including the
+  live landing page advertising barcode scanning that does not exist, and the
+  README overstating what `verify:rls` proves. Both were corrected.
+
+**AI mistakes in this phase**
+
+- Stopping the dev server's task did not stop the server itself, so one "restart"
+  never happened and one test run hit a half-dead process. Roughly ten minutes
+  were lost to failures caused by the test environment rather than the code.
+- Back-to-back test runs overlapped on one browser page and corrupted each
+  other's results, until the script was changed to persist its checklist.
+
+**Verified by testing**
+
+- `next build`, `tsc --noEmit`, `eslint` clean.
+- 30 of 30 scripted browser checks against a local production build — the list
+  is in `docs/write-up.md`, section 8. It covers create, edit, photo
+  replacement and cleanup, mark sold, delete, and a second user being refused.
+- Screenshots of the create form at 390 px and 1280 px were inspected.
+- Test listings and uploaded test images were removed afterwards
+  (`reseed:demo`, plus emptying the seller's Storage folder).
+
+**Not verified**
+
+- The flow has not been run on the deployed Vercel site, only locally.
+- `src/lib/books.ts` has never received a successful live response; without an
+  API key Google returns 429.
+- The edit page, detail page and browse page were not screenshotted — only the
+  create form was looked at.
+- Dark mode: the new pages are white-canvas by design and were not checked
+  against a dark OS theme next to the older pages.
+
+**Author changed / verified**
+
+- Cut scope to realtime sold updates as the only bonus; dropped wishlist,
+  messaging and push.
+- Chose the design reference and directed that new work follow it immediately.
+- Directed the use of sub-agents and their file boundaries.
+- _Clicking through create/edit on the live site: **pending**._
+- _Code review of the above files: **pending author review**._
 
 ---
 

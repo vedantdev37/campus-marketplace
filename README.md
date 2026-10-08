@@ -41,8 +41,9 @@ claim you have to take on trust:
 npm run verify:rls
 ```
 
-attacks the public API directly as a signed-in non-owner and asserts that nine
-separate operations are all refused.
+attacks the public API directly as a signed-in non-owner. Of its nine
+assertions, seven are access-control refusals, one checks that a previously
+leaked password no longer works, and one confirms the target row is unchanged.
 
 **To see the restriction working**, try signing up with a `gmail.com` address.
 It is refused with a 403 from a database-level auth hook, not a client-side
@@ -56,7 +57,7 @@ check — see
 - **Live:** <https://nmit-campus-marketplace.vercel.app>
 - **Repo:** <https://github.com/vedantdev37/campus-marketplace>
 - **Walkthrough video:** _(added before submission)_
-- **Technical write-up:** [`docs/architecture.md`](docs/architecture.md)
+- **Technical write-up:** [`docs/write-up.md`](docs/write-up.md) (decision log: [`docs/architecture.md`](docs/architecture.md))
 - **AI usage declaration:** [`AI_USAGE.md`](AI_USAGE.md)
 
 > **Status:** in development. This README is kept accurate as features land —
@@ -85,15 +86,15 @@ check — see
 
 ### Core requirements
 - [x] Email/password sign-up and login, restricted to `@nmit.ac.in` addresses
-- [ ] Create a listing (name, description, price, category, image)
+- [x] Create a listing (name, description, price, category, image)
 - [x] Browse, search and filter listings
 - [x] Listing detail view
 - [x] Owner-only mark-as-sold and delete (enforced by RLS — see `npm run verify:rls`)
-- [ ] Owner-only edit
+- [x] Owner-only edit
 - [x] Sold listings visually distinct from available ones
 - [x] "My Listings" page
-- [x] Loading, empty and error states (create/edit pages still to come)
-- [x] Validation on both client and server (listing form schemas written, form pending)
+- [x] Loading, empty and error states
+- [x] Validation on both client and server (shared zod schemas)
 
 ### Campus-specific additions
 - [ ] Optional **course code** (e.g. `21CS32`) and **semester** on a listing,

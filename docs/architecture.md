@@ -236,19 +236,9 @@ domain restriction also starts meaning something stronger.
 
 ## Open items
 
-These are stated as unverified rather than assumed:
-
-- The migrations have not been executed yet. There is no local Postgres or
-  Docker on the development machine, and the SQL references Supabase-only
-  objects (`auth.users`, `storage.buckets`, `supabase_auth_admin`,
-  `supabase_realtime`), so it could not be validated locally. First real
-  verification is applying it to the project.
-- Whether the `supabase_realtime` publication exists by default on a fresh
-  project, or whether Realtime must be enabled in the dashboard first. The
-  migration handles both by catching the missing-publication case and emitting a
-  notice.
-
----
+Moved to the "Not verified / known limitations" list in
+[`write-up.md`](write-up.md#8-testing-and-verification), which is kept current.
+The migrations have been applied and exercised by the seed and verify scripts.
 
 ## External API integration
 

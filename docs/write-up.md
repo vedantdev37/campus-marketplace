@@ -24,8 +24,8 @@ It is for students only, so sign-up is restricted to approved email domains and 
 | My Listings | Built and verified |
 | Owner-only mark-sold and delete | Built and verified |
 | RLS on every table + `npm run verify:rls` | Built and verified |
-| Create / edit listing with image upload | TODO: confirm once verified (code is in the working tree, still being debugged) |
-| ISBN scan + Google Books autofill | TODO: not built |
+| Create / edit listing with image upload | Built and verified in a real browser (30 scripted checks, see section 8) |
+| ISBN scan + Google Books autofill | TODO: lookup module written, not wired into the form; needs an API key |
 | Realtime sold updates | TODO: not built (publication exists, no client subscription) |
 | Wishlist UI, inquiry messaging, push notifications | Dropped from scope |
 
@@ -39,7 +39,7 @@ It is for students only, so sign-up is restricted to approved email domains and 
 | Supabase Auth via `@supabase/ssr` | Cookie sessions that work in Server Components, and `auth.uid()` is available inside RLS policies. |
 | Supabase Storage | Same auth token and the same policy language as the tables, so image ownership is enforced the same way as row ownership. |
 | zod 4 | One schema used by the form and by the Server Action. |
-| Tailwind CSS 4 | Fast to style without a component library. [`DESIGN.md`](../DESIGN.md) is a design reference I have not applied yet. |
+| Tailwind CSS 4 | Fast to style without a component library. [`DESIGN.md`](../DESIGN.md) is the design reference; so far only the create and edit pages follow it. TODO: restyle the remaining pages. |
 | Vercel | Native Next.js hosting; pushes to `main` deploy automatically. |
 
 ## 3. Database schema
@@ -126,7 +126,7 @@ erDiagram
 
 **Fair-price hint.** [`src/lib/pricing.ts`](../src/lib/pricing.ts) multiplies `original_price` by a per-condition factor (0.9 for new down to 0.3 for poor) and labels the asking price below, in line with, or above that figure with a 15% band either side. It returns nothing when there is no original price, because a confident number built on missing data is worse than no hint. The factors are my own heuristic, not derived from data.
 
-**Images.** TODO: confirm once verified. The design is: the browser uploads the file straight to the `listing-images` bucket at `<uid>/<random-uuid>.<ext>`, then sends only the resulting path to the Server Action. The action accepts the path only if its folder equals the caller's uid and the filename matches the pattern the app generates, otherwise a user could point their listing at someone else's object. The bucket itself enforces a 5 MB limit and JPEG/PNG/WebP only. On edit or delete the old object is removed on a best-effort basis.
+**Images.** The browser uploads the file straight to the `listing-images` bucket at `<uid>/<random-uuid>.<ext>`, then sends only the resulting path to the Server Action. The action accepts the path only if its folder equals the caller's uid and the filename matches the pattern the app generates, otherwise a user could point their listing at someone else's object. The bucket itself enforces a 5 MB limit and JPEG/PNG/WebP only. On edit or delete the old object is removed on a best-effort basis.
 
 ## 5. Security model
 
@@ -175,7 +175,7 @@ Seven of the nine are access-control checks; 1 is a credential-hygiene check and
 
 - Ready: the `isbn`, `book_author` and `original_price` columns, their zod schemas, the fair-price calculation, a `GOOGLE_BOOKS_API_KEY` slot in `.env.example`, and `next/image` remote patterns for Google Books cover hosts.
 - Written but not wired: [`src/lib/books.ts`](../src/lib/books.ts) exports `lookupBookByIsbn`. It is `server-only` so the optional API key cannot reach the browser. It validates the ISBN-10/13 check digit before spending a request, calls `volumes?q=isbn:...` with a 6-second timeout, treats the response as `unknown` and checks every field, only accepts cover URLs on the two hosts allowed in `next.config.ts`, and returns failures (`invalid_isbn`, `not_found`, `rate_limited`, `timeout`, `unavailable`) as values instead of throwing, because a failed lookup should never block someone from filling the form in by hand.
-- TODO: nothing imports `src/lib/books.ts` yet, and it has not been run against the live API. Confirm once verified.
+- TODO: nothing imports `src/lib/books.ts` yet. Its success path has only been run against mocked responses. Google now answers requests without a key with `429 RESOURCE_EXHAUSTED` (I confirmed this with `curl`), so `GOOGLE_BOOKS_API_KEY` is required in practice even though the endpoint is documented as usable without one. Re-test against a live 200 once a key is set.
 - TODO: barcode scanning UI and autofill are not wired into the listing form.
 - TODO: until this lands, `original_price` is only populated by the seed data or typed by hand, so the fair-price hint appears only on listings that have it.
 - TODO: the module returns the list price with Google's currency code unconverted. Decide what the form does with a non-INR price or no price.
@@ -198,17 +198,21 @@ Seven of the nine are access-control checks; 1 is a credential-hygiene check and
 
 **Verified, and how**
 
-- `next build`, `tsc --noEmit` and `eslint` clean as of the last committed phase. TODO: re-run all three after the create/edit work lands.
+- `next build`, `tsc --noEmit` and `eslint` clean, re-run after the create/edit work.
+- A scripted browser pass with `playwright-cli` against a local production build (`next build` + `next start`), 30 of 30 checks passing: sign-in; the Sell an item link; an empty form blocked client-side; a bad price rejected on blur; a non-image file refused; photo preview; create; the photo stored at `<uid>/<uuid>.png` and publicly fetchable; the edit form pre-filled; edit saving title, price and a replacement photo; the replaced photo removed from Storage; mark sold; the sold item hidden from default browse and shown with a Sold label when included; My Listings; a second user seeing no owner controls and a not-found page on the edit URL; delete with its confirm dialog, both cancelled and accepted; and the deleted listing and its photo both gone.
 - `npm run verify:rls`: 9 of 9 assertions pass against the live database.
 - `npm run seed:demo` and `npm run reseed:demo` succeed using only the publishable key, which exercises the migrations, the domain hook, the profile trigger and the `sold_at` trigger.
 - Against the live database: search by a plain word, a course code and an author name each return rows; punctuation-only input returns nothing without erroring; category filtering works.
 - On the production URL: `/`, `/login`, `/signup` return 200; `/listings` and `/listings/mine` redirect to `/login?next=...` when signed out; `?next=https://evil.example` is rejected.
 - On the production site I confirmed by hand that a `@reviewer.test` sign-up succeeds and a `gmail.com` sign-up is refused.
-- TODO: record the manual browser pass over browse, detail, My Listings, mark-sold and delete (when, which browser). `AI_USAGE.md` still lists these as visually unconfirmed.
 
 **Not verified / known limitations**
 
-- TODO: create listing, edit listing and image upload are not verified end to end.
+- The browser pass ran locally against the production build, not against the deployed Vercel URL. TODO: repeat the create and edit steps once on the live site.
+- `notFound()` pages return HTTP 200, not 404. A route with a `loading.tsx` starts streaming before the page decides it does not exist, which fixes the status code; Next adds a `noindex` tag instead. The user sees the not-found page either way. This is a cost of streamed loading states that I only noticed because a test asserted on the status code.
+- An upload can succeed and the following save fail, leaving an orphaned file in Storage. The form reuses the uploaded path on retry, but nothing sweeps up after an abandoned form.
+- A photo is optional when creating a listing.
+- `next dev` on my Windows machine intermittently failed server-side requests to Supabase with a 10 second connect timeout while compiling. I could not reproduce it in plain Node, with `curl`, or in the production build, and did not find the cause.
 - TODO: Storage policies have no automated test. `verify:rls` does not try to upload into, overwrite or delete from another user's folder.
 - TODO: `inquiries` policies are not exercised by any script, and the wishlist check covers read privacy only.
 - There are no unit, component or end-to-end tests. All verification is the scripts above plus manual checks.
@@ -218,16 +222,15 @@ Seven of the nine are access-control checks; 1 is a credential-hygiene check and
 - The allowed-domain list exists in two places (the database seed and the form's zod schema). If they drift, the result is a confusing message, not a security hole.
 - The demo account passwords that were originally committed remain in git history and in the two scripts. They have been rotated, and the first `verify:rls` assertion checks the old seller password no longer works.
 - TODO: `README.md` and `docs/architecture.md` are partly out of date (feature checklist, project structure, an "Open items" section saying the migrations have not been run). Update before submitting.
-- TODO: the landing page copy mentions barcode scanning and a comment in `src/lib/supabase/browser.ts` mentions a Realtime subscription; neither feature exists yet.
 
 ## 9. What I would do next
 
-1. Finish and verify create/edit with image upload, then update the README checklist.
+1. Repeat the create/edit browser pass on the deployed site.
 2. Wire `src/lib/books.ts` into the listing form: ISBN in, title/author/cover/original price out, with a typed-ISBN fallback where the camera is unavailable.
 3. Add the Realtime subscription on `listings` so a sold item greys out for everyone viewing it. The table is already in the `supabase_realtime` publication, so this is client work only.
 4. Extend `verify:rls` to cover Storage (cross-folder upload and delete) and `inquiries`.
 5. Add pagination to browse and rank search results by relevance instead of only by date.
 6. Add a small end-to-end suite for the sign-up, list, mark-sold path so regressions do not rely on manual checks.
-7. Apply `DESIGN.md` to the UI.
+7. Apply `DESIGN.md` to the pages built before it (browse, detail, My Listings, auth).
 8. Before any real use: turn email confirmation on, remove `reviewer.test` from the allowlist, and generate database types instead of hand-writing them.
 9. Either build the wishlist and inquiry UIs or drop the unused tables.
