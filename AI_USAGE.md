@@ -439,6 +439,134 @@ and, mid-phase:
 
 ---
 
+## How AI was organised from Phase 3 onward: a review team
+
+From Phase 3 the author directed that AI work as a small team of sub-agents
+around each phase, each limited to a report of under 200 words:
+
+- **Before a phase, three read-only reviewers run in parallel.** A *Judge*
+  (acting as a strict evaluator of this rubric: what stands out, what is marked
+  down), an *Auditor* (security, RLS, client and server validation, edge cases,
+  error states) and a *Designer* (UX and visual quality against `DESIGN.md`,
+  mobile first). None may edit files. The main session merges their points into
+  a short plan, shows it to the author, then builds.
+- **After a phase, a QA agent** drives the real flows in a browser with
+  `playwright-cli`, as seller and as buyer, at 390 px and desktop, with
+  screenshots, and returns a pass/fail report. Failures are fixed before
+  anything is committed.
+
+The reviewers are AI reviewing AI, which has limits: they share blind spots, and
+they read code rather than use the product. What they are good for is a second
+reading with a different brief. They found real defects that the building
+session had written and not noticed - listed under each phase below. Every
+reviewer claim that changed a decision was checked before it was acted on.
+
+---
+
+## Phase 3 — ISBN lookup, barcode scan and the fair-price guide
+
+**Asked for**
+
+> "Phase 3: ISBN scan + Google Books + fair-price hint … Use `src/lib/books.ts`;
+> the key stays server-side only … Camera barcode scan (BarcodeDetector where
+> supported, with a library fallback) plus a manual ISBN input. On a match:
+> autofill title, author, description and cover; store the original price; show
+> the fair-price hint by condition. The seller can always edit autofilled
+> fields. Clear loading, not-found, quota and error states. First confirm with
+> curl that the key returns a real result."
+
+and, mid-phase, after AI reported that Google returned nothing:
+
+> "Good call on the fallback. Make sure it's documented in the write-up, and if
+> neither source returns a price, let the seller type the original price (MRP)
+> manually so the fair-price hint still works."
+
+> "if both sources fail, show a friendly 'Book not found — fill the details
+> yourself' state that keeps the scanned ISBN, so it looks intentional, not
+> broken."
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `src/lib/isbn.ts` | Normalisation and check-digit validation, shared by form, schema and lookup |
+| `src/lib/books.ts` | Rewritten: Google Books first, Open Library fallback, description, composed summary |
+| `src/app/listings/book-actions.ts` | `lookupBookAction`: session check, per-user throttle, INR-only price, cover import |
+| `src/components/listings/barcode-scanner.tsx` | Camera sheet; native `BarcodeDetector` or a WebAssembly fallback |
+| `src/components/listings/book-lookup.tsx` | The ISBN card and all of its states |
+| `src/components/listings/form-field.tsx` | Field wrapper and shared control styles, extracted from the form |
+| `src/components/listings/listing-form.tsx` | Category first, autofill into empty fields only, live price guide |
+| `src/lib/validation/listing.ts` | Price rules rewritten; ISBN validated by check digit |
+
+**The main finding of this phase, and it came from testing, not from design**
+
+The brief said to confirm with `curl` first. Doing so showed that Google Books,
+with a valid key, returned **zero results for all twelve well-known print ISBNs
+tried**, while a title search on the same key worked and Open Library resolved
+the same ISBNs. Built as specified, the feature would have told nearly every
+seller "book not found". AI proposed and built a two-source lookup, and the
+author approved it and asked for the manual MRP field. This is recorded in
+`docs/write-up.md` section 6.
+
+**What the reviewers found (AI reviewing AI)**
+
+- *Auditor:* **an existing bug in the building session's own earlier code** -
+  the price rule `Math.round(value * 100) === value * 100` rejects valid prices
+  such as 19.99 because of floating-point rounding. Fixed. It also flagged that
+  the ISBN pattern accepted ten hyphens, that the original price had no upper
+  bound, and that a non-INR price must not land in a rupee field.
+- *Judge:* that the API should drive a feature rather than only autofill - hence
+  the live price guide in the form - and that the lookup must work by typing so
+  a desktop reviewer can use it.
+- *Designer:* category first, the ISBN card revealed by choosing Books, a
+  full-screen scanner sheet, and neutral rather than red failure states.
+- *QA agent:* all eight scenarios passed; it reported three minor defects (a
+  books-only hint shown for electronics, a 28 px tap target, portrait covers
+  cropped on cards), all fixed. It also caught a mistake in the test brief: an
+  ISBN the main session had supplied as "non-existent" does exist.
+
+**AI mistakes in this phase**
+
+- The first lookup test failed because the test's own selector matched two
+  elements; the app was fine. Time was spent establishing that.
+- The description came back empty from Open Library on the first working run,
+  which the plan had not anticipated; a composed catalogue line was added.
+
+**Verified by testing** (production build, `playwright-cli`)
+
+- Typed ISBN: found, with title, author, description and cover filled, and the
+  cover stored under the seller's own Storage folder.
+- **Camera scan:** Chromium was launched with a fake webcam showing a generated
+  EAN-13 barcode. The scanner opened, read the ISBN, closed, released the
+  camera, and the same autofill followed.
+- QA agent, scenarios A-H at desktop and 390 px: lookup and price guide,
+  autofill not overwriting typed text, invalid and unknown ISBNs, a non-book
+  category, edit, mobile layout and tap-target sizes, buyer view, cleanup.
+- `curl` against Google Books and Open Library directly, to establish the above.
+
+**Not verified**
+
+- The **native** `BarcodeDetector` path (Chrome on Android) and iOS Safari. The
+  fake-webcam test exercised the WebAssembly fallback only. No real phone was
+  used.
+- The Google Books success path against a live response: in testing it never
+  returned a match, so every successful lookup came from Open Library. The
+  Google parsing code has only been run against mocked responses.
+- Whether a list price is ever autofilled in practice. It was not, in any test.
+- The lookup on the deployed site (the key on Vercel).
+- Lookup behaviour when the network drops mid-request.
+
+**Author changed / verified**
+
+- Supplied the Google Books API key and set it on Vercel.
+- Approved the fallback and asked for the manual MRP field and the neutral
+  not-found state.
+- Defined the review-team process described above.
+- _Trying the scanner on a real phone: **pending**._
+- _Code review of the above files: **pending author review**._
+
+---
+
 ## Honesty note
 
 AI-generated code was not accepted unreviewed. Where a suggestion was wrong or a
