@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
-import { cookies } from "next/headers";
+import { Anton, Geist_Mono, Kalam, Plus_Jakarta_Sans } from "next/font/google";
 
+import { UnreadProvider } from "@/components/chat/unread";
+import { BottomTabs } from "@/components/layout/bottom-tabs";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import type { Theme } from "@/components/layout/theme-toggle";
 import { getSessionUser } from "@/lib/auth";
+import { readTheme } from "@/lib/theme";
 
 import "./globals.css";
 
@@ -34,6 +35,17 @@ const appDisplay = Anton({
   display: "swap",
 });
 
+/**
+ * Kalam: the handwriting on a polaroid's caption, and nothing else. It is
+ * never used for a price or for anything in the interface itself.
+ */
+const appHand = Kalam({
+  variable: "--font-app-hand",
+  weight: "700",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -44,17 +56,6 @@ export const metadata: Metadata = {
   description:
     "Seniors leave. Their stuff doesn't have to. Buy and sell textbooks, calculators, lab coats and hostel essentials with other students, handed over on campus. A student project, not affiliated with NITTE.",
 };
-
-/**
- * The visitor's theme: dark unless they have chosen light.
- *
- * Read from a cookie on the server so the very first paint is in the right
- * theme. The alternative - deciding in the browser - shows the wrong theme for
- * a moment on every page load.
- */
-async function readTheme(): Promise<Theme> {
-  return (await cookies()).get("theme")?.value === "light" ? "light" : "dark";
-}
 
 /**
  * Colours the browser's own chrome (the address bar on a phone) to match the
@@ -78,7 +79,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       // The theme toggle changes `data-theme` in the browser, so the attribute
       // can legitimately differ from what the server sent.
       suppressHydrationWarning
-      className={`${appSans.variable} ${appDisplay.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${appSans.variable} ${appDisplay.variable} ${appHand.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         {/* Lets a keyboard user jump past the header on every page. */}
@@ -89,13 +90,30 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
 
-        <SiteHeader user={user} theme={theme} />
+        {user ? (
+          // One unread count, shared by the header link and the tab bar. Keyed
+          // to the user so it re-subscribes if someone else signs in here.
+          <UnreadProvider userId={user.id}>
+            <SiteHeader user={user} theme={theme} />
 
-        <div id="main" className="flex flex-1 flex-col">
-          {children}
-        </div>
+            <div id="main" className="flex flex-1 flex-col">
+              {children}
+            </div>
 
-        <SiteFooter theme={theme} />
+            <SiteFooter theme={theme} />
+            <BottomTabs />
+          </UnreadProvider>
+        ) : (
+          <>
+            <SiteHeader user={null} theme={theme} />
+
+            <div id="main" className="flex flex-1 flex-col">
+              {children}
+            </div>
+
+            <SiteFooter theme={theme} />
+          </>
+        )}
       </body>
     </html>
   );

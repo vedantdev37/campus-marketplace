@@ -44,6 +44,7 @@
   --ds-indigo: #4338ca;
   --ds-indigo-text: #a5b4fc;
   --ds-price: #ffd60a;
+  --ds-polaroid: #f2efe6;
   --ds-error: #ff8a70;
   --ds-error-surface: #2b1612;
   --ds-success: #5fd08f;
@@ -65,6 +66,7 @@
   --ds-indigo: #4338ca;
   --ds-indigo-text: #4338ca;
   --ds-price: #12111c;
+  --ds-polaroid: #ffffff;
   --ds-error: #b42318;
   --ds-error-surface: #fdecea;
   --ds-success: #17693f;
@@ -86,6 +88,7 @@
   --color-indigo: var(--ds-indigo);
   --color-indigo-text: var(--ds-indigo-text);
   --color-price: var(--ds-price);
+  --color-polaroid: var(--ds-polaroid);
   --color-error: var(--ds-error);
   --color-error-surface: var(--ds-error-surface);
   --color-success: var(--ds-success);
@@ -290,26 +293,6 @@ body:has(main[data-chat]) .site-footer {
     clip-path: inset(0 100% 0 0);
   }
 
-  /* "Scan it. List it." plays once, in order, when its scene arrives. */
-  .scan-line {
-    transition: transform 1100ms ease-in-out 300ms;
-  }
-
-  [data-reveal="hidden"] .scan-line {
-    transform: translateX(-100%);
-  }
-
-  .scan-fill {
-    transition:
-      opacity 400ms ease-out var(--fill-delay, 0ms),
-      transform 400ms ease-out var(--fill-delay, 0ms);
-  }
-
-  [data-reveal="hidden"] .scan-fill {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-
   /*
    * Parallax, only where the browser can tie an animation to scroll position
    * natively. There is no scroll listener anywhere: where this is unsupported
@@ -334,4 +317,38 @@ body:has(main[data-chat]) .site-footer {
   to {
     transform: translateY(-24px);
   }
+}
+
+/*
+ * The phone tab bar is fixed to the bottom of the screen, so the page keeps
+ * that much room free beneath its last line. Where the bar is hidden - on a
+ * conversation, and on a listing that has its own action bar - no room is
+ * kept, because there is nothing to clear.
+ */
+@media (max-width: 767.98px) {
+  body:has(.bottom-tabs) {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  }
+
+  body:has(main[data-chat]) .bottom-tabs,
+  body:has([data-bottom-bar]) .bottom-tabs {
+    display: none;
+  }
+
+  body:has(main[data-chat]),
+  body:has([data-bottom-bar]) {
+    padding-bottom: 0;
+  }
+}
+
+/* The handwriting on a polaroid's caption. Captions only: never a price. */
+.caption-hand {
+  font-family: var(--font-app-hand), "Segoe Print", "Bradley Hand", cursive;
+}
+
+/* A white print on a cream page needs an edge; on the dark page it has one. */
+:root[data-theme="light"] .polaroid {
+  box-shadow:
+    0 0 0 1px var(--ds-hairline),
+    rgba(18, 17, 28, 0.08) 0 3px 10px 0;
 }

@@ -17,7 +17,16 @@ export function SiteFooter({ theme }: { theme: Theme }) {
           <p className="text-ink-body">
             A student project by Vedant Sharma. Not affiliated with NITTE.
           </p>
-          <p className="mt-1">Built for the GDG NMIT full-stack challenge.</p>
+          <p className="mt-1">
+            Built for the GDG NMIT full-stack challenge. Demo photos:{" "}
+            <a
+              href="https://github.com/vedantdev37/campus-marketplace/blob/main/docs/credits.md"
+              className="font-semibold text-ink underline"
+            >
+              Unsplash
+            </a>
+            .
+          </p>
         </div>
 
         <nav aria-label="Footer" className="flex items-center gap-1 md:ml-auto">
@@ -28,7 +37,7 @@ export function SiteFooter({ theme }: { theme: Theme }) {
             Security receipts
           </Link>
           <Link
-            href="/listings"
+            href="/explore"
             className="flex h-11 items-center rounded-lg px-3 text-sm font-semibold text-ink underline hover:bg-surface-soft"
           >
             Browse
