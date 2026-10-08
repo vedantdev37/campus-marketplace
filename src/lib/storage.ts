@@ -4,6 +4,28 @@ import { env } from "@/lib/env";
 export const LISTING_IMAGE_BUCKET = "listing-images";
 
 /**
+ * Upload limits, mirroring the bucket's own settings in migration 0003.
+ *
+ * The bucket enforces these whatever the client does; they are repeated here so
+ * the form can say "that file is too large" before spending the upload.
+ */
+export const LISTING_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+export const LISTING_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+/** A reason the file cannot be used, or null when it is fine. */
+export function listingImageProblem(file: { size: number; type: string }): string | null {
+  if (!(LISTING_IMAGE_TYPES as readonly string[]).includes(file.type)) {
+    return "Use a JPEG, PNG or WebP image.";
+  }
+
+  if (file.size > LISTING_IMAGE_MAX_BYTES) {
+    return "That image is over 5 MB. Choose a smaller one.";
+  }
+
+  return null;
+}
+
+/**
  * Public URL for a stored listing image.
  *
  * Built from the project URL rather than fetched via
