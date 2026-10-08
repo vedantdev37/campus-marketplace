@@ -25,7 +25,7 @@ It is for students only, so sign-up is restricted to approved email domains and 
 | Owner-only mark-sold and delete | Built and verified |
 | RLS on every table + `npm run verify:rls` | Built and verified |
 | Create / edit listing with image upload | Built and verified in a real browser (30 scripted checks, see section 8) |
-| ISBN scan + Google Books autofill | TODO: lookup module written, not wired into the form; needs an API key |
+| ISBN lookup, barcode scan, autofill, live fair-price guide | Built and verified in a browser (section 6); TODO: try on a real phone |
 | Realtime sold updates | TODO: not built (publication exists, no client subscription) |
 | Wishlist UI, inquiry messaging, push notifications | Dropped from scope |
 
@@ -167,18 +167,41 @@ The `with check` on the listings update policy is what stops an owner reassignin
 
 Seven of the nine are access-control checks; 1 is a credential-hygiene check and 9 confirms the others had no effect.
 
-## 6. External API integration: Google Books
+## 6. External API integration: Google Books, with an Open Library fallback
 
-**Intended use.** When listing a book, the seller scans or types the ISBN; the server calls the Google Books volumes endpoint and pre-fills title, author, cover and, where Google returns one, the list price. That price is saved as `original_price` and drives the fair-price hint, so the hint never needs a Google call at view time.
+**What it does.** When a seller chooses the Books category, the form offers an ISBN field and, where the device has a camera, a barcode scanner. The ISBN goes to a Server Action, which looks the book up and returns title, author, a description, a cover and (when available) the list price. Empty fields are filled in; anything the seller has already typed is left alone, and every filled field stays an ordinary editable input.
 
-**Actual status.**
+**Why two sources.** I planned to use Google Books alone. When I tested it with a valid API key, its `isbn:` search returned zero results for all twelve well-known print ISBNs I tried, including *Clean Code*, CLRS and K&R, while a title search on the same key worked. Without a key it does not work at all: Google answers `429 RESOURCE_EXHAUSTED`. Open Library resolved the same ISBNs. So [`src/lib/books.ts`](../src/lib/books.ts) tries Google Books first and falls back to Open Library when Google has no match or is unavailable. With Google alone the feature would have said "not found" for nearly every textbook, and I would not have known without testing real ISBNs.
 
-- Ready: the `isbn`, `book_author` and `original_price` columns, their zod schemas, the fair-price calculation, a `GOOGLE_BOOKS_API_KEY` slot in `.env.example`, and `next/image` remote patterns for Google Books cover hosts.
-- Written but not wired: [`src/lib/books.ts`](../src/lib/books.ts) exports `lookupBookByIsbn`. It is `server-only` so the optional API key cannot reach the browser. It validates the ISBN-10/13 check digit before spending a request, calls `volumes?q=isbn:...` with a 6-second timeout, treats the response as `unknown` and checks every field, only accepts cover URLs on the two hosts allowed in `next.config.ts`, and returns failures (`invalid_isbn`, `not_found`, `rate_limited`, `timeout`, `unavailable`) as values instead of throwing, because a failed lookup should never block someone from filling the form in by hand.
-- TODO: nothing imports `src/lib/books.ts` yet. Its success path has only been run against mocked responses. Google now answers requests without a key with `429 RESOURCE_EXHAUSTED` (I confirmed this with `curl`), so `GOOGLE_BOOKS_API_KEY` is required in practice even though the endpoint is documented as usable without one. Re-test against a live 200 once a key is set.
-- TODO: barcode scanning UI and autofill are not wired into the listing form.
-- TODO: until this lands, `original_price` is only populated by the seed data or typed by hand, so the fair-price hint appears only on listings that have it.
-- TODO: the module returns the list price with Google's currency code unconverted. Decide what the form does with a non-INR price or no price.
+| | Google Books | Open Library |
+| --- | --- | --- |
+| Needs a key | Yes, in practice | No |
+| Title, author, cover | Yes | Yes |
+| Description | Often | Rarely |
+| List price | Sometimes | Never |
+| Role here | Tried first; the only source of a price | Fallback |
+
+**What that means for the fair-price hint.** Only Google can supply a price, and only an INR price is used: a dollar figure in a field labelled in rupees would be wrong, and converting it would be a guess. When no price comes back, which is the common case today, the seller types the original price (the MRP printed on the back of most Indian books) into an optional field. The hint is computed from that field however it was filled, so it works for every category, not only books.
+
+**How it is built**
+
+- The API key is read only inside `books.ts`, which imports `server-only`; the browser calls [`lookupBookAction`](../src/app/listings/book-actions.ts) and never sees the key or talks to Google directly.
+- The action requires a session, so anonymous callers cannot spend quota, and applies a per-user limit of 8 lookups a minute. That limit lives in server memory, so on a serverless host it is per instance and resets on a cold start. It stops loops and casual abuse, not a determined attacker.
+- The ISBN check digit is validated in the browser first ([`src/lib/isbn.ts`](../src/lib/isbn.ts)), so a typo gets an instant answer and never costs a request. The same function backs the zod schema, and the listing stores the normalised ISBN.
+- Responses are treated as `unknown` and every field is checked. HTML in Google descriptions is stripped. Values are truncated to the same limits the schema and database enforce, so an autofilled value can never be the reason a save is rejected.
+- A Google result is used only if it actually lists the requested ISBN. `isbn:` is a search, not an exact lookup, and taking "the first result" could autofill a different book.
+- When the source has no description, one is composed from catalogue facts ("Prentice Hall, July 2008, 431 pages"). Each part appears only if the source supplied it.
+- **Cover.** If the seller has not added a photo, the server downloads the cover and stores it in the seller's own Storage folder, so the listing uses `image_path` exactly as for an uploaded photo. The URL fetched comes from the lookup the server just performed and is checked against a three-host allowlist; it is never an address sent by the browser.
+- **Scanner.** A book's barcode is its ISBN-13 printed as an EAN-13. The scanner uses the browser's `BarcodeDetector` where it exists and can read EAN-13, otherwise a WebAssembly implementation of the same interface, loaded on demand so browsers that do not need it never download it. Barcodes outside the 978/979 book range are ignored. The camera is released when the sheet closes.
+- **States.** Looking up, found (with which source), invalid ISBN, not found, rate limited, timed out, unavailable, action unreachable, camera blocked, no camera, camera in use. Every failure message ends by saying the details can be filled in by hand, and nothing blocks the form.
+
+**Trade-offs and limits**
+
+- The fallback WebAssembly module is fetched from a CDN at scan time, so the scanner needs a connection on browsers without a native detector.
+- An imported cover is written to Storage at lookup time. If the seller abandons the form, the file is orphaned.
+- Open Library data is community-edited; I saw a misspelt title ("Mathmetics") for one textbook. That is one reason every autofilled field is editable.
+- TODO: confirm on a real phone. I tested the scanner with Chromium given a fake webcam showing a generated barcode, which exercises the fallback path. The native Android path and iOS Safari are untested.
+- TODO: repeat one lookup on the deployed site to confirm the key is picked up on Vercel.
 
 ## 7. Key decisions and trade-offs
 
@@ -189,6 +212,8 @@ Seven of the nine are access-control checks; 1 is a credential-hygiene check and
 - **Deny-by-default allowlist.** Supabase's published hook example keeps an allow list and a deny list and admits an address that matches neither. I made it a pure allowlist so the failure mode is a real student refused, not a stranger admitted. The example also compares `lower(domain)` with `lower($1)`, where `domain` is shadowed by the table's column and `$1` is the whole JSON event, not the extracted domain; I used a prefixed local variable.
 - **Email confirmation off for the demo.** Reviewers can sign up without an inbox. The cost is that nobody proves they own the address, so the domain gate is the only control. A real deployment should turn confirmation on and delete the `reviewer.test` row.
 - **Browser-to-Storage uploads.** Server Action request bodies are capped at 1 MB by default, below a typical phone photo. Uploading from the browser avoids raising that limit and means the Storage policy authorises the write directly. The cost is that an upload can succeed and the following save fail, leaving an orphaned file.
+- **Two book sources instead of one.** Google Books returned nothing for print ISBNs when I tested it, so the lookup falls back to Open Library. The cost is a second request on most lookups and no price from the fallback, which is why the original price is also a field the seller can fill in. Details in section 6.
+- **A validation bug I had shipped.** The price check `Math.round(value * 100) === value * 100` rejected valid prices such as 19.99, because 19.99 * 100 is 1998.9999999999998 in floating point. A reviewer pass caught it. I now count decimal digits in the string before converting, which is what the rule actually meant.
 - **Hand-written DB types.** `supabase gen types` needs an access token I chose not to hold. The types can drift from the schema, so I derive unions from const tuples and keep them in step with the migration they mirror.
 - **GET-form filters.** The filter bar is a plain `<form method="get">`. State lives in the URL, so a filtered view can be shared, the back button works, and it needs no client JavaScript.
 - **Checking affected row counts.** A write blocked by RLS does not raise an error; zero rows match. The actions and the verify script use `.select("id")` after the write and treat zero rows as "not allowed". Checking only `error` would report a refused write as success and make the RLS tests pass vacuously.
@@ -226,7 +251,7 @@ Seven of the nine are access-control checks; 1 is a credential-hygiene check and
 ## 9. What I would do next
 
 1. Repeat the create/edit browser pass on the deployed site.
-2. Wire `src/lib/books.ts` into the listing form: ISBN in, title/author/cover/original price out, with a typed-ISBN fallback where the camera is unavailable.
+2. Test the barcode scanner on real Android and iOS devices.
 3. Add the Realtime subscription on `listings` so a sold item greys out for everyone viewing it. The table is already in the `supabase_realtime` publication, so this is client work only.
 4. Extend `verify:rls` to cover Storage (cross-folder upload and delete) and `inquiries`.
 5. Add pagination to browse and rank search results by relevance instead of only by date.

@@ -77,7 +77,7 @@ check — see
 | File storage    | Supabase Storage                                     |
 | Live updates    | Supabase Realtime                                    |
 | Validation      | zod 4 (shared client + server schemas)               |
-| External API    | Google Books API (ISBN → title, author, cover)       |
+| External API    | Google Books, falling back to Open Library (ISBN → title, author, cover, price) |
 | Hosting         | Vercel                                               |
 
 ---
@@ -97,13 +97,15 @@ check — see
 - [x] Validation on both client and server (shared zod schemas)
 
 ### Campus-specific additions
-- [ ] Optional **course code** (e.g. `21CS32`) and **semester** on a listing,
+- [x] Optional **course code** (e.g. `21CS32`) and **semester** on a listing,
       both searchable — so you can find the exact book your course needs.
-- [ ] **ISBN barcode scan → autofill.** Point the camera at a textbook's
-      barcode; the Google Books API fills in title, author and cover image.
-- [ ] **Fair-price hint.** Compares the asking price against the book's
-      original price from Google Books, adjusted for the stated condition, so
-      buyers can see whether a price is reasonable.
+- [x] **ISBN lookup and barcode scan → autofill.** Type the ISBN or point the
+      camera at the barcode; title, author, description and cover are filled in
+      from Google Books, falling back to Open Library. Every field stays editable.
+- [x] **Fair-price hint.** Compares the asking price against the original
+      price (from Google Books when it has one, otherwise the MRP the seller
+      enters), adjusted for condition. Sellers see it live while pricing; buyers
+      see it on the listing.
 
 ### Bonus features, in priority order
 Built in this order, as time allows. Anything not reached is left unbuilt rather
@@ -160,7 +162,7 @@ Then fill in `.env.local` from **Supabase → Settings → API**:
 | `NEXT_PUBLIC_SUPABASE_URL`      | "Project URL"                                             |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | "Publishable key" (newer dashboards) or "anon key"        |
 | `NEXT_PUBLIC_SITE_URL`          | `http://localhost:3000` locally                           |
-| `GOOGLE_BOOKS_API_KEY`          | Optional — raises the Google Books rate limit             |
+| `GOOGLE_BOOKS_API_KEY`          | Needed for Google Books: without a key it now returns 429. Lookups still work without it, through Open Library |
 | `DEMO_SELLER_PASSWORD`          | Any 8+ character password, for the seeded seller account  |
 | `DEMO_BUYER_PASSWORD`           | Any 8+ character password, for the seeded buyer account   |
 
