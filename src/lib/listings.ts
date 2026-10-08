@@ -156,3 +156,56 @@ export async function getMyListings(userId: string): Promise<Listing[]> {
 
   return (data ?? []) as unknown as Listing[];
 }
+
+/**
+ * A few recent listings for the home page.
+ *
+ * A signed-in user gets them through the ordinary query. A signed-out visitor
+ * cannot read `listings` at all - that is the point of the RLS policies - so
+ * for them this calls `recent_listing_teasers()`, a database function that
+ * returns only what a card shows (no seller, no description) for at most eight
+ * available listings. See migration 0007 for why that narrow exception is safe.
+ *
+ * If that optional migration has not been applied the call fails, and this
+ * returns an empty list: the home page then simply has no listings row for
+ * signed-out visitors, rather than an error.
+ */
+export async function getRecentListings(isSignedIn: boolean): Promise<Listing[]> {
+  if (isSignedIn) {
+    return (await listListings()).slice(0, 8);
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("recent_listing_teasers");
+
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  // Shaped like a Listing so the same card component can draw it. The fields a
+  // teaser does not carry are filled with harmless blanks; the card reads none
+  // of them.
+  return data.map((row) => ({
+    id: row.id,
+    seller_id: "",
+    title: row.title,
+    description: "",
+    price: Number(row.price),
+    category: row.category,
+    condition: row.condition,
+    status: "available",
+    image_path: row.image_path,
+    pickup_spot_id: null,
+    course_code: row.course_code,
+    semester: null,
+    isbn: null,
+    book_author: null,
+    original_price: null,
+    condition_checks: {},
+    sold_at: null,
+    created_at: "",
+    updated_at: "",
+    seller: null,
+    pickup_spot: row.pickup_spot_name ? { id: "", name: row.pickup_spot_name } : null,
+  })) as Listing[];
+}
