@@ -16,7 +16,7 @@ import { MEETUP_MAX_DAYS_AHEAD } from "@/lib/types/chat";
 import { isUuid } from "@/lib/uuid";
 
 export const metadata: Metadata = {
-  title: "Conversation · Campus Marketplace",
+  title: "Conversation · Nitte Mart",
 };
 
 export default async function ConversationPage({
@@ -60,7 +60,9 @@ export default async function ConversationPage({
     // its 1px bottom border), so the messages scroll inside it and the message
     // box stays at the bottom. Without the 1px the whole page scrolled by one.
     // `dvh` and not `vh`: on a phone it shrinks when the address bar shows.
-    <main className="flex h-[calc(100dvh-3.5rem-1px)] flex-col bg-canvas text-ink md:h-[calc(100dvh-5rem-1px)]">
+    // `data-chat` is what hides the site footer on this page (globals.css): a
+    // footer below a full-height chat would make the whole page scroll.
+    <main data-chat className="flex h-[calc(100dvh-3.5rem-1px)] flex-col bg-canvas text-ink md:h-[calc(100dvh-5rem-1px)]">
       {/* If the listing is deleted while this is open, the page re-fetches and
           becomes the not-found page: the conversation went with it. */}
       <ListingLiveRefresh listingId={listing.id} />

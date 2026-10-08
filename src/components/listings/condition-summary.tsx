@@ -49,12 +49,13 @@ export function ConditionSummary({
   }
 
   return (
-    <section aria-labelledby="condition-summary-heading" className="mt-5 border-t border-border pt-4">
-      <h2 id="condition-summary-heading" className="text-sm font-semibold">
-        Seller confirms
+    <section aria-labelledby="condition-summary-heading" className="mt-6 border-t border-hairline pt-6">
+      <h2 id="condition-summary-heading" className="text-[22px] leading-tight font-semibold">
+        What&rsquo;s in the box
       </h2>
+      <p className="mt-1 text-sm text-ink-muted">Ticked by the seller. Ask in chat about the rest.</p>
 
-      <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+      <ul className="mt-3 flex flex-col gap-2 text-base">
         {size ? (
           <li className="flex items-center gap-2">
             <span aria-hidden="true" className="w-4 text-center font-semibold">

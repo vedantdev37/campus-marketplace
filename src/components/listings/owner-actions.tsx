@@ -70,6 +70,10 @@ export function OwnerActions({
         <div className="mt-3">
           <Alert tone="error">{error}</Alert>
         </div>
+      ) : isSold ? (
+        <div className="mt-3">
+          <Alert tone="success">SAVED! Off your shelf, into someone&rsquo;s bag.</Alert>
+        </div>
       ) : null}
 
       <div className="mt-4 flex flex-col gap-3">
