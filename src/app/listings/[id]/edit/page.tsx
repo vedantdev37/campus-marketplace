@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ListingForm } from "@/components/listings/listing-form";
 import { requireSessionUser } from "@/lib/auth";
+import { campusDate } from "@/lib/campus-time";
 import { isUuid } from "@/lib/uuid";
 import { getListing, getPickupSpots } from "@/lib/listings";
 
@@ -37,9 +38,15 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
           ← Back to listing
         </Link>
 
-        <h1 className="mt-3 mb-6 text-[28px] leading-[1.43] font-bold">Edit listing</h1>
+        <h1 className="mt-3 mb-6 text-[28px] leading-[1.43] font-bold">Edit post</h1>
 
-        <ListingForm userId={user.id} pickupSpots={pickupSpots} listing={listing} />
+        <ListingForm
+          userId={user.id}
+          pickupSpots={pickupSpots}
+          type={listing.type}
+          today={campusDate(new Date())}
+          listing={listing}
+        />
       </main>
     </div>
   );

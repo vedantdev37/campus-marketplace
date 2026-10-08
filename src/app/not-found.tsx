@@ -25,7 +25,7 @@ export default function NotFound() {
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
-            href="/listings"
+            href="/explore"
             className="flex h-12 items-center justify-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active"
           >
             Browse listings

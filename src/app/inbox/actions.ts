@@ -66,7 +66,7 @@ function revalidateChatViews(conversationId: string, listingId?: string | null):
 
   if (listingId) {
     revalidatePath(`/listings/${listingId}`);
-    revalidatePath("/listings/mine");
+    revalidatePath("/me");
   }
 }
 

@@ -5,6 +5,7 @@ import {
   CATEGORY_LABELS,
   CONDITIONS,
   CONDITION_LABELS,
+  type ExploreTab,
   type ListingFilters,
   type PickupSpot,
 } from "@/lib/types/listing";
@@ -25,10 +26,20 @@ const SELECT_CLASS =
 export function BrowseFilters({
   filters,
   pickupSpots,
+  tab,
 }: {
   filters: ListingFilters;
   pickupSpots: PickupSpot[];
+  /** The Explore tab. It decides which filters are offered. */
+  tab: ExploreTab;
 }) {
+  // Each tab offers the filters that mean something for that kind of post: a
+  // course code for a textbook, a skill for a teammate, a place for a found
+  // item. A filter that can match nothing is not shown.
+  const isItemTab = tab === "buy" || tab === "rent" || tab === "free";
+  const isBuy = tab === "buy";
+  const isSquad = tab === "squad";
+
   const hasAnyFilter =
     Boolean(filters.search) ||
     Boolean(filters.category) ||
@@ -36,18 +47,21 @@ export function BrowseFilters({
     Boolean(filters.pickupSpotId) ||
     Boolean(filters.semester) ||
     Boolean(filters.courseCode) ||
+    Boolean(filters.tag) ||
     Boolean(filters.includeSold);
 
   return (
-    <form method="get" className="flex flex-col gap-3">
+    <form method="get" action="/explore" className="flex flex-col gap-3">
+      {/* Keeps a search or a filter on the tab it was made from. */}
+      <input type="hidden" name="tab" value={tab} />
       <div className="flex gap-2">
         <input
           type="search"
           name="q"
           defaultValue={filters.search ?? ""}
-          placeholder="Search listings…"
+          placeholder={isSquad ? "Search skills and teams…" : "Search…"}
           autoComplete="off"
-          aria-label="Search listings"
+          aria-label="Search"
           className="h-12 min-w-0 flex-1 rounded-lg border border-control-border bg-canvas px-3.5 text-base text-ink placeholder:text-ink-muted"
         />
         <button
@@ -64,6 +78,24 @@ export function BrowseFilters({
         </summary>
 
         <div className="grid grid-cols-1 gap-3 border-t border-border p-3 sm:grid-cols-2">
+          {isSquad ? (
+            <label className="flex flex-col gap-1 text-xs text-muted sm:col-span-2">
+              Skill
+              <input
+                type="text"
+                name="tag"
+                defaultValue={filters.tag ?? ""}
+                placeholder="e.g. react…"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                className={SELECT_CLASS}
+              />
+            </label>
+          ) : null}
+
+          {isItemTab ? (
+          <>
           <label className="flex flex-col gap-1 text-xs text-muted">
             Category
             <select name="category" defaultValue={filters.category ?? ""} className={SELECT_CLASS}>
@@ -88,8 +120,12 @@ export function BrowseFilters({
             </select>
           </label>
 
+          </>
+          ) : null}
+
+          {isSquad ? null : (
           <label className="flex flex-col gap-1 text-xs text-muted">
-            Pickup spot
+            {tab === "found" ? "Found at" : "Pickup spot"}
             <select name="spot" defaultValue={filters.pickupSpotId ?? ""} className={SELECT_CLASS}>
               <option value="">Anywhere on campus</option>
               {pickupSpots.map((spot) => (
@@ -100,6 +136,10 @@ export function BrowseFilters({
             </select>
           </label>
 
+          )}
+
+          {isBuy ? (
+          <>
           <label className="flex flex-col gap-1 text-xs text-muted">
             Semester
             <select name="semester" defaultValue={filters.semester?.toString() ?? ""} className={SELECT_CLASS}>
@@ -125,6 +165,9 @@ export function BrowseFilters({
             />
           </label>
 
+          </>
+          ) : null}
+
           <label className="flex min-h-12 items-center gap-3 self-end text-base">
             <input
               type="checkbox"
@@ -133,7 +176,7 @@ export function BrowseFilters({
               defaultChecked={Boolean(filters.includeSold)}
               className="size-6 accent-(--ds-ink)"
             />
-            Include sold items
+            {isBuy ? "Include sold items" : "Include finished posts"}
           </label>
 
           <div className="flex gap-2 sm:col-span-2">
@@ -146,7 +189,7 @@ export function BrowseFilters({
 
             {hasAnyFilter ? (
               <Link
-                href="/listings"
+                href={`/explore?tab=${tab}`}
                 className="flex h-12 items-center rounded-lg border border-ink px-5 text-base font-medium text-ink hover:bg-surface-soft"
               >
                 Clear

@@ -20,7 +20,7 @@ export default function ListingNotFound() {
         </p>
 
         <Link
-          href="/listings"
+          href="/explore"
           className="mt-8 flex h-12 items-center justify-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active sm:w-fit"
         >
           Browse other listings

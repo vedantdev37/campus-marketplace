@@ -1,5 +1,5 @@
 /** Where to land when no valid destination was requested. */
-export const DEFAULT_SIGNED_IN_PATH = "/listings";
+export const DEFAULT_SIGNED_IN_PATH = "/explore";
 
 /**
  * Is this a safe same-site destination?

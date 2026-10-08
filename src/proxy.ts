@@ -96,7 +96,7 @@ export async function proxy(request: NextRequest) {
   // Signed in, visiting the auth pages -> straight to browsing.
   if (isSignedIn && (pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/listings";
+    url.pathname = "/explore";
     url.search = "";
     return NextResponse.redirect(url);
   }
