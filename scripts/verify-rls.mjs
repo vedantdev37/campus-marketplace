@@ -246,6 +246,322 @@ async function main() {
     }
   }
 
+  // --- Chat: a conversation belongs to its buyer and seller only ---------
+  // Uses the conversation that `seed:demo` creates between the buyer and the
+  // seller. The attacker is a third signed-in account that is in neither role.
+  {
+    const outsiderPassword = process.env.DEMO_OUTSIDER_PASSWORD;
+
+    if (!outsiderPassword) {
+      console.error("DEMO_OUTSIDER_PASSWORD missing from .env.local.");
+      process.exit(1);
+    }
+
+    const outsider = await signIn("outsider@reviewer.test", outsiderPassword);
+
+    const { data: conversations } = await buyer
+      .from("conversations")
+      .select("id, listing_id, buyer_last_read_at, seller_last_read_at")
+      .eq("buyer_id", buyerId)
+      .eq("seller_id", sellerId)
+      .limit(1);
+
+    const conversation = conversations?.[0];
+
+    if (!conversation) {
+      console.error("\nNo demo conversation found. Run `npm run seed:demo` first.");
+      process.exit(1);
+    }
+
+    const countMessages = async () => {
+      const { count } = await buyer
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("conversation_id", conversation.id);
+      return count ?? 0;
+    };
+
+    const messagesBefore = await countMessages();
+
+    const { data: ownMessages } = await buyer
+      .from("messages")
+      .select("id")
+      .eq("conversation_id", conversation.id)
+      .eq("sender_id", buyerId)
+      .limit(1);
+    const ownMessageId = ownMessages?.[0]?.id;
+
+    const { data: spots } = await buyer.from("pickup_spots").select("id").limit(1);
+    const spotId = spots?.[0]?.id;
+
+    /** A campus-time instant `days` from now, at the given hour. */
+    const campusTime = (days, hour) => {
+      const day = new Date(Date.now() + days * 86_400_000).toLocaleDateString("en-CA", {
+        timeZone: "Asia/Kolkata",
+      });
+      return `${day}T${hour}:00:00+05:30`;
+    };
+
+    console.log(`\nChat: ${messagesBefore} messages in the buyer-seller conversation\n`);
+
+    // -- Reading ---------------------------------------------------------
+    for (const [table, column] of [
+      ["conversations", "id"],
+      ["messages", "conversation_id"],
+      ["meetups", "conversation_id"],
+    ]) {
+      const { data, error } = await outsider.from(table).select("id").eq(column, conversation.id);
+
+      check(
+        `a third user cannot read ${table} of someone else's conversation`,
+        !error && (data?.length ?? 0) === 0,
+        error ? `unexpected error: ${error.message}` : `rows visible: ${data?.length}`,
+      );
+    }
+
+    {
+      const { data, error } = await outsider.rpc("my_inbox");
+
+      check(
+        "a third user's inbox does not list the conversation",
+        !error && !(data ?? []).some((row) => row.conversation_id === conversation.id),
+        error ? `unexpected error: ${error.message}` : "the conversation was listed",
+      );
+    }
+
+    {
+      const anon = newClient();
+      const { data, error } = await anon.from("messages").select("id").limit(1);
+
+      check(
+        "signed-out requests cannot read messages",
+        Boolean(error) || (data?.length ?? 0) === 0,
+        !error && (data?.length ?? 0) > 0 ? "messages were readable without a session" : undefined,
+      );
+    }
+
+    // -- Writing as the third user ----------------------------------------
+    {
+      const { error } = await outsider
+        .from("messages")
+        .insert({ conversation_id: conversation.id, body: "verify-rls: this must be refused" });
+
+      check(
+        "a third user cannot post in someone else's conversation",
+        Boolean(error),
+        error ? undefined : "THE MESSAGE WAS ACCEPTED and cannot be deleted through the API",
+      );
+    }
+
+    {
+      const { error } = await outsider.rpc("propose_meetup", {
+        p_conversation_id: conversation.id,
+        p_pickup_spot_id: spotId,
+        p_meet_at: campusTime(3, "15"),
+      });
+
+      check(
+        "a third user cannot propose a meetup in someone else's conversation",
+        error?.message === "not_participant",
+        error ? `refused, but for another reason: ${error.message}` : "the proposal was accepted",
+      );
+    }
+
+    {
+      await outsider.rpc("mark_conversation_read", { p_conversation_id: conversation.id });
+
+      const { data } = await buyer
+        .from("conversations")
+        .select("buyer_last_read_at, seller_last_read_at")
+        .eq("id", conversation.id)
+        .single();
+
+      check(
+        "a third user cannot mark someone else's conversation as read",
+        data?.buyer_last_read_at === conversation.buyer_last_read_at &&
+          data?.seller_last_read_at === conversation.seller_last_read_at,
+        "a read marker moved",
+      );
+    }
+
+    // -- Participants cannot cheat either ---------------------------------
+    {
+      const { error } = await buyer
+        .from("messages")
+        .insert({ conversation_id: conversation.id, body: "verify-rls: forged", sender_id: sellerId });
+
+      check(
+        "a participant cannot post a message as the other person",
+        Boolean(error),
+        error ? undefined : "THE FORGED MESSAGE WAS ACCEPTED",
+      );
+    }
+
+    {
+      const { error } = await buyer.from("messages").insert({
+        conversation_id: conversation.id,
+        body: "verify-rls: fake system message",
+        kind: "meetup_accepted",
+      });
+
+      check(
+        "a participant cannot post a fake meetup event",
+        Boolean(error),
+        error ? undefined : "THE FAKE EVENT WAS ACCEPTED",
+      );
+    }
+
+    if (ownMessageId) {
+      const edit = await buyer
+        .from("messages")
+        .update({ body: "verify-rls: edited" })
+        .eq("id", ownMessageId)
+        .select("id");
+
+      check(
+        "a sent message cannot be edited",
+        Boolean(edit.error) || (edit.data?.length ?? 0) === 0,
+        "the edit was accepted",
+      );
+
+      const removal = await buyer.from("messages").delete().eq("id", ownMessageId).select("id");
+
+      check(
+        "a sent message cannot be deleted",
+        Boolean(removal.error) || (removal.data?.length ?? 0) === 0,
+        "the delete was accepted",
+      );
+    }
+
+    for (const [description, body] of [
+      ["a 1001-character message is rejected", "x".repeat(1001)],
+      ["a whitespace-only message is rejected", "   \n  "],
+    ]) {
+      const { error } = await buyer
+        .from("messages")
+        .insert({ conversation_id: conversation.id, body });
+
+      check(description, Boolean(error), error ? undefined : "the message was accepted");
+    }
+
+    {
+      const { error } = await seller.rpc("start_conversation", {
+        p_listing_id: target.id,
+        p_body: "verify-rls: talking to myself",
+      });
+
+      check(
+        "a seller cannot start a conversation about their own listing",
+        error?.message === "own_listing",
+        error ? `refused, but for another reason: ${error.message}` : "the conversation was created",
+      );
+    }
+
+    {
+      const { error } = await outsider
+        .from("conversations")
+        .insert({ listing_id: target.id, buyer_id: buyerId, seller_id: sellerId });
+
+      check(
+        "a conversation cannot be inserted directly, on anyone's behalf",
+        Boolean(error),
+        error ? undefined : "the row was accepted",
+      );
+    }
+
+    // -- Meetups ----------------------------------------------------------
+    {
+      const { error } = await buyer.from("meetups").insert({
+        conversation_id: conversation.id,
+        proposed_by: sellerId,
+        pickup_spot_id: spotId,
+        meet_at: campusTime(3, "15"),
+        status: "accepted",
+      });
+
+      check(
+        "a meetup cannot be inserted directly as already accepted",
+        Boolean(error),
+        error ? undefined : "the row was accepted",
+      );
+    }
+
+    {
+      const { data, error } = await buyer
+        .from("meetups")
+        .update({ status: "accepted" })
+        .eq("conversation_id", conversation.id)
+        .select("id");
+
+      check(
+        "a meetup's status cannot be changed directly",
+        Boolean(error) || (data?.length ?? 0) === 0,
+        "the update was accepted",
+      );
+    }
+
+    for (const [description, meetAt, reason] of [
+      ["a meetup in the past is rejected", campusTime(-1, "15"), "meetup_in_past"],
+      ["a meetup at 3 am campus time is rejected", campusTime(3, "03"), "meetup_outside_hours"],
+      ["a meetup a year away is rejected", campusTime(365, "15"), "meetup_too_far"],
+    ]) {
+      const { error } = await buyer.rpc("propose_meetup", {
+        p_conversation_id: conversation.id,
+        p_pickup_spot_id: spotId,
+        p_meet_at: meetAt,
+      });
+
+      check(
+        description,
+        error?.message === reason,
+        error ? `refused, but for another reason: ${error.message}` : "the proposal was accepted",
+      );
+    }
+
+    {
+      // Needs a proposal that is still pending, which `reseed:demo` leaves in
+      // place. Once someone has accepted it in the app there is nothing to
+      // attack, and proposing one here would write to the demo conversation.
+      const { data: pending } = await buyer
+        .from("meetups")
+        .select("id, proposed_by")
+        .eq("conversation_id", conversation.id)
+        .eq("status", "proposed")
+        .maybeSingle();
+
+      if (pending) {
+        const proposer = pending.proposed_by === buyerId ? buyer : seller;
+        const { error } = await proposer.rpc("accept_meetup", { p_meetup_id: pending.id });
+
+        check(
+          "the person who proposed a meetup cannot accept it themselves",
+          error?.message === "meetup_not_acceptable",
+          error ? `refused, but for another reason: ${error.message}` : "the proposal was accepted",
+        );
+
+        const outsiderAccept = await outsider.rpc("accept_meetup", { p_meetup_id: pending.id });
+
+        check(
+          "a third user cannot accept someone else's meetup",
+          outsiderAccept.error?.message === "meetup_not_acceptable",
+          outsiderAccept.error ? undefined : "the proposal was accepted",
+        );
+      } else {
+        console.log("  SKIP  self-accept checks: no pending proposal (run `npm run reseed:demo`)");
+      }
+    }
+
+    {
+      const messagesAfter = await countMessages();
+
+      check(
+        "the conversation has exactly the messages it started with",
+        messagesAfter === messagesBefore,
+        `before: ${messagesBefore}, after: ${messagesAfter}`,
+      );
+    }
+  }
+
   // --- 9. Nothing above actually changed anything -----------------------
   {
     const { data } = await buyer

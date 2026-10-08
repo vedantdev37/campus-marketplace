@@ -1,6 +1,6 @@
 /**
- * Seeds two demo accounts and some listings, so the app can be reviewed without
- * anyone having to create data by hand.
+ * Seeds three demo accounts, some listings and one conversation, so the app can
+ * be reviewed without anyone having to create data by hand.
  *
  *   npm run seed:demo      # create accounts, insert listings if there are none
  *   npm run reseed:demo    # wipe the demo listings and wishlist, then re-insert
@@ -17,8 +17,8 @@
  * bypass RLS and prove nothing, which is also why this project has none.
  *
  * WHERE THE PASSWORDS COME FROM
- * DEMO_SELLER_PASSWORD and DEMO_BUYER_PASSWORD in .env.local, which is
- * gitignored. They are deliberately NOT in this file: it lives in a public
+ * DEMO_SELLER_PASSWORD, DEMO_BUYER_PASSWORD and DEMO_OUTSIDER_PASSWORD in
+ * .env.local, which is gitignored. They are deliberately NOT in this file: it lives in a public
  * repo, so a literal here would be as exposed as one in the README.
  *
  * PREREQUISITES
@@ -70,14 +70,26 @@ const BUYER = {
   fullName: "Rohit Menon",
 };
 
+/**
+ * A third account that owns nothing and is in no conversation. It exists for
+ * `npm run verify:rls`: proving that a chat is private needs someone who is
+ * neither its buyer nor its seller to try to read it.
+ */
+const OUTSIDER = {
+  email: "outsider@reviewer.test",
+  password: process.env.DEMO_OUTSIDER_PASSWORD,
+  fullName: "Kavya Nair",
+};
+
 for (const [name, account] of [
   ["DEMO_SELLER_PASSWORD", SELLER],
   ["DEMO_BUYER_PASSWORD", BUYER],
+  ["DEMO_OUTSIDER_PASSWORD", OUTSIDER],
 ]) {
   if (!account.password || account.password.length < 8) {
     console.error(
       `${name} is missing or too short in .env.local.\n` +
-        "Set both demo passwords there (8+ characters) and re-run.",
+        "Set the demo passwords there (8+ characters) and re-run.",
     );
     process.exit(1);
   }
@@ -194,6 +206,21 @@ const SELLER_LISTINGS = [
 
 /** The listing marked sold, so reviewers can see the sold treatment. */
 const SOLD_TITLE = "Folding study chair";
+
+/** The listing the demo buyer has asked about. */
+const CHAT_TITLE = "Casio FX-991EX scientific calculator";
+
+/**
+ * 4:30 pm campus time, two days from now, as an ISO string with an explicit
+ * offset - so it means the same instant whatever zone this script runs in.
+ */
+function demoMeetupTime() {
+  const day = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+  });
+
+  return `${day}T16:30:00+05:30`;
+}
 
 function fail(message, error) {
   console.error(`\n  FAILED: ${message}`);
@@ -353,9 +380,9 @@ async function ensureAccount({ email, password, fullName }) {
 /**
  * Removes the demo data.
  *
- * Deleting the seller's listings also clears any wishlist rows and inquiries
- * pointing at them, through the ON DELETE CASCADE foreign keys - so one delete
- * is enough and there are no orphans to tidy up.
+ * Deleting the seller's listings also clears any wishlist rows, conversations,
+ * messages and meetups pointing at them, through the ON DELETE CASCADE foreign
+ * keys - so one delete is enough and there are no orphans to tidy up.
  *
  * These deletes run under RLS as the seller, so they physically cannot remove
  * another user's listings even if the filter were wrong.
@@ -383,7 +410,7 @@ async function resetDemoData(sellerClient, sellerId, buyerClient, buyerId) {
 
   const removed = await clearImageFolder(sellerClient, sellerId);
 
-  console.log(`  cleared existing demo listings, wishlist and ${removed} stored image(s)`);
+  console.log(`  cleared existing demo listings, chats, wishlist and ${removed} stored image(s)`);
 }
 
 async function main() {
@@ -392,6 +419,7 @@ async function main() {
   console.log("Accounts:");
   const sellerClient = await ensureAccount(SELLER);
   const buyerClient = await ensureAccount(BUYER);
+  await ensureAccount(OUTSIDER);
 
   const { data: sellerAuth } = await sellerClient.auth.getUser();
   const sellerId = sellerAuth?.user?.id;
@@ -507,9 +535,73 @@ async function main() {
     console.log(`\nWishlist: buyer saved "${available[0].title}"`);
   }
 
+  // --- One conversation, with a meetup waiting for the seller ------------
+  // Every step goes through the same database functions the app calls, as the
+  // user who would be making it. The proposal is left pending on purpose: a
+  // reviewer signing in as the seller finds something to accept.
+  const { count: chatCount, error: chatCountError } = await buyerClient
+    .from("conversations")
+    .select("id", { count: "exact", head: true })
+    .eq("buyer_id", buyerId);
+
+  if (chatCountError) {
+    fail("could not count the buyer's conversations", chatCountError);
+  }
+
+  if ((chatCount ?? 0) > 0) {
+    console.log("\nChat: the buyer already has a conversation, leaving it alone.");
+  } else {
+    const { data: chatListing, error: chatListingError } = await buyerClient
+      .from("listings")
+      .select("id, pickup_spot_id")
+      .eq("seller_id", sellerId)
+      .eq("title", CHAT_TITLE)
+      .eq("status", "available")
+      .maybeSingle();
+
+    if (chatListingError) {
+      fail("could not find the listing to chat about", chatListingError);
+    }
+
+    if (chatListing) {
+      const { data: conversationId, error: startError } = await buyerClient.rpc(
+        "start_conversation",
+        {
+          p_listing_id: chatListing.id,
+          p_body: "Hi! Is the calculator still available? Does it come with the cover?",
+        },
+      );
+
+      if (startError) {
+        fail("could not start the demo conversation", startError);
+      }
+
+      const { error: replyError } = await sellerClient.from("messages").insert({
+        conversation_id: conversationId,
+        body: "Yes, still available, and the slide cover is included. When are you free?",
+      });
+
+      if (replyError) {
+        fail("could not post the seller's reply", replyError);
+      }
+
+      const { error: proposeError } = await buyerClient.rpc("propose_meetup", {
+        p_conversation_id: conversationId,
+        p_pickup_spot_id: chatListing.pickup_spot_id ?? spots?.[0]?.id,
+        p_meet_at: demoMeetupTime(),
+      });
+
+      if (proposeError) {
+        fail("could not propose the demo meetup", proposeError);
+      }
+
+      console.log("\nChat: buyer asked about the calculator, seller replied, buyer proposed a meetup");
+    }
+  }
+
   console.log("\nDone.");
-  console.log("  seller@reviewer.test / buyer@reviewer.test");
-  console.log("  Passwords: DEMO_SELLER_PASSWORD and DEMO_BUYER_PASSWORD in .env.local\n");
+  console.log("  seller@reviewer.test / buyer@reviewer.test / outsider@reviewer.test");
+  console.log("  Passwords: DEMO_*_PASSWORD in .env.local\n");
 }
 
 main().catch((error) => fail("unexpected error", error));
