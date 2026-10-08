@@ -2,6 +2,7 @@ import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AcceptedMeetup, Conversation, InboxRow, Meetup, Message } from "@/lib/types/chat";
+import type { ListingType } from "@/lib/types/listing";
 
 /**
  * Read queries for chat and meetups.
@@ -34,9 +35,28 @@ export async function getInbox(listingId?: string): Promise<InboxRow[]> {
     throw new Error(`Could not load your inbox: ${error.message}`);
   }
 
-  const rows = ((data ?? []) as InboxRow[]).map((row) => ({
+  const raw = (data ?? []) as Omit<InboxRow, "listing_type">[];
+
+  // my_inbox() predates post types and does not return one, so they are read
+  // here in a second query. Without it a team request would be shown with a
+  // price of 0 rupees.
+  const types = new Map<string, ListingType>();
+
+  if (raw.length > 0) {
+    const { data: listings } = await supabase
+      .from("listings")
+      .select("id, type")
+      .in("id", [...new Set(raw.map((row) => row.listing_id))]);
+
+    for (const listing of listings ?? []) {
+      types.set(listing.id, listing.type as ListingType);
+    }
+  }
+
+  const rows: InboxRow[] = raw.map((row) => ({
     ...row,
     listing_price: Number(row.listing_price),
+    listing_type: types.get(row.listing_id) ?? "sale",
   }));
 
   return listingId ? rows.filter((row) => row.listing_id === listingId) : rows;
@@ -51,7 +71,7 @@ export async function getConversation(id: string): Promise<Conversation | null> 
     .select(
       `
       id, listing_id, buyer_id, seller_id,
-      listing:listings!conversations_listing_id_fkey(id, title, price, status, image_path, pickup_spot_id),
+      listing:listings!conversations_listing_id_fkey(id, title, price, type, status, image_path, pickup_spot_id),
       buyer:profiles!conversations_buyer_id_fkey(full_name),
       seller:profiles!conversations_seller_id_fkey(full_name)
     `,

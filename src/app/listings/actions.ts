@@ -6,10 +6,23 @@ import { redirect } from "next/navigation";
 import { requireSessionUser } from "@/lib/auth";
 import { LISTING_IMAGE_BUCKET } from "@/lib/storage";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { STATUSES, type ConditionChecks, type ListingStatus } from "@/lib/types/listing";
+import {
+  isListingType,
+  STATUSES,
+  TYPE_INFO,
+  type ConditionChecks,
+  type ListingStatus,
+  type ListingType,
+} from "@/lib/types/listing";
 import { isUuid } from "@/lib/uuid";
 import { fieldErrorsFrom } from "@/lib/validation/auth";
-import { listingSchema, readConditionChecks, type ListingInput } from "@/lib/validation/listing";
+import {
+  listingSchema,
+  readConditionChecks,
+  readTypeExtras,
+  type ListingInput,
+  type TypeExtras,
+} from "@/lib/validation/listing";
 
 /**
  * Owner-only mutations on a listing.
@@ -66,8 +79,9 @@ function readListingId(formData: FormData): string | null {
 /** Refresh every view that could be showing this listing. */
 function revalidateListingViews(id: string): void {
   revalidatePath(`/listings/${id}`);
-  revalidatePath("/listings");
-  revalidatePath("/listings/mine");
+  revalidatePath("/explore");
+  revalidatePath("/me");
+  revalidatePath("/");
 }
 
 /**
@@ -90,22 +104,31 @@ async function removeStoredImage(supabase: ServerSupabase, path: string | null) 
   }
 }
 
-/** The raw strings from the form, in the shape listingSchema expects. */
-function readListingFields(formData: FormData) {
+/**
+ * The raw strings from the form, in the shape listingSchema expects.
+ *
+ * What a type does not have is set here, not read from the request: a post
+ * that is not a physical item gets the neutral category and condition, a post
+ * with no price gets 0, and only a sale keeps the bookshop fields. The form
+ * hides those inputs, but hiding is not what makes it so.
+ */
+function readListingFields(formData: FormData, type: ListingType) {
   const text = (name: string) => String(formData.get(name) ?? "");
+  const info = TYPE_INFO[type];
+  const isSale = type === "sale";
 
   return {
     title: text("title"),
     description: text("description"),
-    price: text("price"),
-    category: text("category"),
-    condition: text("condition"),
+    price: info.hasPrice ? text("price") : "0",
+    category: info.isItem ? text("category") : "other",
+    condition: info.isItem ? text("condition") : "good",
     pickupSpotId: text("pickupSpotId"),
-    courseCode: text("courseCode"),
-    semester: text("semester"),
-    isbn: text("isbn"),
-    bookAuthor: text("bookAuthor"),
-    originalPrice: text("originalPrice"),
+    courseCode: isSale ? text("courseCode") : "",
+    semester: isSale ? text("semester") : "",
+    isbn: isSale ? text("isbn") : "",
+    bookAuthor: isSale ? text("bookAuthor") : "",
+    originalPrice: isSale ? text("originalPrice") : "",
   };
 }
 
@@ -141,8 +164,10 @@ function toListingColumns(
   input: ListingInput,
   imagePath: string | null,
   conditionChecks: ConditionChecks,
+  extras: TypeExtras,
 ) {
   return {
+    ...extras,
     condition_checks: conditionChecks,
     title: input.title,
     description: input.description,
@@ -166,12 +191,28 @@ export async function createListingAction(
 ): Promise<ListingFormState> {
   const user = await requireSessionUser();
 
+  // Which of the six kinds of post this is. Anything unrecognised is refused,
+  // not quietly treated as a sale.
+  const submittedType = formData.get("type") ?? "sale";
+
+  if (!isListingType(submittedType)) {
+    return { formError: "That kind of post does not exist. Go back and choose one." };
+  }
+
+  const type = submittedType;
+
   // Re-parsed here with the same schema the form used. The form's pass is for
   // feedback; this one is the gate, because a request can be built by hand.
-  const parsed = listingSchema.safeParse(readListingFields(formData));
+  const parsed = listingSchema.safeParse(readListingFields(formData, type));
+  const typed = readTypeExtras(type, formData);
 
-  if (!parsed.success) {
-    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+  if (!parsed.success || "fieldErrors" in typed) {
+    return {
+      fieldErrors: {
+        ...(parsed.success ? {} : fieldErrorsFrom(parsed.error)),
+        ...("fieldErrors" in typed ? typed.fieldErrors : {}),
+      },
+    };
   }
 
   const imagePath = readImagePath(formData, user.id);
@@ -180,9 +221,10 @@ export async function createListingAction(
     return { formError: "That photo could not be attached. Please choose it again." };
   }
 
-  // A new listing must have a photo. The form checks this too, but a request
-  // built by hand skips the form.
-  if (imagePath === null) {
+  // A post about a physical thing must show it. The form checks this too, but
+  // a request built by hand skips the form. A skill or a call for teammates
+  // has nothing to photograph, so there it is optional.
+  if (imagePath === null && TYPE_INFO[type].photoRequired) {
     return { formError: PHOTO_REQUIRED };
   }
 
@@ -200,7 +242,11 @@ export async function createListingAction(
     .from("listings")
     // seller_id comes from the session, never from the form. RLS would refuse a
     // mismatched value anyway (WITH CHECK seller_id = auth.uid()).
-    .insert({ ...toListingColumns(parsed.data, imagePath, conditionChecks), seller_id: user.id })
+    .insert({
+      ...toListingColumns(parsed.data, imagePath, conditionChecks, typed.extras),
+      type,
+      seller_id: user.id,
+    })
     .select("id")
     .single();
 
@@ -226,10 +272,40 @@ export async function updateListingAction(
     return { formError: "That listing could not be found. Go back and try again." };
   }
 
-  const parsed = listingSchema.safeParse(readListingFields(formData));
+  const supabase = await createSupabaseServerClient();
 
-  if (!parsed.success) {
-    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+  // Read the current row first, scoped to the owner. Its photo is needed so a
+  // replaced one can be cleaned out of Storage afterwards - and its TYPE is
+  // taken from here, never from the form: a post cannot change kind, and the
+  // database refuses an update that tries (migration 0010).
+  const { data: existing, error: readError } = await supabase
+    .from("listings")
+    .select("image_path, type")
+    .eq("id", id)
+    .eq("seller_id", user.id)
+    .maybeSingle();
+
+  if (readError) {
+    console.error("Could not load listing for edit", { message: readError.message });
+    return { formError: "Could not save the listing. Please try again." };
+  }
+
+  if (!existing || !isListingType(existing.type)) {
+    return { formError: "That listing is not yours to edit." };
+  }
+
+  const type = existing.type;
+
+  const parsed = listingSchema.safeParse(readListingFields(formData, type));
+  const typed = readTypeExtras(type, formData);
+
+  if (!parsed.success || "fieldErrors" in typed) {
+    return {
+      fieldErrors: {
+        ...(parsed.success ? {} : fieldErrorsFrom(parsed.error)),
+        ...("fieldErrors" in typed ? typed.fieldErrors : {}),
+      },
+    };
   }
 
   const imagePath = readImagePath(formData, user.id);
@@ -246,26 +322,6 @@ export async function updateListingAction(
     return { formError: CHECKLIST_REJECTED };
   }
 
-  const supabase = await createSupabaseServerClient();
-
-  // Read the current photo first, scoped to the owner, so a replaced or removed
-  // one can be cleaned out of Storage afterwards.
-  const { data: existing, error: readError } = await supabase
-    .from("listings")
-    .select("image_path")
-    .eq("id", id)
-    .eq("seller_id", user.id)
-    .maybeSingle();
-
-  if (readError) {
-    console.error("Could not load listing for edit", { message: readError.message });
-    return { formError: "Could not save the listing. Please try again." };
-  }
-
-  if (!existing) {
-    return { formError: "That listing is not yours to edit." };
-  }
-
   // An edit may keep its photo or replace it, but may not strip it. A listing
   // that predates the rule and never had a photo is left alone.
   if (existing.image_path && imagePath === null) {
@@ -276,7 +332,7 @@ export async function updateListingAction(
     .from("listings")
     // status and seller_id are deliberately not part of an edit: status changes
     // go through setListingStatusAction, and ownership never changes.
-    .update(toListingColumns(parsed.data, imagePath, conditionChecks))
+    .update(toListingColumns(parsed.data, imagePath, conditionChecks, typed.extras))
     .eq("id", id)
     .eq("seller_id", user.id)
     .select("id");
@@ -384,5 +440,5 @@ export async function deleteListingAction(
   revalidateListingViews(id);
 
   // redirect() throws, so it must come after the work and outside any try/catch.
-  redirect("/listings/mine");
+  redirect("/me");
 }

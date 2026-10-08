@@ -36,15 +36,19 @@ import {
   CONDITION_LABELS,
   CONDITION_VALUE_FACTOR,
   CONDITIONS,
+  RENT_MAX_DAYS,
+  TYPE_INFO,
   type ItemCondition,
   type ListingCategory,
   type ListingRow,
+  type ListingType,
   type PickupSpot,
 } from "@/lib/types/listing";
 import { fieldErrorsFrom } from "@/lib/validation/auth";
 import {
   listingFieldSchemas,
   listingSchema,
+  readTypeExtras,
   type ListingField,
 } from "@/lib/validation/listing";
 
@@ -56,8 +60,32 @@ type ListingFormProps = {
   /** The signed-in user's id: the folder their photo is uploaded into. */
   userId: string;
   pickupSpots: PickupSpot[];
+  /** Which of the six kinds of post this is. Fixed once the post exists. */
+  type: ListingType;
+  /** Today in campus time (YYYY-MM-DD), from the server, for the date inputs. */
+  today: string;
   /** Present when editing; absent when creating. */
   listing?: ListingRow;
+};
+
+/** What the title box suggests, per kind of post. */
+const TITLE_PLACEHOLDER: Record<ListingType, string> = {
+  sale: "e.g. Casio FX-991EX calculator…",
+  rent: "e.g. Mini drafter with case…",
+  free: "e.g. First-year physics lab manual…",
+  lost_found: "e.g. Black water bottle with stickers…",
+  skill_offer: "e.g. I will edit your fest aftermovie…",
+  team_request: "e.g. Need a backend dev for Saturday's hackathon…",
+};
+
+const DESCRIPTION_HINT: Record<ListingType, string> = {
+  sale: "Condition details, what is included, why you are selling.",
+  rent: "What is included, any deposit you expect, when it is free.",
+  free: "What it is and what state it is in. Free things go fast.",
+  lost_found:
+    "Describe it enough to be recognised, but hold one detail back so the real owner can prove it is theirs.",
+  skill_offer: "What you do, what you have done before, and how long it takes you.",
+  team_request: "What you are building, who you already have, and who you still need.",
 };
 
 /**
@@ -78,8 +106,11 @@ type ListingFormProps = {
  * an answer without a round trip; the action parses again because it cannot
  * assume the request came from this form.
  */
-export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) {
+export function ListingForm({ userId, pickupSpots, type, today, listing }: ListingFormProps) {
   const isEdit = Boolean(listing);
+  const info = TYPE_INFO[type];
+  const isSale = type === "sale";
+  const isSquad = type === "skill_offer" || type === "team_request";
 
   const [serverState, submitToServer] = useActionState(
     isEdit ? updateListingAction : createListingAction,
@@ -140,8 +171,10 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
 
   const shownImage = previewUrl ?? listingImageUrl(imagePath || null);
   const isBusy = isUploading || isSaving;
-  const photoRequired = !listing || Boolean(listing.image_path);
-  const isBook = category === "books";
+  // A post about a physical thing must show it; a skill or a call for
+  // teammates has nothing to photograph.
+  const photoRequired = info.photoRequired && (!listing || Boolean(listing.image_path));
+  const isBook = isSale && category === "books";
 
   /**
    * A field the user has touched since the last submit shows its live
@@ -276,12 +309,14 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
     const formData = new FormData(event.currentTarget);
     const text = (name: string) => String(formData.get(name) ?? "");
 
+    // The same substitutions the Server Action makes for fields this kind of
+    // post does not have, so the two passes agree.
     const parsed = listingSchema.safeParse({
       title: text("title"),
       description: text("description"),
-      price: text("price"),
-      category: text("category"),
-      condition: text("condition"),
+      price: info.hasPrice ? text("price") : "0",
+      category: info.isItem ? text("category") : "other",
+      condition: info.isItem ? text("condition") : "good",
       pickupSpotId: text("pickupSpotId"),
       courseCode: text("courseCode"),
       semester: text("semester"),
@@ -289,9 +324,13 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
       bookAuthor: text("bookAuthor"),
       originalPrice: text("originalPrice"),
     });
+    const typed = readTypeExtras(type, formData);
 
-    if (!parsed.success) {
-      const errors = fieldErrorsFrom(parsed.error);
+    if (!parsed.success || "fieldErrors" in typed) {
+      const errors = {
+        ...(parsed.success ? {} : fieldErrorsFrom(parsed.error)),
+        ...("fieldErrors" in typed ? typed.fieldErrors : {}),
+      };
       setClientErrors(errors);
       setTouched({});
 
@@ -309,7 +348,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
     // rule applies to new listings and to any listing that already has one.
     // The Server Action enforces the same rule.
     if (photoRequired && imagePath === "" && !pendingFile) {
-      setImageError("Add a photo of the item. Buyers want to see what they are getting.");
+      setImageError("Add a photo. People want to see what it is.");
       fileInputRef.current?.focus();
       return;
     }
@@ -349,31 +388,42 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
       className="flex flex-col gap-5"
     >
       {listing ? <input type="hidden" name="id" value={listing.id} /> : null}
+      {/* Read by the create action only. An edit takes the type from the row. */}
+      <input type="hidden" name="type" value={type} />
 
       {serverState.formError ? <Alert tone="error">{serverState.formError}</Alert> : null}
 
       {/* Category comes first because it decides what the rest of the form
           offers: choosing Books reveals the ISBN lookup, which can then fill in
           most of what follows. */}
-      <Field label="What are you selling?" name="category" error={errorFor("category")}>
-        {(props) => (
-          <select
-            {...props}
-            required
-            value={category}
-            onChange={(event) => setCategory(event.currentTarget.value)}
-          >
-            <option value="" disabled>
-              Choose a category
-            </option>
-            {CATEGORIES.map((value) => (
-              <option key={value} value={value}>
-                {CATEGORY_LABELS[value]}
+      {info.isItem ? (
+        <Field label="What is it?" name="category" error={errorFor("category")}>
+          {(props) => (
+            <select
+              {...props}
+              required
+              value={category}
+              onChange={(event) => setCategory(event.currentTarget.value)}
+            >
+              <option value="" disabled>
+                Choose a category
               </option>
-            ))}
-          </select>
-        )}
-      </Field>
+              {CATEGORIES.map((value) => (
+                <option key={value} value={value}>
+                  {CATEGORY_LABELS[value]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+      ) : null}
+
+      {type === "lost_found" ? (
+        <p className="rounded-lg bg-surface-soft px-4 py-3 text-sm text-ink-body">
+          This is a student noticeboard, not the college&rsquo;s official lost and found. For
+          ID cards, wallets, phones and anything valuable, hand it to the security office too.
+        </p>
+      ) : null}
 
       {isBook ? (
         <BookLookup
@@ -450,8 +500,8 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
             ) : null}
 
             <p id="field-photo-hint" className="text-xs text-ink-muted">
-              JPEG, PNG or WebP, up to 5 MB. A photo of your actual copy sells faster than a
-              stock cover.
+              JPEG, PNG or WebP, up to 5 MB.
+              {isSale ? " A photo of your actual copy sells faster than a stock cover." : ""}
             </p>
           </div>
         </div>
@@ -476,7 +526,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
             type="text"
             required
             maxLength={120}
-            placeholder="e.g. Casio FX-991EX calculator…"
+            placeholder={TITLE_PLACEHOLDER[type]}
             autoComplete="off"
             defaultValue={listing?.title ?? ""}
             onInput={() => clearAutofilled("title")}
@@ -492,7 +542,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
         hint={
           autofilled.description
             ? "Filled in from the ISBN. Add the condition of your copy."
-            : "Condition details, what is included, why you are selling."
+            : DESCRIPTION_HINT[type]
         }
       >
         {(props) => (
@@ -509,6 +559,8 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
       </Field>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        {info.isItem ? (
+          <>
         <Field label="Condition" name="condition" error={errorFor("condition")}>
           {(props) => (
             <select
@@ -528,21 +580,60 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
             </select>
           )}
         </Field>
+          </>
+        ) : null}
 
-        <Field label="Pickup spot" name="pickupSpotId" error={errorFor("pickupSpotId")}>
-          {(props) => (
-            <select {...props} defaultValue={listing?.pickup_spot_id ?? ""}>
-              <option value="">To be arranged</option>
-              {pickupSpots.map((spot) => (
-                <option key={spot.id} value={spot.id}>
-                  {spot.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
+        {isSquad ? null : (
+          <Field
+            label={type === "lost_found" ? "Where you found it" : "Pickup spot"}
+            name="pickupSpotId"
+            error={errorFor("pickupSpotId")}
+          >
+            {(props) => (
+              <select {...props} defaultValue={listing?.pickup_spot_id ?? ""}>
+                <option value="">{type === "lost_found" ? "Somewhere else" : "To be arranged"}</option>
+                {pickupSpots.map((spot) => (
+                  <option key={spot.id} value={spot.id}>
+                    {spot.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        )}
 
-        <Field label="Your price (₹)" name="price" error={errorFor("price")}>
+        {type === "lost_found" ? (
+          <Field label="When you found it" name="foundOn" error={errorFor("foundOn")}>
+            {(props) => (
+              <input {...props} type="date" required max={today} defaultValue={listing?.found_on ?? today} />
+            )}
+          </Field>
+        ) : null}
+
+        {type === "rent" ? (
+          <Field
+            label="Longest rental (days)"
+            name="rentMaxDays"
+            error={errorFor("rentMaxDays")}
+            hint={`From 1 to ${RENT_MAX_DAYS} days.`}
+          >
+            {(props) => (
+              <input
+                {...props}
+                type="text"
+                inputMode="numeric"
+                required
+                placeholder="e.g. 3…"
+                autoComplete="off"
+                defaultValue={listing?.rent_max_days?.toString() ?? ""}
+              />
+            )}
+          </Field>
+        ) : null}
+
+        {info.hasPrice ? (
+          <>
+        <Field label={type === "rent" ? "Price per day (₹)" : "Your price (₹)"} name="price" error={errorFor("price")}>
           {(props) => (
             <input
               {...props}
@@ -557,7 +648,11 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
             />
           )}
         </Field>
+          </>
+        ) : null}
 
+        {isSale ? (
+          <>
         <Field
           label="Original price (₹)"
           name="originalPrice"
@@ -586,14 +681,67 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
             />
           )}
         </Field>
+          </>
+        ) : null}
       </div>
 
-      <PriceGuide price={price} originalPrice={originalPrice} condition={condition} />
+      {isSquad ? (
+        <>
+          <Field
+            label={type === "skill_offer" ? "Skills you offer" : "Skills you need"}
+            name="tags"
+            error={errorFor("tags")}
+            hint="Separate with commas, e.g. react, video editing, figma. Up to 8."
+          >
+            {(props) => (
+              <input
+                {...props}
+                type="text"
+                required
+                placeholder="e.g. react, supabase…"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                defaultValue={listing?.tags.join(", ") ?? ""}
+              />
+            )}
+          </Field>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <Field
+              label="For an event? (optional)"
+              name="eventName"
+              error={errorFor("eventName")}
+            >
+              {(props) => (
+                <input
+                  {...props}
+                  type="text"
+                  maxLength={80}
+                  placeholder="e.g. Saturday's hackathon…"
+                  autoComplete="off"
+                  defaultValue={listing?.event_name ?? ""}
+                />
+              )}
+            </Field>
+
+            <Field label="Event date (optional)" name="eventDate" error={errorFor("eventDate")}>
+              {(props) => (
+                <input {...props} type="date" min={today} defaultValue={listing?.event_date ?? ""} />
+              )}
+            </Field>
+          </div>
+        </>
+      ) : null}
+
+      {isSale ? (
+        <PriceGuide price={price} originalPrice={originalPrice} condition={condition} />
+      ) : null}
 
       {/* Keyed by category: switching category remounts it, so ticks for one
           kind of item are never carried over to another. Saved ticks are only
           offered back while the category is still the one they were saved for. */}
-      {(CATEGORIES as readonly string[]).includes(category) ? (
+      {info.isItem && (CATEGORIES as readonly string[]).includes(category) ? (
         <ConditionChecklist
           key={category}
           category={category as ListingCategory}
@@ -602,6 +750,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
       ) : null}
 
       {/* --- Course ----------------------------------------------------- */}
+      {isSale ? (
       <fieldset className="rounded-[14px] border border-hairline p-4">
         <legend className="px-1 text-sm font-medium text-ink">For a course? (optional)</legend>
 
@@ -641,9 +790,10 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
           </Field>
         </div>
       </fieldset>
+      ) : null}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Link href={listing ? `/listings/${listing.id}` : "/listings"} className={SECONDARY_BUTTON_CLASS}>
+        <Link href={listing ? `/listings/${listing.id}` : "/post"} className={SECONDARY_BUTTON_CLASS}>
           Cancel
         </Link>
 
@@ -659,7 +809,7 @@ export function ListingForm({ userId, pickupSpots, listing }: ListingFormProps) 
               ? "Saving…"
               : isEdit
                 ? "Save changes"
-                : "Publish listing"}
+                : "Publish"}
         </button>
       </div>
     </form>

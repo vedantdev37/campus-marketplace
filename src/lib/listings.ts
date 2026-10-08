@@ -59,6 +59,14 @@ export async function listListings(filters: ListingFilters = {}): Promise<Listin
 
   let query = supabase.from("listings").select(LISTING_SELECT);
 
+  // Always scoped to a kind of post. A row of another type drawn by a page
+  // that was not expecting it would be shown as a 0-rupee sale.
+  query = query.in("type", filters.types ?? ["sale"]);
+
+  if (filters.tag) {
+    query = query.contains("tags", [filters.tag]);
+  }
+
   if (!filters.includeSold) {
     query = query.eq("status", "available");
   }
@@ -161,11 +169,17 @@ type TeaserRow = {
   id: string;
   title: string;
   price: number | string;
-  category: Listing["category"];
-  condition: Listing["condition"];
   status?: Listing["status"];
+  type?: Listing["type"];
+  rent_max_days?: number | null;
+  found_on?: string | null;
+  event_name?: string | null;
+  event_date?: string | null;
+  tags?: string[];
+  category?: Listing["category"];
+  condition?: Listing["condition"];
   image_path: string | null;
-  course_code: string | null;
+  course_code?: string | null;
   pickup_spot_name: string | null;
 };
 
@@ -181,12 +195,18 @@ function teaserToListing(row: TeaserRow): Listing {
     title: row.title,
     description: "",
     price: Number(row.price),
-    category: row.category,
-    condition: row.condition,
+    category: row.category ?? "other",
+    condition: row.condition ?? "good",
+    type: row.type ?? "sale",
+    rent_max_days: row.rent_max_days ?? null,
+    found_on: row.found_on ?? null,
+    event_name: row.event_name ?? null,
+    event_date: row.event_date ?? null,
+    tags: row.tags ?? [],
     status: row.status ?? "available",
     image_path: row.image_path,
     pickup_spot_id: null,
-    course_code: row.course_code,
+    course_code: row.course_code ?? null,
     semester: null,
     isbn: null,
     book_author: null,
@@ -231,6 +251,19 @@ export async function getRecentListings(): Promise<Listing[]> {
   }
 
   return [];
+}
+
+/**
+ * The newest open posts of each kind other than sale, for the home page's
+ * Rent, Free, Squad up and Lost & Found sections: `home_sections()` from
+ * migration 0010, which returns card fields and no seller. Empty if it cannot
+ * be read, and the page then leaves those sections out.
+ */
+export async function getHomeSections(): Promise<Listing[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("home_sections");
+
+  return error || !Array.isArray(data) ? [] : (data as TeaserRow[]).map(teaserToListing);
 }
 
 /** The live numbers on the home page, from `public_stats()` (migration 0009). */

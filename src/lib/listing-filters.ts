@@ -67,10 +67,16 @@ export function parseListingFilters(params: RawSearchParams): ListingFilters {
     filters.includeSold = true;
   }
 
+  // The same shape the database accepts for a tag (migration 0010).
+  const tag = first(params.tag)?.trim().toLowerCase();
+  if (tag && /^[a-z0-9+#.-]{1,24}$/.test(tag)) {
+    filters.tag = tag;
+  }
+
   return filters;
 }
 
-/** True when the user has narrowed the view at all. */
+/** True when the user has narrowed the view at all. The tab is not a filter. */
 export function hasActiveFilters(filters: ListingFilters): boolean {
-  return Object.keys(filters).length > 0;
+  return Object.keys(filters).some((key) => key !== "types");
 }

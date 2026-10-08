@@ -1,7 +1,10 @@
 import { z } from "zod";
 
+import { campusDate, campusDatePlusDays } from "@/lib/campus-time";
 import { normalizeIsbn } from "@/lib/isbn";
 import {
+  MAX_TAGS,
+  RENT_MAX_DAYS,
   CATEGORIES,
   CATEGORIES_WITH_SIZE,
   CONDITION_CHECKS,
@@ -9,6 +12,7 @@ import {
   LAB_SIZES,
   type ConditionChecks,
   type ListingCategory,
+  type ListingType,
 } from "@/lib/types/listing";
 
 /**
@@ -235,3 +239,140 @@ export const listingFieldSchemas = {
 } as const;
 
 export type ListingField = keyof typeof listingFieldSchemas;
+
+/**
+ * Tags typed as "React, Next.js, video editing" become
+ * ["react", "next.js", "video-editing"].
+ *
+ * Lower-cased and hyphenated so that one skill is one tag however it was
+ * typed. The database enforces the same shape (migration 0010), which is what
+ * makes it true for a row written through the API as well.
+ */
+const TAG_PATTERN = /^[a-z0-9+#.-]{1,24}$/;
+
+export function parseTags(raw: string, max: number = MAX_TAGS): { tags: string[] } | { error: string } {
+  const tags = [
+    ...new Set(
+      raw
+        .split(/[,\n]/)
+        .map((tag) => tag.trim().toLowerCase().replace(/\s+/g, "-"))
+        .filter(Boolean),
+    ),
+  ];
+
+  if (tags.length > max) {
+    return { error: `Use at most ${max} tags.` };
+  }
+
+  const bad = tags.find((tag) => !TAG_PATTERN.test(tag));
+
+  if (bad) {
+    return { error: `“${bad}” will not work as a tag. Use letters, digits and + # . - only, up to 24 characters.` };
+  }
+
+  return { tags };
+}
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A real calendar date in YYYY-MM-DD, or null. */
+function realDate(value: string): string | null {
+  if (!DATE_PATTERN.test(value)) {
+    return null;
+  }
+
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? null : value;
+}
+
+export type TypeExtras = {
+  rent_max_days: number | null;
+  found_on: string | null;
+  event_name: string | null;
+  event_date: string | null;
+  tags: string[];
+};
+
+/**
+ * The fields that belong to one kind of post, validated for that kind.
+ *
+ * Anything a type does not use comes back as null or empty WHATEVER was
+ * submitted, so a hand-built request cannot attach a "found on" date to a
+ * sale. The database refuses that too; doing it here first means the refusal
+ * never has to happen.
+ */
+export function readTypeExtras(
+  type: ListingType,
+  formData: FormData,
+  now: Date = new Date(),
+): { extras: TypeExtras } | { fieldErrors: Record<string, string> } {
+  const text = (name: string) => String(formData.get(name) ?? "").trim();
+  const errors: Record<string, string> = {};
+  const extras: TypeExtras = {
+    rent_max_days: null,
+    found_on: null,
+    event_name: null,
+    event_date: null,
+    tags: [],
+  };
+
+  const today = campusDate(now);
+
+  if (type === "rent") {
+    const days = Number(text("rentMaxDays"));
+
+    if (!/^\d+$/.test(text("rentMaxDays")) || days < 1 || days > RENT_MAX_DAYS) {
+      errors.rentMaxDays = `Enter how many days it can be rented for, from 1 to ${RENT_MAX_DAYS}.`;
+    } else {
+      extras.rent_max_days = days;
+    }
+  }
+
+  if (type === "lost_found") {
+    const foundOn = realDate(text("foundOn"));
+
+    if (!foundOn) {
+      errors.foundOn = "Choose the day you found it.";
+    } else if (foundOn > today) {
+      errors.foundOn = "That day has not happened yet.";
+    } else if (foundOn < campusDatePlusDays(now, -90)) {
+      errors.foundOn = "Choose a day within the last 90 days.";
+    } else {
+      extras.found_on = foundOn;
+    }
+  }
+
+  if (type === "skill_offer" || type === "team_request") {
+    const parsedTags = parseTags(text("tags"));
+
+    if ("error" in parsedTags) {
+      errors.tags = parsedTags.error;
+    } else if (parsedTags.tags.length === 0) {
+      errors.tags = "Add at least one skill, separated by commas.";
+    } else {
+      extras.tags = parsedTags.tags;
+    }
+
+    const eventName = text("eventName");
+
+    if (eventName.length > 80) {
+      errors.eventName = "Keep the event name under 80 characters.";
+    } else if (eventName) {
+      extras.event_name = eventName;
+    }
+
+    if (text("eventDate")) {
+      const eventDate = realDate(text("eventDate"));
+
+      if (!eventDate) {
+        errors.eventDate = "That is not a real date.";
+      } else if (eventDate < today) {
+        errors.eventDate = "That date has already passed.";
+      } else {
+        extras.event_date = eventDate;
+      }
+    }
+  }
+
+  return Object.keys(errors).length > 0 ? { fieldErrors: errors } : { extras };
+}

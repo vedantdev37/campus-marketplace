@@ -30,6 +30,152 @@ export const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
 
 export const STATUSES = ["available", "sold"] as const;
 
+/**
+ * The six kinds of post. Must match the `listings_type_known` CHECK in
+ * migration 0010. They share one table, one card, one detail page and one
+ * chat; what differs is collected in TYPE_INFO below.
+ */
+export const LISTING_TYPES = [
+  "sale",
+  "rent",
+  "free",
+  "lost_found",
+  "skill_offer",
+  "team_request",
+] as const;
+
+export type ListingType = (typeof LISTING_TYPES)[number];
+
+export function isListingType(value: unknown): value is ListingType {
+  return typeof value === "string" && (LISTING_TYPES as readonly string[]).includes(value);
+}
+
+/**
+ * Everything that varies by type, in one place.
+ *
+ * `closed` is the label for the one stored end state, `status = 'sold'`. A
+ * rental that is out, a found item that was claimed and a team that is full
+ * are the same state under different names (migration 0010 explains why the
+ * status column was not extended).
+ *
+ * `action` is the button on someone else's post. Every one of them opens a
+ * chat with `opener` already typed: nothing is booked, reserved or paid for
+ * through this site, and no label says otherwise.
+ */
+export const TYPE_INFO: Record<
+  ListingType,
+  {
+    /** The word on the badge. Always shown, so type never depends on colour. */
+    badge: string;
+    /** The tile on the Post page. */
+    post: string;
+    postHint: string;
+    closed: string;
+    closeVerb: string;
+    reopenVerb: string;
+    action: string;
+    opener: string;
+    /** Is it a physical thing, with a category and a condition? */
+    isItem: boolean;
+    hasPrice: boolean;
+    photoRequired: boolean;
+  }
+> = {
+  sale: {
+    badge: "Sale",
+    post: "Sell it",
+    postHint: "Books, calculators, hostel gear",
+    closed: "Sold",
+    closeVerb: "Mark as sold",
+    reopenVerb: "Mark as available",
+    action: "Ask seller",
+    opener: "Hi! Is this still available?",
+    isItem: true,
+    hasPrice: true,
+    photoRequired: true,
+  },
+  rent: {
+    badge: "Rent",
+    post: "Rent it out",
+    postHint: "Per day, for a drafter or a lab coat",
+    closed: "Rented out",
+    closeVerb: "Mark as rented out",
+    reopenVerb: "Mark as returned",
+    action: "Rent it",
+    opener: "Hi! I would like to rent this. Is it free this week?",
+    isItem: true,
+    hasPrice: true,
+    photoRequired: true,
+  },
+  free: {
+    badge: "Free",
+    post: "Give it away",
+    postHint: "No money, just a good home",
+    closed: "Claimed",
+    closeVerb: "Mark as claimed",
+    reopenVerb: "Mark as available",
+    action: "Claim it",
+    opener: "Hi! Is this still up for grabs? I can collect it.",
+    isItem: true,
+    hasPrice: false,
+    photoRequired: true,
+  },
+  lost_found: {
+    badge: "Lost & Found",
+    post: "Found something",
+    postHint: "Help it get back to its owner",
+    closed: "Claimed",
+    closeVerb: "Mark as returned to owner",
+    reopenVerb: "Mark as still unclaimed",
+    action: "That's mine",
+    opener: "Hi! I think this is mine. I can describe it to prove it.",
+    isItem: false,
+    hasPrice: false,
+    photoRequired: true,
+  },
+  skill_offer: {
+    badge: "Skill",
+    post: "Offer a skill",
+    postHint: "Editing, design, tutoring, code",
+    closed: "Not available",
+    closeVerb: "Mark as not available",
+    reopenVerb: "Mark as available",
+    action: "Hire",
+    opener: "Hi! I am interested in this. Can we talk about what I need?",
+    isItem: false,
+    hasPrice: false,
+    photoRequired: false,
+  },
+  team_request: {
+    badge: "Team",
+    post: "Find teammates",
+    postHint: "For a hackathon, a fest, a project",
+    closed: "Team full",
+    closeVerb: "Mark team as full",
+    reopenVerb: "Reopen",
+    action: "I'm in",
+    opener: "Hi! I am interested in joining. Here is what I can do:",
+    isItem: false,
+    hasPrice: false,
+    photoRequired: false,
+  },
+};
+
+/** Explore tabs. "Squad up" shows two types together. */
+export const EXPLORE_TABS = [
+  { key: "buy", label: "Buy", types: ["sale"] },
+  { key: "rent", label: "Rent", types: ["rent"] },
+  { key: "free", label: "Free", types: ["free"] },
+  { key: "squad", label: "Squad up", types: ["skill_offer", "team_request"] },
+  { key: "found", label: "Lost & Found", types: ["lost_found"] },
+] as const satisfies readonly { key: string; label: string; types: readonly ListingType[] }[];
+
+export type ExploreTab = (typeof EXPLORE_TABS)[number]["key"];
+
+/** Must match the tag rule in migration 0010. */
+export const MAX_TAGS = 8;
+export const RENT_MAX_DAYS = 30;
+
 export type ListingCategory = (typeof CATEGORIES)[number];
 export type ItemCondition = (typeof CONDITIONS)[number];
 export type ListingStatus = (typeof STATUSES)[number];
@@ -115,6 +261,12 @@ export type PickupSpot = {
 export type ListingRow = {
   id: string;
   seller_id: string;
+  type: ListingType;
+  rent_max_days: number | null;
+  found_on: string | null;
+  event_name: string | null;
+  event_date: string | null;
+  tags: string[];
   title: string;
   description: string;
   price: number;
@@ -142,6 +294,10 @@ export type Listing = ListingRow & {
 
 /** Browse filters. Every field optional - absent means "no constraint". */
 export type ListingFilters = {
+  /** Which kinds of post. Absent means sales, the original behaviour. */
+  types?: readonly ListingType[];
+  /** A skill tag, for Squad up. */
+  tag?: string;
   search?: string;
   category?: ListingCategory;
   condition?: ItemCondition;

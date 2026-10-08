@@ -1,4 +1,4 @@
-import type { ListingStatus } from "@/lib/types/listing";
+import type { ListingStatus, ListingType } from "@/lib/types/listing";
 
 /**
  * Row shapes for chat and meetups (migration 0008), hand-written for the same
@@ -59,6 +59,7 @@ export type Conversation = {
     id: string;
     title: string;
     price: number;
+    type: ListingType;
     status: ListingStatus;
     image_path: string | null;
     pickup_spot_id: string | null;
@@ -73,6 +74,7 @@ export type InboxRow = {
   listing_id: string;
   listing_title: string;
   listing_price: number;
+  listing_type: ListingType;
   listing_status: ListingStatus;
   listing_image_path: string | null;
   other_id: string;
