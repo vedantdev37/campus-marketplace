@@ -6,15 +6,17 @@ import { notFound } from "next/navigation";
 import { AskSeller } from "@/components/chat/ask-seller";
 import { MessagesLiveRefresh } from "@/components/chat/messages-live-refresh";
 import { ConditionSummary } from "@/components/listings/condition-summary";
+import { TypeBadge } from "@/components/listings/listing-card";
 import { ListingLiveRefresh } from "@/components/listings/listing-live-refresh";
 import { OwnerActions } from "@/components/listings/owner-actions";
 import { requireSessionUser } from "@/lib/auth";
-import { formatCampusDateTime } from "@/lib/campus-time";
 import { getInbox, getListingChat } from "@/lib/chat";
 import { getListing } from "@/lib/listings";
+import { formatCampusDateTime, formatCampusDay } from "@/lib/campus-time";
+import { closedLabel, priceLine, TYPE_BADGE_CLASS } from "@/lib/listing-display";
 import { fairPriceHint, formatPrice } from "@/lib/pricing";
 import { listingImageUrl } from "@/lib/storage";
-import { CATEGORY_LABELS, CONDITION_LABELS } from "@/lib/types/listing";
+import { CATEGORY_LABELS, CONDITION_LABELS, TYPE_INFO } from "@/lib/types/listing";
 import { isUuid } from "@/lib/uuid";
 
 export const metadata: Metadata = {
@@ -56,7 +58,16 @@ export default async function ListingDetailPage({
   const isOwner = listing.seller_id === user.id;
   const isSold = listing.status === "sold";
   const imageUrl = listingImageUrl(listing.image_path);
-  const hint = fairPriceHint(listing.price, listing.original_price, listing.condition);
+  const info = TYPE_INFO[listing.type];
+  const closed = closedLabel(listing.type);
+  const isSale = listing.type === "sale";
+  const isSquad = listing.type === "skill_offer" || listing.type === "team_request";
+
+  // The fair-price guide compares an asking price with a price when new, so it
+  // only means something for a sale.
+  const hint = isSale
+    ? fairPriceHint(listing.price, listing.original_price, listing.condition)
+    : null;
 
   // Chat, as far as this viewer is concerned. RLS returns a buyer their own
   // conversation about this listing and its seller every one of them, so the
@@ -72,27 +83,33 @@ export default async function ListingDetailPage({
 
   // The facts a buyer scans for first, as chips under the title.
   const facts = [
-    `${CONDITION_LABELS[listing.condition]} condition`,
+    info.isItem ? `${CONDITION_LABELS[listing.condition]} condition` : null,
+    listing.found_on ? `Found ${formatCampusDay(`${listing.found_on}T12:00:00+05:30`)}` : null,
+    listing.event_name,
+    listing.event_date ? formatCampusDay(`${listing.event_date}T12:00:00+05:30`) : null,
     listing.course_code,
     listing.semester ? `Semester ${listing.semester}` : null,
-    listing.pickup_spot ? `Pickup: ${listing.pickup_spot.name}` : null,
+    // A found item already says where in its headline; saying it again as a
+    // chip put the same place on a phone screen three times.
+    listing.pickup_spot && listing.type !== "lost_found" ? `Pickup: ${listing.pickup_spot.name}` : null,
+    ...(isSquad ? listing.tags : []),
   ].filter((fact): fact is string => Boolean(fact));
 
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col bg-canvas text-ink">
       {/* Re-fetches this page when the listing changes, so a buyer looking at
           it sees it become sold without refreshing. */}
-      <ListingLiveRefresh listingId={listing.id} />
+      <ListingLiveRefresh listingId={listing.id} closedLabel={closed} />
       {/* And when a message arrives: accepting a meetup posts one, so the
           agreed time appears here for the other person without a refresh. */}
       <MessagesLiveRefresh />
 
       <div className="px-4 py-6 md:px-6 md:py-8">
         <Link
-          href="/listings"
+          href="/explore"
           className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline"
         >
-          ← Back to browse
+          ← Back to Explore
         </Link>
 
         {/* A product page: the photo takes the width it can, and the price
@@ -100,7 +117,14 @@ export default async function ListingDetailPage({
             One column on a phone, in reading order. */}
         <div className="mt-3 grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_380px] md:gap-10">
           <div className="min-w-0">
-            <div className="relative aspect-4/3 w-full overflow-hidden rounded-[20px] bg-surface-soft">
+            <div
+              className={[
+                "relative w-full overflow-hidden rounded-[20px] bg-surface-soft",
+                // A post with no photo gets a shallow band, not a large empty
+                // frame where a picture would be.
+                imageUrl ? "aspect-4/3" : "aspect-[3/1]",
+              ].join(" ")}
+            >
               {imageUrl ? (
                 <Image
                   src={imageUrl}
@@ -117,8 +141,16 @@ export default async function ListingDetailPage({
                   ].join(" ")}
                 />
               ) : (
-                <div className="flex h-full items-center justify-center text-sm text-ink-muted">
-                  No photo
+                // The kind of post, large, in its badge colour. The skills
+                // are listed as chips just below, so they are not repeated.
+                <div
+                  aria-hidden="true"
+                  className={[
+                    "title-card flex h-full items-center justify-center text-[44px] text-white md:text-[72px]",
+                    isSold ? "bg-[#6b6976]" : TYPE_BADGE_CLASS[listing.type],
+                  ].join(" ")}
+                >
+                  {isSold ? null : info.badge}
                 </div>
               )}
 
@@ -126,19 +158,39 @@ export default async function ListingDetailPage({
                 // The status is announced by the price card's role="status";
                 // this stamp is the same fact for the eye.
                 <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-black/35">
-                  <span className="title-card -rotate-6 border-[3px] border-on-accent bg-accent px-5 pt-2 pb-1 text-[56px] text-on-accent md:text-[84px]">
-                    Sold
+                  <span
+                    className={[
+                      "title-card -rotate-6 border-[3px] px-5 pt-2 pb-1 text-center",
+                      isSale
+                        ? "border-on-accent bg-accent text-[56px] text-on-accent md:text-[84px]"
+                        : "border-white bg-[#12111c] text-[36px] text-white md:text-[56px]",
+                    ].join(" ")}
+                  >
+                    {closed}
+                    {isSale ? (
+                      <span className="block font-sans text-sm font-bold tracking-[0.14em] normal-case">
+                        Mission passed
+                      </span>
+                    ) : null}
                   </span>
                 </span>
               ) : null}
             </div>
 
-            <p className="mt-6 text-sm font-semibold tracking-[0.14em] text-indigo-text uppercase">
-              {CATEGORY_LABELS[listing.category]}
+            <p className="mt-6 flex items-center gap-3 text-sm font-semibold tracking-[0.14em] text-indigo-text uppercase">
+              <TypeBadge type={listing.type} />
+              {info.isItem ? CATEGORY_LABELS[listing.category] : null}
             </p>
             <h1 className="mt-2 text-[28px] leading-tight font-extrabold md:text-[40px]">
               {listing.title}
             </h1>
+
+            {listing.type === "lost_found" ? (
+              <p className="mt-4 rounded-lg bg-surface-soft px-4 py-3 text-sm text-ink-body">
+                Posted by a student. This is not the college&rsquo;s official lost and found. If
+                it is yours, say so in chat and describe something the photo does not show.
+              </p>
+            ) : null}
 
             <ul aria-label="Key facts" className="mt-4 flex flex-wrap gap-2">
               {facts.map((fact) => (
@@ -158,8 +210,13 @@ export default async function ListingDetailPage({
             <ConditionSummary category={listing.category} checks={listing.condition_checks} />
 
             <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-hairline pt-6 text-base">
-              <Detail label="Seller" value={listing.seller?.full_name ?? "A student"} />
-              <Detail label="Pickup" value={listing.pickup_spot?.name ?? "To be arranged"} />
+              <Detail label="Posted by" value={listing.seller?.full_name ?? "A student"} />
+              {isSquad ? null : (
+                <Detail
+                  label={listing.type === "lost_found" ? "Found at" : "Pickup"}
+                  value={listing.pickup_spot?.name ?? "To be arranged"}
+                />
+              )}
               {listing.book_author ? <Detail label="Author" value={listing.book_author} /> : null}
               {listing.isbn ? <Detail label="ISBN" value={listing.isbn} /> : null}
             </dl>
@@ -170,17 +227,31 @@ export default async function ListingDetailPage({
               {/* Always in the DOM so a screen reader announces the change when
                   the listing sells while the page is open. */}
               <p role="status" className={isSold ? "mb-3 text-base font-semibold" : "sr-only"}>
-                {isSold ? "This item has been sold." : ""}
+                {isSold ? `${closed}.` : ""}
               </p>
 
               {/* The loudest thing on the page after the photo. Yellow on the
                   dark theme, ink on the light one, where yellow text would be
                   unreadable. */}
-              <p className="text-[56px] leading-none font-extrabold tabular-nums">
+              <p
+                className={[
+                  "leading-none font-extrabold tabular-nums",
+                  // A price is a number and can be huge. "Found at Central
+                  // Library" is a sentence and cannot.
+                  info.hasPrice || listing.type === "free" ? "text-[56px]" : "text-[30px] leading-tight",
+                ].join(" ")}
+              >
                 <span className={isSold ? "text-ink-muted line-through" : "text-price"}>
-                  {formatPrice(listing.price)}
+                  {priceLine(listing)}
                 </span>
               </p>
+
+              {listing.type === "rent" && listing.rent_max_days ? (
+                <p className="mt-3 text-sm text-ink-muted">
+                  For up to {listing.rent_max_days} {listing.rent_max_days === 1 ? "day" : "days"}.
+                  Agree any deposit in chat.
+                </p>
+              ) : null}
 
               {listing.original_price ? (
                 <p className="mt-3 text-sm text-ink-muted">
@@ -231,7 +302,7 @@ export default async function ListingDetailPage({
                     </li>
                   ))}
                 </ul>
-              ) : isSold ? null : (
+              ) : isSold || isSquad ? null : (
                 <p className="mt-4 text-sm text-ink-body">
                   Meet at{" "}
                   <span className="font-semibold text-ink">
@@ -251,7 +322,12 @@ export default async function ListingDetailPage({
               </Link>
             ) : isSold ? null : (
               <div id="ask">
-                <AskSeller listingId={listing.id} sellerName={sellerName} />
+                <AskSeller
+                  listingId={listing.id}
+                  sellerName={sellerName}
+                  action={info.action}
+                  opener={info.opener}
+                />
               </div>
             )}
 
@@ -262,6 +338,7 @@ export default async function ListingDetailPage({
               // the protection. See scripts/verify-rls.mjs.
               <OwnerActions
                 listingId={listing.id}
+                type={listing.type}
                 status={listing.status}
                 conversationCount={chat.conversationIds.length}
                 unreadCount={unread}
@@ -276,18 +353,23 @@ export default async function ListingDetailPage({
           the screen only while this page's content is on it, and the site
           footer then scrolls into view beneath it instead of being covered. */}
       {!isOwner && (chatHref || !isSold) ? (
-        <div className="sticky bottom-0 z-30 mt-auto border-t border-hairline bg-canvas px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+        <div
+          // Tells the tab bar to stand down on this page (globals.css): two
+          // bars stacked at the bottom of a phone leave little room to read.
+          data-bottom-bar
+          className="sticky bottom-0 z-30 mt-auto border-t border-hairline bg-canvas px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
+        >
           <div className="flex items-center gap-3">
-            <p className="text-[22px] leading-none font-extrabold tabular-nums">
+            <p className="min-w-0 truncate text-[20px] leading-none font-extrabold tabular-nums">
               <span className={isSold ? "text-ink-muted line-through" : "text-price"}>
-                {formatPrice(listing.price)}
+                {priceLine(listing)}
               </span>
             </p>
             <Link
               href={chatHref ?? "#ask"}
-              className="ml-auto flex h-12 items-center justify-center rounded-lg bg-accent px-5 text-base font-semibold text-on-accent hover:bg-accent-active"
+              className="ml-auto flex h-12 shrink-0 items-center justify-center rounded-lg bg-accent px-5 text-base font-semibold whitespace-nowrap text-on-accent hover:bg-accent-active"
             >
-              {chatHref ? "Open chat" : "Ask the seller"}
+              {chatHref ? "Open chat" : info.action}
             </Link>
           </div>
         </div>

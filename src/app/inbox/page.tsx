@@ -7,7 +7,7 @@ import { UnreadPill } from "@/components/chat/unread";
 import { requireSessionUser } from "@/lib/auth";
 import { campusDate, formatCampusDay, formatCampusTime } from "@/lib/campus-time";
 import { getInbox } from "@/lib/chat";
-import { formatPrice } from "@/lib/pricing";
+import { closedLabel, shortPriceLine } from "@/lib/listing-display";
 import { listingImageUrl } from "@/lib/storage";
 import type { InboxRow } from "@/lib/types/chat";
 import { isUuid } from "@/lib/uuid";
@@ -69,7 +69,7 @@ export default async function InboxPage({
             will turn up here.
           </p>
           <Link
-            href="/listings"
+            href="/explore"
             className="mt-6 inline-flex h-12 items-center rounded-lg bg-accent px-6 text-base font-medium text-on-accent hover:bg-accent-active"
           >
             Browse listings
@@ -115,8 +115,10 @@ export default async function InboxPage({
 
                     <p className="truncate text-sm text-ink-muted">
                       {/* Sold is said in words, as everywhere else. */}
-                      {isSold ? <span className="font-semibold text-ink">Sold · </span> : null}
-                      {row.listing_title} · {formatPrice(row.listing_price)}
+                      {isSold ? (
+                        <span className="font-semibold text-ink">{closedLabel(row.listing_type)} · </span>
+                      ) : null}
+                      {row.listing_title} · {shortPriceLine(row.listing_type, row.listing_price)}
                       {row.i_am_seller ? " · your listing" : ""}
                     </p>
 

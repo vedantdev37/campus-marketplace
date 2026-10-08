@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { ListingCard } from "@/components/listings/listing-card";
+import { closedLabel } from "@/lib/listing-display";
 import type { Listing } from "@/lib/types/listing";
 import { useListingChanges } from "@/lib/use-listing-changes";
 
@@ -58,7 +59,7 @@ export function LiveListingGrid({ listings }: { listings: Listing[] }) {
 
       setSoldIds((previous) => new Set(previous).add(soldId));
       // The title comes from data this page already rendered, not the event.
-      setAnnouncement(`${shown.title} was just sold.`);
+      setAnnouncement(`${shown.title} was just marked: ${closedLabel(shown.type).toLowerCase()}.`);
       return;
     }
 

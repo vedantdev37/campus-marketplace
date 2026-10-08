@@ -11,7 +11,7 @@ import {
 import { UnreadPill } from "@/components/chat/unread";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
-import type { ListingStatus } from "@/lib/types/listing";
+import { TYPE_INFO, type ListingStatus, type ListingType } from "@/lib/types/listing";
 
 const INITIAL_STATE: OwnerActionState = {};
 
@@ -25,17 +25,21 @@ const INITIAL_STATE: OwnerActionState = {};
  */
 export function OwnerActions({
   listingId,
+  type,
   status,
   conversationCount,
   unreadCount,
 }: {
   listingId: string;
+  /** Decides the wording: mark as sold, rented out, claimed, team full. */
+  type: ListingType;
   status: ListingStatus;
   /** How many buyers have asked about this listing. */
   conversationCount: number;
   unreadCount: number;
 }) {
   const isSold = status === "sold";
+  const info = TYPE_INFO[type];
 
   const [statusState, submitStatus] = useActionState(setListingStatusAction, INITIAL_STATE);
   const [deleteState, submitDelete, isDeleting] = useActionState(
@@ -51,8 +55,8 @@ export function OwnerActions({
     // with it (ON DELETE CASCADE), for the buyers too, so the prompt says so.
     const question =
       conversationCount > 0
-        ? "Delete this listing? Its conversations and any meetup will be deleted too, for you and the buyers. This cannot be undone."
-        : "Delete this listing? This cannot be undone.";
+        ? "Delete this post? Its conversations and any meetup will be deleted too, for you and the people you were talking to. This cannot be undone."
+        : "Delete this post? This cannot be undone.";
 
     if (!window.confirm(question)) {
       event.preventDefault();
@@ -61,7 +65,7 @@ export function OwnerActions({
 
   return (
     <div className="mt-4 rounded-[14px] border border-hairline p-6">
-      <p className="text-base font-semibold text-ink">You own this listing</p>
+      <p className="text-base font-semibold text-ink">This is your post</p>
       <p className="mt-0.5 text-sm text-ink-muted">
         Only you can see these controls, and only you can perform them.
       </p>
@@ -72,7 +76,11 @@ export function OwnerActions({
         </div>
       ) : isSold ? (
         <div className="mt-3">
-          <Alert tone="success">SAVED! Off your shelf, into someone&rsquo;s bag.</Alert>
+          <Alert tone="success">
+            {type === "sale"
+              ? "SAVED! Off your shelf, into someone’s bag."
+              : `Marked: ${info.closed.toLowerCase()}. New messages about it are closed.`}
+          </Alert>
         </div>
       ) : null}
 
@@ -86,7 +94,7 @@ export function OwnerActions({
             <UnreadPill count={unreadCount} />
           </Link>
         ) : (
-          <p className="text-sm text-ink-muted">Nobody has asked about this item yet.</p>
+          <p className="text-sm text-ink-muted">Nobody has messaged you about this yet.</p>
         )}
 
         <Link
@@ -99,8 +107,8 @@ export function OwnerActions({
         <form action={submitStatus}>
           <input type="hidden" name="id" value={listingId} />
           <input type="hidden" name="status" value={isSold ? "available" : "sold"} />
-          <SubmitButton pendingLabel={isSold ? "Relisting…" : "Marking sold…"}>
-            {isSold ? "Mark as available" : "Mark as sold"}
+          <SubmitButton pendingLabel="Saving…">
+            {isSold ? info.reopenVerb : info.closeVerb}
           </SubmitButton>
         </form>
 

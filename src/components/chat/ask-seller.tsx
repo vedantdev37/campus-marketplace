@@ -17,7 +17,19 @@ const INITIAL_STATE: AskSellerState = {};
  * never fills with empty threads from people who opened a chat and typed
  * nothing. On success the action redirects into the conversation.
  */
-export function AskSeller({ listingId, sellerName }: { listingId: string; sellerName: string }) {
+export function AskSeller({
+  listingId,
+  sellerName,
+  action,
+  opener,
+}: {
+  listingId: string;
+  sellerName: string;
+  /** The button's label for this kind of post: Ask seller, Rent it, I'm in... */
+  action: string;
+  /** What the message box starts with. The sender can change every word. */
+  opener: string;
+}) {
   const [state, submit] = useActionState(startConversationAction, INITIAL_STATE);
   const fieldError = state.fieldErrors?.body;
 
@@ -26,7 +38,7 @@ export function AskSeller({ listingId, sellerName }: { listingId: string; seller
       <input type="hidden" name="listingId" value={listingId} />
 
       <label htmlFor="ask-body" className="text-base font-semibold text-ink">
-        Ask {sellerName} about this item
+        Message {sellerName}
       </label>
 
       <textarea
@@ -37,7 +49,7 @@ export function AskSeller({ listingId, sellerName }: { listingId: string; seller
         maxLength={MESSAGE_MAX_LENGTH}
         // React resets a form after its action runs. Handing back what was
         // typed means a failed send does not also throw the message away.
-        defaultValue={state.body ?? "Hi! Is this still available?"}
+        defaultValue={state.body ?? opener}
         aria-invalid={fieldError ? true : undefined}
         aria-describedby={fieldError ? "ask-body-error" : undefined}
         className={`${INPUT_CLASS} mt-3 resize-none ${fieldError ? "border-error" : "border-control-border"}`}
@@ -56,11 +68,12 @@ export function AskSeller({ listingId, sellerName }: { listingId: string; seller
       ) : null}
 
       <div className="mt-3">
-        <SubmitButton pendingLabel="Sending…">Ask about this item</SubmitButton>
+        <SubmitButton pendingLabel="Sending…">{action}</SubmitButton>
       </div>
 
       <p className="mt-2 text-xs text-ink-muted">
-        Only you and the seller can read this conversation.
+        This opens a private chat. Nothing is booked or paid for here: you agree the rest
+        between you.
       </p>
     </form>
   );

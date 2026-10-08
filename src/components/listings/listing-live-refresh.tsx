@@ -16,7 +16,14 @@ import { useListingChanges } from "@/lib/use-listing-changes";
  * The one thing it adds itself is a screen-reader announcement, because a
  * banner appearing silently is invisible to someone not looking at the screen.
  */
-export function ListingLiveRefresh({ listingId }: { listingId?: string }) {
+export function ListingLiveRefresh({
+  listingId,
+  closedLabel = "Sold",
+}: {
+  listingId?: string;
+  /** What "finished" is called for this kind of post: Sold, Rented out, Claimed... */
+  closedLabel?: string;
+}) {
   const router = useRouter();
   const [announcement, setAnnouncement] = useState("");
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,11 +38,11 @@ export function ListingLiveRefresh({ listingId }: { listingId?: string }) {
 
   useListingChanges((change) => {
     if (listingId && change.type === "UPDATE" && change.status === "sold") {
-      setAnnouncement("This item was just sold.");
+      setAnnouncement(`This post was just marked: ${closedLabel.toLowerCase()}.`);
     }
 
     if (listingId && change.type === "DELETE") {
-      setAnnouncement("This listing was just removed.");
+      setAnnouncement("This post was just removed.");
     }
 
     if (refreshTimer.current) {
