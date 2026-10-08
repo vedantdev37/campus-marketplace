@@ -29,7 +29,8 @@ updated after Phase 5b (chat and meetups).
 | 5c | "After dark" redesign, rename to Nitte Mart, five-scene home, `/security` | Done; migration 0009 |
 | 5d-A | Six post types, Explore, Post, Me, polaroid cards, tab bar | Done; migration 0010 applied |
 | 5d-B | Profiles, Squad up, chat quick replies and typing, showcase profile | Done; no migration |
-| 6 | Docs, diagrams, write-up, video, final review | **Not started** |
+| 5d-C | Deal meter, wishlist and sold alerts, notifications, languages, commentary | Done; migration 0011 (security fixes) applied |
+| 6 | Docs, diagrams, write-up, video, final review | In progress |
 
 Supabase dashboard settings already made: "Before User Created" hook enabled
 (`hook_restrict_signup_by_email_domain`); email confirmation OFF (demo only).
@@ -40,9 +41,10 @@ Vercel env vars set, including `GOOGLE_BOOKS_API_KEY`.
 ```bash
 npm run dev            # dev server
 npm run build && npm run start   # production build - test against THIS, not dev
-npm run verify:rls     # 61 checks; must stay 61/61 (run reseed:demo first). Writes
+npm run verify:rls     # 66 checks; must stay 66/66 (run reseed:demo first). Writes
                        # src/lib/security-run.json, which the site displays: commit it.
 npm run reseed:demo    # wipe + recreate demo listings with images; run before submitting
+npm run test:deal      # the deal meter's arithmetic, 9 checks
 ```
 
 Demo accounts: `seller@reviewer.test`, `buyer@reviewer.test`, and
@@ -120,7 +122,20 @@ Reviewers can sign up with any `@reviewer.test` address.
   or written that way. Locking it needs a Realtime authorisation policy (a migration).
 - **Reseed resets profiles too**, and re-uploads the showcase photo: clearing a Storage
   folder while a row still points into it leaves a broken image.
-- **Dropped from scope**: wishlist UI, push. The `wishlist_items` table exists with no UI.
+- **The deal meter is one function with no imports** (`src/lib/deal-meter.ts`), so
+  `npm run test:deal` can load it directly. Fair = MRP x condition x category. No MRP,
+  no verdict. The factors are judgement, and the page says so.
+- **A listing's `created_at` and `sold_at` are set by triggers** (0011). Before that an
+  owner could forge them through the API and pin a post to the top of the public home
+  page. The final security review found it.
+- **Saved posts** use the original `wishlist_items` table and policies. The "saved item
+  just sold" alert matches a listings Realtime event against ids read under RLS.
+- **Browser notifications are not push.** They need an open tab. Permission is asked only
+  after the user presses the Settings row. Real push needs a service worker, stored
+  subscriptions and a sender.
+- **Hinglish and Kanglish change the headline lines only** (`src/lib/i18n.ts`), via a
+  `lang` cookie read on the server. Nav, forms and errors stay English.
+- **Dropped from scope**: push.
 
 ## Gotchas
 

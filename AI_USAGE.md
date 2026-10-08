@@ -1173,6 +1173,97 @@ the author; the two posts' wording is AI's, from the titles the author gave.
 
 ---
 
+## Phase 5d, Batch C — Deal meter, wishlist, notifications, languages, commentary
+
+**Asked for**
+
+> "Hindi / Kannada toggle … Show me all translated lines before shipping. GTA-style
+> loading tips … DevTools easter egg … Director's commentary … Show me the draft
+> before publishing."
+
+then, after seeing the drafts:
+
+> "not Devanagari or Kannada script. Use romanised Hinglish and Kanglish … Nav
+> labels stay English … Commentary: approved. … Wishlist: a ♡ save button … When
+> a saved item sells, show 'Your saved item just sold' (realtime). … Browser
+> notifications: with permission (asked only after a clear in-app prompt, never
+> on page load) … Document honestly that this is not full push … Deal meter …
+> 'Steal deal' · 'Fair price' · 'Bit high' · 'Overpriced', with the word always
+> visible, never colour alone. … Keep the formula simple and in one tested
+> function."
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `src/lib/deal-meter.ts`, `scripts/test-deal-meter.mjs` | The formula, and nine assertions on it |
+| `src/lib/wishlist.ts`, `src/app/saved/actions.ts`, `save-button.tsx` | Saved posts on the existing table and policies |
+| `components/layout/live-alerts.tsx`, `notifications-toggle.tsx`, `src/lib/browser-notify.ts` | The saved-item-sold alert and background-tab notifications |
+| `src/lib/i18n.ts`, `language.ts`, `language-toggle.tsx` | English, Hinglish, Kanglish headline lines |
+| `src/app/commentary/page.tsx` | Six entries; the wording was drafted by AI and approved by the author |
+| `components/ui/loading-tip.tsx`, `components/layout/console-egg.tsx` | Loading tips; the console greeting and `credits()` |
+| `supabase/migrations/0011_hardening.sql`, `src/lib/navigation.ts` | Fixes from the security review |
+
+**What the reviewers and QA found (AI reviewing AI)**
+
+- *Security review (a read-only agent over the whole project):* no high-severity
+  finding and one real medium one. **An owner could set `created_at` or
+  `sold_at` on their own post through the API**, pinning it to the top of
+  Explore and of the public home page. The table grant had always allowed it;
+  it only became worth exploiting once the home page was ordered by those
+  columns. Fixed with triggers in 0011, and two new `verify:rls` checks. Three
+  lower-confidence items were fixed as well: a control character slipping past
+  the redirect guard, leftover default privileges on three tables, and photo
+  paths containing `..`.
+- *QA agent:* eleven scenarios, all passed. It recomputed the deal meter for
+  four seeded listings by hand and each matched. It confirmed the browser
+  permission prompt is requested zero times on page load and exactly once on
+  the button. Five low-severity defects, four fixed: condition called "Fair"
+  in one place and "used" in another; the explanation omitted one category;
+  prices not lining up across a row of cards; a 32 px wide nav link. Left: an
+  off-screen heading that stays in English.
+
+**AI mistakes in this phase**
+
+- The first Hindi and Kannada drafts were in native script, which the author
+  did not want. AI had not asked.
+- The first condition factors did not reproduce the worked example in the
+  author's own brief (MRP 600, used, fair about 330). AI noticed when writing
+  the test for it and changed the factors to match.
+- A QA agent printed a demo account's session cookie into its own tool output.
+  No password was printed. The demo passwords are rotated in the final phase.
+- AI cannot check the Kanglish. It says so in the code and said so to the author.
+
+**Verified by testing** (production build)
+
+- `npm run verify:rls`: 66 of 66 after migration 0011.
+- `npm run test:deal`: 9 of 9.
+- QA agent, scenarios A-K at 1280 px and 390 px: deal meter on cards, detail
+  page and form; saving and unsaving; the sold alert reaching a saver on a
+  different page within about four seconds and not reaching a third user;
+  notifications in a hidden tab and not in a visible one; all three languages;
+  the commentary page signed out; four of five loading tips; the console
+  greeting.
+
+**Not verified**
+
+- The four fixes after QA were checked by type-check and build only.
+- Browser notifications on a real phone. Some mobile browsers allow
+  notifications only from a service worker, in which case the on-page alert is
+  all there is.
+- The loading tip on the listing page was not seen live.
+- Whether the Hinglish and Kanglish read naturally to a native speaker.
+
+**Author changed / verified**
+
+- Chose romanised Hinglish and Kanglish over native script, approved the
+  commentary and wrote its intro, and specified the deal meter's labels and
+  rules. Applied migration 0011.
+- _Reading the Hinglish and Kanglish lines: **pending**._
+- _Code review of the above files: **pending author review**._
+
+---
+
 ## Skills used
 
 Agent skills installed in this repository under `.claude/skills/`, and where

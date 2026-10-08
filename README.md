@@ -43,7 +43,7 @@ npm run verify:rls
 
 attacks the public API directly: as a signed-in non-owner against listings,
 and as a third account against a conversation between the buyer and the
-seller. It makes 61 assertions. Most are things that must be refused - a
+seller. It makes 66 assertions. Most are things that must be refused - a
 price change, a forged message sender, reading someone else's chat, accepting
 your own meetup proposal - and three confirm the public home page receives
 only what a listing card shows. The result of each run is written to
