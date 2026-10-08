@@ -100,16 +100,20 @@ for (const [name, account] of [
  * `image` describes the placeholder photo to draw (see demo-images.mjs).
  * `condition_checks` uses the keys allowed for the listing's category; the
  * database trigger from migration 0006 rejects any that do not belong.
+ *
+ * The descriptions are written the way a student would write them. The course
+ * codes follow the usual scheme-subject-semester pattern and are plausible,
+ * not copied from a real syllabus: replace them with real ones if it matters.
  */
 const SELLER_LISTINGS = [
   {
-    title: "Higher Engineering Mathematics - B.S. Grewal",
+    title: "Grewal - Higher Engineering Mathematics (44th ed.)",
     description:
-      "44th edition. Covers the full first-year syllabus. A few pencil marks in the calculus chapters, nothing torn. Collected it for Maths-II and no longer need it.",
+      "The maths bible. Got me through M1 and M2, with pencil ticks next to the problems that actually show up in the CIEs. No torn pages, spine is fine. Selling because I am finally, finally done with maths. Pick it up from the library.",
     price: 320,
     category: "books",
     condition: "good",
-    course_code: "21MA21",
+    course_code: "22MAT21",
     semester: 2,
     isbn: "9788193328491",
     book_author: "B.S. Grewal",
@@ -125,13 +129,13 @@ const SELLER_LISTINGS = [
     },
   },
   {
-    title: "Data Structures and Algorithms in C++",
+    title: "Data Structures and Algorithms in C++ (Goodrich)",
     description:
-      "Second-hand but barely opened - I ended up using lecture notes instead. No highlighting anywhere. Ideal if you want a reference for the DSA lab.",
+      "Bought in a burst of third-sem motivation, opened maybe four times. Zero highlighting, zero dog-ears. If you want a real reference for the DSA lab instead of last-minute YouTube at 2 am, this is the one.",
     price: 400,
     category: "books",
     condition: "like_new",
-    course_code: "21CS32",
+    course_code: "22CS32",
     semester: 3,
     isbn: "9780132847377",
     book_author: "Michael T. Goodrich",
@@ -149,7 +153,7 @@ const SELLER_LISTINGS = [
   {
     title: "Casio FX-991EX scientific calculator",
     description:
-      "Allowed in exams, all functions working, battery replaced last month. Selling because I bought a graphing one. Comes with the slide cover.",
+      "Exam-legal and every button works. New battery went in last month. It has sat through every internal with me since first year and never once judged my answers. Selling because I got a hand-me-down. Slide cover included.",
     price: 850,
     category: "electronics",
     condition: "good",
@@ -159,9 +163,9 @@ const SELLER_LISTINGS = [
     image: { art: "calculator" },
   },
   {
-    title: "Study table lamp, adjustable neck",
+    title: "Study lamp with desk clamp, adjustable neck",
     description:
-      "Warm white LED, three brightness levels, clamps to a desk edge. Used it through two semesters in the hostel. Clamp and cable both fine.",
+      "Warm white LED, three brightness levels, clamps to the hostel desk so it does not eat your table space. Survived two semesters of night-outs before externals. I am leaving the hostel, so it has to go.",
     price: 450,
     category: "hostel",
     condition: "good",
@@ -169,13 +173,13 @@ const SELLER_LISTINGS = [
     image: { art: "lamp" },
   },
   {
-    title: "Operating Systems handwritten notes, full syllabus",
+    title: "Operating Systems handwritten notes, all 5 modules",
     description:
-      "Complete unit-wise notes with diagrams, the ones I revised from. Spiral bound, all five units, legible handwriting. Scored well off these.",
+      "My full OS notes, module by module, with the diagrams that get drawn on the board and never make it to the slides. Spiral bound, and legible, I promise. These are what I revised from the night before. Photocopy them for your whole bench.",
     price: 150,
     category: "notes",
     condition: "good",
-    course_code: "21CS43",
+    course_code: "22CS44",
     semester: 4,
     pickupSpot: "Central Library",
     image: { art: "notes", title: "Operating Systems" },
@@ -183,7 +187,7 @@ const SELLER_LISTINGS = [
   {
     title: "Lab coat, full sleeve, size M",
     description:
-      "White cotton lab coat used for one semester of chemistry lab. Washed and ironed, all buttons present, both pockets intact. No stains or burn marks.",
+      "White cotton lab coat, worn for one semester of chemistry lab and never again. Washed and ironed, all buttons present, both pockets intact, no stains and no acid burns. Do not pay full price for a new one you will wear twelve times.",
     price: 220,
     category: "lab",
     condition: "like_new",
@@ -195,7 +199,7 @@ const SELLER_LISTINGS = [
   {
     title: "Folding study chair",
     description:
-      "Metal frame with cushioned seat, folds flat for storage. One scuff on a leg, otherwise sturdy. Too bulky to take home at the end of the year.",
+      "Metal frame, cushioned seat, folds flat behind the door. One scuff on a leg, otherwise solid. I cannot carry it home on the train, which is the only reason it is here.",
     price: 700,
     category: "furniture",
     condition: "fair",
@@ -568,7 +572,7 @@ async function main() {
         "start_conversation",
         {
           p_listing_id: chatListing.id,
-          p_body: "Hi! Is the calculator still available? Does it come with the cover?",
+          p_body: "Hey, is the calculator still available? Need it before the internals. Does the cover come with it?",
         },
       );
 
@@ -578,7 +582,7 @@ async function main() {
 
       const { error: replyError } = await sellerClient.from("messages").insert({
         conversation_id: conversationId,
-        body: "Yes, still available, and the slide cover is included. When are you free?",
+        body: "Yep, still here, cover included. I am free after 4 most days. When works for you?",
       });
 
       if (replyError) {
