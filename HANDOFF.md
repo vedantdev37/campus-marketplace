@@ -5,7 +5,10 @@ updated after Phase 5b (chat and meetups).
 
 - **Live:** <https://nmit-campus-marketplace.vercel.app> (Vercel, auto-deploys on push to `main`)
 - **Repo:** <https://github.com/vedantdev37/campus-marketplace> — folder `C:\Users\admin\Documents\campus-marketplace`
-- **Name:** the product is **Campus Marketplace**. Do not rename it. "NMIT" belongs in copy, not the name.
+- **Name:** the product is **Nitte Mart**. The author renamed it from Campus Marketplace
+  in Phase 5c; an earlier version of this file said never to rename it, and that was the
+  author's rule to change. The repository, the folder and the Vercel URL keep the old name.
+  Every page carries "A student project by Vedant Sharma. Not affiliated with NITTE."
 - **Deadline:** GDG NMIT Round 2. Scope is frozen (see "What is left"); the author
   reopened it once, for Phase 5b.
 - **Stack:** Next.js 16.4 App Router, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, RLS, Storage, Realtime), zod 4.
@@ -23,6 +26,7 @@ updated after Phase 5b (chat and meetups).
 | 4 | Realtime sold updates, states audit, condition checklists | Done; migration 0006 applied |
 | 5 | Design pass (DESIGN.md), home page, hero, dark mode | Done; migration 0007 applied |
 | 5b | Listing chat, Inbox, unread counts, meetup booking | Done; migration 0008 applied |
+| 5c | "After dark" redesign, rename to Nitte Mart, five-scene home, `/security` | Done; migration 0009 |
 | 6 | Docs, diagrams, write-up, video, final review | **Not started** |
 
 Supabase dashboard settings already made: "Before User Created" hook enabled
@@ -34,7 +38,8 @@ Vercel env vars set, including `GOOGLE_BOOKS_API_KEY`.
 ```bash
 npm run dev            # dev server
 npm run build && npm run start   # production build - test against THIS, not dev
-npm run verify:rls     # 36 adversarial checks; must stay 36/36 (run reseed:demo first)
+npm run verify:rls     # 39 checks; must stay 39/39 (run reseed:demo first). Writes
+                       # src/lib/security-run.json, which the site displays: commit it.
 npm run reseed:demo    # wipe + recreate demo listings with images; run before submitting
 ```
 
@@ -63,8 +68,17 @@ Reviewers can sign up with any `@reviewer.test` address.
   browse a sold card greys in place instead of vanishing.
 - **Condition checklists** are `jsonb`, validated by zod twice and by a DB trigger —
   the trigger matters because a user can insert their own row via the REST API.
-- **One token system** in `globals.css`: DESIGN.md tokens are real, old names alias them,
-  dark mode is a second set of values. Buttons use `#e00b41` not `#ff385c` (AA contrast).
+- **One token system** in `globals.css`, described in `DESIGN.md` (rewritten in Phase 5c:
+  near-black, indigo, one yellow accent, Anton headlines). Old class names alias the tokens.
+- **Dark is the default and the OS setting is ignored.** The theme is `data-theme` on
+  `<html>`, read from a `theme` cookie in `layout.tsx` so the first paint is right. Light
+  is the override block in `globals.css`. No component uses a `dark:` variant.
+- **Yellow is never text on the light theme** (1.4:1). Hence the separate `price` token,
+  `on-accent` for text on yellow, and an ink outline on yellow buttons in light.
+- **Every number on the home page is read, never typed**: counts from `public_stats()`,
+  the test figure from `src/lib/security-run.json`. An unreadable source is left out.
+- **Scroll reveals hide by script, not by default**: content is visible without JS, and
+  all motion sits inside `prefers-reduced-motion: no-preference`.
 - **SOLD is marked four ways** (pill, word, strike-through, greyscale) — never colour alone.
 - **Signed-out home listings** come from `recent_listing_teasers()` (card fields only);
   the `listings` table itself stays closed to `anon`.
@@ -116,6 +130,9 @@ Reviewers can sign up with any `@reviewer.test` address.
 - **Migrations are applied by hand** in the Supabase SQL Editor. Never push code that
   depends on a migration before confirming it is applied.
 - **0008 drops `inquiries`**, so `0002` can no longer be re-run as written.
+- **0009 adds `home_listing_teasers()` and leaves 0007's function alone on purpose.** The
+  local and live sites share one database: replacing a function the deployed code calls
+  changes the live site the moment the SQL runs, before the new code is pushed.
 - **Postgres `btrim(text)` strips spaces only**, not newlines. A length check on
   `btrim(body)` let a whitespace-only message through; use `body ~ '\S'`. The older
   `listings` title and description checks have the same weakness.
@@ -158,7 +175,10 @@ In order. Items 1–3 and 6–7 are required; 4–5 only if time remains.
 4. **Real photos** for the demo listings: upload through the app's edit form. Note that
    `npm run reseed:demo` will replace them with the drawn placeholders again.
 5. **Campus hero photos**: drop 3–5 wide WebPs into `public/hero/` (see its README),
-   delete the placeholders, redeploy.
+   delete the placeholders, redeploy. They are graded dark in CSS, so daytime shots work.
+   **Logo**: undecided. The header is a text wordmark and the favicon is `src/app/icon.svg`
+   ("NM"). Three options were drawn and shown to the author; none is in the repo.
+   **Course codes** in the seed are plausible, not real: the author may send real ones.
 6. **Giveaway / free badge** (optional): price 0 already validates; needs a "Free" label
    on card and detail, and a filter. Run reviewers first, QA after.
 7. **Video walkthrough.** Suggested path: sign-up with `gmail.com` refused, then

@@ -1,4 +1,4 @@
-# Campus Marketplace
+# Nitte Mart
 
 A buy/sell marketplace for a college campus. Students list things they no longer
 need, browse what others are selling, and arrange a handover at a known pickup
@@ -43,9 +43,13 @@ npm run verify:rls
 
 attacks the public API directly: as a signed-in non-owner against listings,
 and as a third account against a conversation between the buyer and the
-seller. It makes 36 assertions. Each is something that must be refused - a
+seller. It makes 39 assertions. Most are things that must be refused - a
 price change, a forged message sender, reading someone else's chat, accepting
-your own meetup proposal - and the last ones confirm nothing changed.
+your own meetup proposal - and three confirm the public home page receives
+only what a listing card shows. The result of each run is written to
+`src/lib/security-run.json`, which is what the site's "tests passed" figure
+and the [`/security`](https://nmit-campus-marketplace.vercel.app/security)
+page display.
 
 **To see the restriction working**, try signing up with a `gmail.com` address.
 It is refused with a 403 from a database-level auth hook, not a client-side
@@ -127,6 +131,11 @@ check — see
       inside the chat; the other accepts or suggests another. Once accepted it
       shows on the listing for those two people only.
 
+- [x] **Its own look.** A dark-first design system ([`DESIGN.md`](DESIGN.md)),
+      a five-scene home page with live counts from the database, a light theme
+      behind a toggle, and a [`/security`](https://nmit-campus-marketplace.vercel.app/security)
+      page that explains the access-control tests in plain language.
+
 **Dropped from scope**, deliberately, rather than left half-built: wishlist UI
 and push notifications. The `wishlist_items` table and its RLS policies exist
 in the schema but have no UI.
@@ -195,6 +204,7 @@ Open **Supabase → SQL Editor** and run each file in `supabase/migrations/`
 | 6 | `0006_condition_checks.sql` | Condition checklists, the lab category, and two extra constraints. Run it on its own |
 | 7 | `0007_listing_teasers.sql` | *Optional.* Lets the public home page show a few recent listings |
 | 8 | `0008_chat_meetups.sql` | Conversations, messages and meetups, their policies and functions. Drops the unused `inquiries` table; do not re-run `0002` afterwards |
+| 9 | `0009_public_stats.sql` | Three read-only functions for the public home page: live counts, pickup spot names, and recent listings including one sold. Without it the home page shows fewer things, not an error |
 
 They are written to be re-runnable, so running one twice is harmless.
 
@@ -275,12 +285,15 @@ src/
   app/
     (auth)/       # /login and /signup, plus their Server Actions
     inbox/        # conversations, the chat page, and their Server Actions
+    security/     # the public "receipts" page about the access-control tests
     listings/     # browse, detail, create/edit, My Listings
     error.tsx     # route-level error boundary
   components/
     auth/         # login and sign-up forms (client)
     chat/         # thread, meetup bar, unread badge
-    layout/       # the shared header
+    home/         # hero, scan demo, digit roller
+    layout/       # the shared header and footer, theme toggle
+    motion/       # the one scroll-reveal observer
     listings/     # cards, the listing form, owner controls
     ui/           # TextField, SubmitButton, Alert
   lib/
@@ -298,6 +311,7 @@ scripts/
 docs/
   architecture.md # design decisions and data model
 AI_USAGE.md       # AI usage declaration, per phase
+DESIGN.md         # the design system: tokens, type, motion, voice
 supabase/
   migrations/     # SQL schema and RLS policies
 ```

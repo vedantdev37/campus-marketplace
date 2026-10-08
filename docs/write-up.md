@@ -1,4 +1,4 @@
-# Campus Marketplace: Project Overview & Technical Approach
+# Nitte Mart: Project Overview & Technical Approach
 
 > AI assistance was used on this project. It is disclosed phase by phase in [`AI_USAGE.md`](../AI_USAGE.md).
 >
@@ -6,7 +6,7 @@
 
 ## 1. Project overview
 
-Campus Marketplace is a buy/sell site for students of one college. A student lists something they no longer need (a textbook, a calculator, hostel furniture), other students browse and search, and the two meet at a named pickup spot on campus. I built it for the GDG NMIT Round 2 full-stack challenge.
+Nitte Mart (called Campus Marketplace until the redesign) is a buy/sell site for students of one college. A student lists something they no longer need (a textbook, a calculator, hostel furniture), other students browse and search, and the two meet at a named pickup spot on campus. I built it for the GDG NMIT Round 2 full-stack challenge.
 
 It is for students only, so sign-up is restricted to approved email domains and nothing can be browsed without a session.
 
@@ -292,36 +292,45 @@ Limits I know about:
 
 ## 8. Design
 
-The interface follows [`DESIGN.md`](../DESIGN.md), an Airbnb-inspired reference: a white canvas, near-black ink, one accent colour used sparingly, hairline borders, soft 8 px and 14 px radii, and a single shadow tier.
+The first design pass followed an Airbnb-derived reference: white canvas, one red accent. It was competent and looked like a great many other sites. The second pass replaced it with the project's own system, written up in [`DESIGN.md`](../DESIGN.md): dark-first, a near-black canvas, deep indigo, one warm yellow accent, and tall condensed title-card headlines (Anton) over photographs. NITTE sounds like "night", so the product is the campus after dark, and it was renamed Nitte Mart to match.
 
-**One colour system.** The first pages were built with a default-looking blue and slate palette, and the later ones with the reference's tokens, so for a while the app had two. Rather than rewrite every class name, I made the reference tokens the only real ones in [`globals.css`](../src/app/globals.css) and turned the old names into aliases of them. Every page moved to one palette in a single change, and because each colour is a CSS variable, dark mode is a second set of values for the same variables. No component has a `dark:` colour variant.
+**One token system, two themes.** Every colour is a CSS variable in [`globals.css`](../src/app/globals.css), exposed to Tailwind, so components say `bg-canvas` and never a hex. The dark values are the defaults and the light theme is an override block. No component has a `dark:` variant.
 
-**Where I departed from the reference, and why**
+**Dark is the default for everyone.** The theme is a `data-theme` attribute on `<html>`, chosen with a toggle and stored in a cookie that `layout.tsx` reads on the server, so the first paint is already right. I chose to ignore the operating system's setting: a reviewer on a light-mode laptop would otherwise never see the design as intended. The cost is that someone who prefers light has to press the toggle once.
 
-| The reference says | I did | Reason |
-| --- | --- | --- |
-| White text on `#ff385c` for buttons | Buttons use `#e00b41` | White on `#ff385c` is about 3.5:1, below the 4.5:1 that WCAG AA asks of a 16 px label. `#e00b41` gives 4.9:1. The brighter red is kept for the wordmark, which is large text. |
-| 1 px `#dddddd` input borders | Inputs use `#8c8c8c` | `#dddddd` on white is 1.4:1; a control's boundary should reach 3:1. The light hairline is still used for dividers. |
-| No dark mode | A dark set for every token | The brief asks for a consistent dark mode. The values keep the same roles and AA contrast on a near-black canvas. |
-| Airbnb Cereal typeface | Plus Jakarta Sans | Cereal is proprietary. This is a geometric sans of similar character, self-hosted through `next/font`. |
-| Focus shown by an ink border only | Ink border on inputs, an ink outline everywhere else | Every interactive element needs a visible focus indicator, and it has to show on a brand-coloured button too. |
+**Contrast decisions**
 
-**Sold listings** are marked four ways, only one of which is colour: a SOLD pill over the photo, the word "Sold" beside the price, the price struck through, and the photo desaturated. The card's accessible name also begins "Sold:". Greyscale alone would be invisible to someone who cannot perceive it and meaningless on a photo that was already grey.
+| Problem | What I did |
+| --- | --- |
+| Yellow text on the cream light canvas is about 1.4:1 | Yellow is a fill only on light. The price has its own token: yellow on dark, ink on light. |
+| A yellow button on cream has almost no edge | On the light theme yellow buttons get a 1.5 px ink outline. |
+| White text on yellow is unreadable | Text on yellow is always the near-black `on-accent` (13.9:1). |
+| Faint input borders | Inputs use `control-border` (4.8:1 dark, 3.4:1 light); hairlines are for decoration only. |
+
+**Sold listings** are still marked four ways, only one of which is colour: a tilted SOLD stamp over the photo, the word "Sold" beside the price, the price struck through, and the photo desaturated. The card's accessible name begins "Sold:".
 
 **The fair-price verdict** uses a word and a shape (▼ below, ● in line, ▲ above), not red and green.
 
-**Home page.** A hero, a search bar that submits to browse, recent listings, and three trust signals (NMIT-only sign-up, campus pickup spots, barcode scanning). Signed-out visitors cannot read the `listings` table, by design, so for them the recent listings come from a database function, [`recent_listing_teasers()`](../supabase/migrations/0007_listing_teasers.sql), which returns only what a card shows for at most eight available listings: no seller, no description, no arguments to vary. The table's policies are unchanged and the RLS test still asserts that a signed-out client cannot select from it. The migration is optional; without it the row appears for signed-in users only.
+**The home page is five scenes**, one idea each: the hero with search, the ISBN scanner, meeting on campus, who can get in, and what is for sale now.
 
-**Hero.** Wide photographs drift slowly sideways and crossfade under a dark gradient, with the headline in white over it. The gradient, not the photo, is what guarantees the text contrast.
+- **Every number on it is read, not written.** The page is public and a signed-out visitor can read no table, so three narrow database functions ([`0009_public_stats.sql`](../supabase/migrations/0009_public_stats.sql)) return counts, pickup spot names and card-only listing teasers. The "security tests passed" figure comes from a file that `npm run verify:rls` writes when it runs. If a source cannot be read, that part of the page is left out; nothing falls back to a made-up value.
+- The numbers are small because the project is new. They are shown as they are.
+- The headline says "Locked to NITTE". The exact rule (an `@nmit.ac.in` address, plus `@reviewer.test` for assessors, with email confirmation off for the demo) is stated on the [`/security`](../src/app/security/page.tsx) page, which also explains each group of access-control tests in plain language.
 
-- Someone who has asked their system to reduce motion gets the first photo, still: the CSS animation is behind `motion-safe:`, and the JavaScript slide timer does not start.
-- Because the motion starts by itself and runs for more than five seconds, there is a pause button (WCAG 2.2.2).
-- The image list is read from `public/hero/` at **build** time, in `next.config.ts`. Reading the folder per request works locally but not on Vercel, where `public/` is served by the CDN and is not on the server function's filesystem.
-- The three images there now are generated placeholders. TODO: replace them with real campus photographs ([instructions](../public/hero/README.md)).
+**Motion.** Scroll reveals, digit rollers, a SOLD stamp that wipes in and a short scanner illustration.
 
-**A shared header** replaced the different ones each page had built for itself; before it, Sign out existed on one page only. On phones the rest of the navigation folds into a native `<details>` menu, keyed by the current path so it closes when you navigate.
+- Content is visible by default. One `IntersectionObserver` hides what is below the fold and reveals it on arrival, so with JavaScript off or slow nothing is missing. There are no scroll listeners.
+- All of it is inside `prefers-reduced-motion: no-preference`. With reduced motion every scene shows its final frame.
+- The scanner illustration plays once and stops. Only the hero moves continuously, so only it needs the pause button it already had.
+- Parallax is applied only where the browser supports scroll-driven animations natively.
 
-I then checked the code against Vercel's Web Interface Guidelines with the `web-design-guidelines` skill. What it found and I fixed: the home search input had its outline removed with nothing in its place; the hero had no pause control; the sticky header could cover an element scrolled or tabbed into view; preview images lacked dimensions; email, ISBN and course-code fields allowed spellcheck; there was no warning before leaving a half-written listing; and the native menu stayed open after navigating. What I left: headings and buttons use sentence case rather than Title Case, a deliberate and consistent choice; and the desaturation of a sold photo animates `filter`, which is not compositor-only, for a 300 ms one-off change.
+**Hero.** The photographs are graded in CSS (darkened, slightly desaturated, an indigo multiply layer and still film grain), so any photo sits inside the palette. The image list is read from `public/hero/` at **build** time, because on Vercel `public/` is not on the server function's filesystem. The three images there now are generated placeholders. TODO: replace them with real campus photographs ([instructions](../public/hero/README.md)).
+
+**Voice.** Empty states, errors and the 404 are cheeky, and each still says what to do next. Destructive confirmations and screen-reader-only text are plain.
+
+**Not finished:** the logo is undecided, so the header is a text wordmark and the favicon is the letters NM.
+
+I checked the new code against Vercel's Web Interface Guidelines with the `web-design-guidelines` skill. It led to four changes: typographic apostrophes in visible copy; the reveal script now measures every element before changing any, instead of alternating; a bottom scroll margin so the phone's sticky action bar cannot cover a focused element; and hover states on the footer links. One finding I left as it is: the SOLD stamp animates `clip-path`, which is not one of the two properties the guideline allows, because a wipe cannot be done with `opacity` or `transform` alone and it runs once on a small element.
 
 ## 9. Key decisions and trade-offs
 
@@ -345,7 +354,7 @@ I then checked the code against Vercel's Web Interface Guidelines with the `web-
 
 - `next build`, `tsc --noEmit` and `eslint` clean, re-run after the create/edit work.
 - A scripted browser pass with `playwright-cli` against a local production build (`next build` + `next start`), 30 of 30 checks passing: sign-in; the Sell an item link; an empty form blocked client-side; a bad price rejected on blur; a non-image file refused; photo preview; create; the photo stored at `<uid>/<uuid>.png` and publicly fetchable; the edit form pre-filled; edit saving title, price and a replacement photo; the replaced photo removed from Storage; mark sold; the sold item hidden from default browse and shown with a Sold label when included; My Listings; a second user seeing no owner controls and a not-found page on the edit URL; delete with its confirm dialog, both cancelled and accepted; and the deleted listing and its photo both gone.
-- `npm run verify:rls`: 36 of 36 assertions pass against the live database. Three attack the checklist and photo-path rules through the API directly and 24 attack chat and meetups (section 5). The first run with the chat checks scored 34: the two failures were a real bug in the message length rule (section 7).
+- `npm run verify:rls`: 39 of 39 assertions pass against the live database. Three attack the checklist and photo-path rules through the API directly, 24 attack chat and meetups (section 5), and three confirm the public home page functions return card fields and counts only. The first run with the chat checks scored 34: the two failures were a real bug in the message length rule (section 7).
 - Chat and meetups, with three separate browser sessions (seller, buyer and a third user) at 390 px and 1280 px in both themes: asking about an item; messages arriving in both directions with a `window` marker surviving; the header's unread count rising on another page; proposing, counter-proposing, accepting and cancelling a meetup with the other person's page updating live; the accepted meetup shown on the listing to the two participants and not to the third user; the third user opening the conversation's URL and getting the not-found page. Five defects were found and fixed, then re-checked on a fresh build.
 - Realtime: two separate browser sessions, a buyer watching and a seller acting. The buyer's browse card gained its Sold label in place, and the buyer's open listing page gained its sold banner. In both cases a marker set on `window` beforehand was still there afterwards, which shows the page had not reloaded.
 - The checklist trigger: seven crafted inserts through the API (a key from another category, an unknown key, a script-like string, `false`, a bad size, a checklist on a category without one, and a photo in another user's folder) were all rejected.
@@ -357,6 +366,7 @@ I then checked the code against Vercel's Web Interface Guidelines with the `web-
 **Not verified / known limitations**
 
 - The browser pass ran locally against the production build, not against the deployed Vercel URL. TODO: repeat the create and edit steps, and one chat with a meetup, on the live site.
+- The redesign, at 390 px and 1280 px in both themes: 98 screenshots inspected; contrast measured from computed colours on every page, with nothing under 4.5:1 (lowest 5.27:1, muted text on the light soft surface); scroll reveals, with none left hidden; reduced motion, with nothing hidden or moving; the theme surviving a reload with no flash. Nine defects found, seven fixed and re-checked. The two left are a white hero search box in both themes, which is intended, and a signed-out visitor to an unknown URL being sent to sign in instead of the 404.
 - Chat: a meetup time later the same day was not tried (the pass ran after 8 pm campus time), two proposals at the same instant were not tried, and Realtime not reaching a third user was observed in a browser rather than asserted by a script.
 - `notFound()` pages return HTTP 200, not 404. A route with a `loading.tsx` starts streaming before the page decides it does not exist, which fixes the status code; Next adds a `noindex` tag instead. The user sees the not-found page either way. This is a cost of streamed loading states that I only noticed because a test asserted on the status code.
 - An upload can succeed and the following save fail, leaving an orphaned file in Storage. The form reuses the uploaded path on retry, but nothing sweeps up after an abandoned form.

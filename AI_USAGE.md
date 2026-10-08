@@ -872,6 +872,133 @@ and, after AI showed the plan with five open decisions:
 
 ---
 
+## Phase 5c — "Make it ours": the after-dark redesign and the rename to Nitte Mart
+
+**Asked for**
+
+> "'Make it ours': full creative direction (replaces the Airbnb look). Run
+> Judge/Designer reviewers first and show me the plan, plus 2–3 logo options as
+> screenshots, before applying anything. Identity: rename to Nitte Mart
+> everywhere … Concept: 'after dark', cinematic and dark-first … near-black
+> canvas, deep indigo, warm yellow accent, AA contrast. Dark is the default;
+> light mode keeps working. Bold condensed open-source display font … Homepage
+> as 5 scroll scenes … a new `/security` receipts page that explains the RLS
+> tests in plain language … Listing detail like an Apple product page … Copy:
+> Zomato-style humour … Blocking errors must still say what to do next. …
+> Demo data: rewrite the seed listings in real student voice … Motion: scroll
+> reveals, subtle parallax, digit rollers, all respecting reduced motion …
+> Never leave anything half-done."
+
+The seven lines of copy quoted in the brief (the 404, the empty states, the
+Gmail refusal and so on) are the author's own words and are used as written.
+
+and, after AI showed the plan, three logo drawings and five open decisions:
+
+> "Logo decision deferred to the very end. For now use a clean text-only
+> wordmark … (2) dark default with a toggle remembered in a cookie; (3) yes to
+> 0009 … (4) build the hero on placeholders with a dark grade … (5) use
+> plausible subject codes … Keep the exact gate rule on /security. Go."
+
+Later: the credit was changed to "Vedant Sharma" at the author's request.
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `DESIGN.md` | Rewritten: the project's own system, replacing the downloaded Airbnb reference |
+| `src/app/globals.css` | New tokens with dark as the default and light as the override; reveal, roller, stamp and grain CSS |
+| `src/app/layout.tsx`, `components/layout/theme-toggle.tsx`, `site-footer.tsx`, `site-header.tsx` | Anton, the theme cookie, the toggle, the footer with the disclaimer, the text wordmark |
+| `src/app/page.tsx`, `components/home/`, `components/motion/reveal-observer.tsx` | The five scenes, digit roller, scan illustration, hero grade, the scroll-reveal observer |
+| `src/app/security/page.tsx` | The public receipts page |
+| `supabase/migrations/0009_public_stats.sql` | Three read-only functions for the public home page |
+| `listing-card.tsx`, `listings/[id]/page.tsx`, `condition-summary.tsx` | Photo-first cards, the product-page layout, "What's in the box" |
+| `scripts/verify-rls.mjs`, `src/lib/security-run.json` | Three new checks; the run result written to a file the site displays |
+| `scripts/seed-demo.mjs` | Listings and chat rewritten in a student's voice |
+| Copy in the 404, empty states, error page, sign-up refusal, book lookup | The author's lines, plus the same voice elsewhere |
+| `src/app/icon.svg` | A text "NM" favicon, standing in until the logo is chosen |
+
+Three logo options were drawn as HTML and screenshotted for the author. None is
+in the repository; the choice is still open.
+
+**What the reviewers found (AI reviewing AI)**
+
+- *Judge:* five scenes would bury the reviewer sign-up hint, which sat in the
+  footer, so it moved into the hero. A "security tests passed" figure must not
+  be a number typed into a page. "Locked to NITTE" overclaims: the gate is
+  `nmit.ac.in` plus a demo domain. And the home page could not show a sold item
+  or any count at all, because a signed-out visitor can read no table.
+- *Designer:* exact token values with contrast ratios; that yellow cannot be
+  text on a light canvas (about 1.4:1); Anton over Bebas Neue, which has no
+  lower case; and a cookie-based theme so the first paint is right.
+- AI did not take two of the Judge's cuts (make the scan demo static, merge two
+  scenes): the author's brief gave its own order for cutting if time ran short,
+  and time did not run short.
+- *QA agent:* nine checks at two widths in both themes, 98 screenshots, and
+  contrast measured from computed colours on every page. It found nine defects.
+  One was serious: **the chat page showed the site footer and scrolled.** AI had
+  written the CSS rule that hides the footer there and never added the attribute
+  the rule looks for. Also: book covers letterboxed in the new portrait tiles; a
+  sold card's accessible name began with its price, not "Sold"; two links under
+  44 px; a sold listing still saying "Meet at …"; dark dialogs with no edge; and
+  a headline whose two lines had no space between them in the markup. Seven
+  were fixed. Two were left: the hero's search box is white in both themes by
+  design, and a signed-out visitor to an unknown URL is sent to sign in rather
+  than shown the 404, which is how the route gate has always worked.
+- The `web-design-guidelines` skill led to four changes, listed in the
+  write-up, and one finding deliberately left (the stamp animates `clip-path`).
+
+**AI mistakes in this phase**
+
+- The footer on the chat page, above: a rule with nothing to match.
+- **A migration that would have changed the live site early.** The first draft
+  of 0009 replaced the function the deployed home page calls. The local and
+  live sites share one database, so the live page would have drawn a sold item
+  as available from the moment the SQL ran until the new code was pushed. AI
+  caught it before the author ran anything and added a new function instead.
+- AI told the author 0009 was ready, then added a third function to it a few
+  minutes later and had to say so. The author had not run it yet.
+- The first logo screenshots had the wordmark cut off at the edge; redrawn
+  before being shown.
+- A scripted edit to the stylesheet failed with a file error. The file was
+  checked and found intact, and the change was re-applied by hand.
+- The first hero headline stranded its last word on a line of its own.
+
+**Verified by testing** (production build)
+
+- The QA pass and its re-check, as above.
+- Measured contrast: nothing under 4.5:1 on any page in either theme. The
+  lowest was muted text on the light soft surface, 5.27:1.
+- Reduced motion: no element left hidden, no animation running, no pause button.
+- The theme survives a reload with no flash, and the toggles stay in step.
+- `next build`, `tsc --noEmit` and `eslint` clean.
+- `npm run verify:rls` after the last change: 39 of 39, written to
+  `src/lib/security-run.json`, which is the figure `/security` shows.
+
+**Not verified**
+
+- Nothing in this phase has been run on the deployed site.
+- No real phone, no Safari or Firefox, no screen reader. The parallax runs only
+  in browsers with scroll-driven animations and was seen in Chromium only.
+- The hero text sits on a photograph, so its contrast was judged by eye, on
+  placeholder images. Real photographs may need a heavier grade.
+- Page weight and load time with the second typeface were not measured.
+- With JavaScript disabled. The reveal design keeps content visible in that
+  case; nobody loaded the page that way to confirm it.
+- Whether the course codes in the demo listings are real. They are plausible.
+
+**Author changed / verified**
+
+- Set the whole creative direction, the name, the palette, the scenes and the
+  copy lines.
+- Decided: text wordmark for now, dark by default with a cookie toggle, the
+  migration, placeholders for the hero, plausible course codes.
+- Applied migration 0009 by hand.
+- Chose the credit "Vedant Sharma".
+- _Choosing a logo, and supplying campus photographs: **pending**._
+- _Code review of the above files: **pending author review**._
+
+---
+
 ## Skills used
 
 Agent skills installed in this repository under `.claude/skills/`, and where

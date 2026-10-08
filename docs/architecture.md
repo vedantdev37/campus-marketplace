@@ -250,6 +250,15 @@ Moved to the "Not verified / known limitations" list in
 [`write-up.md`](write-up.md#8-testing-and-verification), which is kept current.
 The migrations have been applied and exercised by the seed and verify scripts.
 
+## What the public home page can read *(migration 0009)*
+
+The home page is public, and `anon` has no privilege on any table. Three
+`security definer` functions with no arguments are the whole exception:
+`public_stats()` (five counts), `public_pickup_spots()` (names and
+descriptions) and `home_listing_teasers()` (card fields for up to seven
+available listings and one sold). No table policy changed. `verify:rls` checks
+that each returns only the fields it is meant to.
+
 ## External API integration
 
 _(Added when the Google Books integration lands.)_
