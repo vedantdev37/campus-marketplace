@@ -567,6 +567,200 @@ author approved it and asked for the manual MRP field. This is recorded in
 
 ---
 
+## Phase 4 — Realtime, the validation and states audit, condition checklists
+
+**Asked for**
+
+> "1. Realtime sold updates: marking a listing sold updates every open browse
+> and detail page without refresh (Supabase Realtime). Verify with two
+> playwright sessions. 2. Validation/states audit: every form and page has
+> client + server validation and loading/empty/error states. Fix gaps. 3. …
+> category-specific condition checklists (electronics: charger included /
+> battery OK / screen scratches; lab coat: size, stains; books: highlighting,
+> missing pages), shown as ticks on the detail page. 4. Re-run
+> `npm run verify:rls`; it must still pass."
+
+and, after AI raised two questions:
+
+> "Make the photo required on create … Editing can keep the existing photo.
+> Keep 'Lab coats & gear' as its own category. … update the reseed script so
+> every demo listing has a realistic image (simple generated placeholder images
+> per category are fine)."
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `supabase/migrations/0006_condition_checks.sql` | `condition_checks` column, `lab` category, validating trigger, two extra constraints |
+| `src/lib/use-listing-changes.ts` | Realtime subscription hook |
+| `src/components/listings/live-listing-grid.tsx`, `listing-live-refresh.tsx` | Live browse grid; re-fetch for detail and My Listings |
+| `src/components/listings/condition-checklist.tsx`, `condition-summary.tsx` | Checklist inputs; the "Seller confirms" list |
+| `src/lib/uuid.ts` | Real UUID check |
+| `src/app/not-found.tsx`, `listings/[id]/not-found.tsx`, `global-error.tsx`, three `loading.tsx` | Missing states |
+| `src/app/listings/actions.ts`, `owner-actions.tsx` | Checklist and photo rules; failures returned instead of thrown |
+| `scripts/demo-images.mjs`, `seed-demo.mjs`, `verify-rls.mjs` | Drawn placeholder photos; three new attack assertions |
+
+**What the reviewers found (AI reviewing AI)**
+
+- *Auditor:* mark-sold and delete **threw** on failure, landing the owner on
+  the error page; the id check accepted 36 hyphens and produced a **500**;
+  there was no `not-found` or `global-error`; the search query was unbounded;
+  sign-up could show a raw error message. It also said the checklist must be
+  enforced **in SQL**, because a signed-in user can insert their own row through
+  the API without running any app code - which is why the trigger exists.
+- *Judge:* a sold card should grey out in place rather than vanish, and a photo
+  being optional contradicts the brief. The second became a question to the
+  author rather than a silent change.
+- *Designer:* every checklist item should be a positive claim, so unticked can
+  mean "not stated"; no red crosses.
+- *QA agent:* nine scenarios passed. It found one real bug: **listing order
+  reshuffled after a status change**, because rows seeded together share a
+  `created_at` and nothing broke the tie. Fixed with a second sort key.
+
+**AI mistakes in this phase**
+
+- The first reseed failed: in a bulk insert, a key missing from some rows is
+  sent as `null` rather than left to the column default, which the new
+  `not null` column rejected. Caught immediately by running it.
+- AI built the phase before the migration it depended on had been applied, then
+  had to hold all commits until the author ran it. Pushing earlier would have
+  broken create and edit on the live site.
+
+**Verified by testing** (production build)
+
+- Realtime, with two separate browser sessions: the buyer's browse card and
+  open listing page both showed the sale, and a marker set on `window`
+  beforehand survived, showing neither page reloaded.
+- The trigger: seven crafted inserts through the API were all rejected.
+- `npm run verify:rls`: 12 of 12, three of them new.
+- QA agent, scenarios A-I, at desktop and 390 px.
+
+**Not verified**
+
+- Realtime on the deployed site, and with more than two clients.
+- What happens to an open page if the realtime connection drops and resumes.
+- The checklist and photo rules on a real phone.
+
+**Author changed / verified**
+
+- Applied migration 0006.
+- Decided that a photo is required on create, that lab coats get their own
+  category, and that demo listings need images.
+- _Code review of the above files: **pending author review**._
+
+---
+
+## Phase 5 — Design pass
+
+**Asked for**
+
+> "1. Run the Judge/Designer reviewers first, focused on visual quality and
+> 'does this feel like a real product, not a generic AI site'. 2. Apply
+> DESIGN.md (airbnb) to every page … Keep all functionality identical. SOLD
+> listings must stay clearly distinguishable. Fix dark mode so every page is
+> consistent. 3. The homepage should feel alive and campus-specific: a clear
+> headline, a search bar up front, recent listings, and the trust signals …
+> 4. Leave a slot for a GTA-IV-style hero: wide campus photos slowly panning
+> sideways and crossfading, with a dark gradient overlay, respecting reduced
+> motion, using compressed WebP. Build it with placeholder images … 5. QA with
+> playwright-cli screenshots of every page at 390px and desktop, in light and
+> dark. Then run the web-design-guidelines skill and fix every accessibility
+> and focus issue."
+
+**AI produced**
+
+| File | What it is |
+| --- | --- |
+| `src/app/globals.css` | One token system with dark values; old names kept as aliases |
+| `src/app/layout.tsx` | Typeface, shared header, skip link, theme colour |
+| `src/components/layout/` | `SiteHeader`, `NavLink`, `MobileMenu` |
+| `src/app/page.tsx` | Rebuilt home: hero, search, recent listings, trust signals |
+| `src/components/home/hero-slideshow.tsx`, `src/lib/hero-images.ts` | The hero and its build-time image list |
+| `public/hero/` + `scripts/make-hero-placeholders.mjs` | Three generated placeholder images and instructions for replacing them |
+| `supabase/migrations/0007_listing_teasers.sql` | Narrow function so the public home page can show recent listings |
+| `listing-card.tsx`, `listings/[id]/page.tsx`, `owner-actions.tsx`, `browse-filters.tsx`, auth pages, forms | Restyled |
+
+**What the reviewers found (AI reviewing AI)**
+
+- *Judge:* the app had **two colour systems** and no shared header; the home
+  page was a centred title and two buttons; and the string "NMIT" appeared
+  nowhere in the source.
+- *Designer:* that `DESIGN.md` itself **fails WCAG AA** for button text (white on
+  `#ff385c` is about 3.5:1) and for input borders, with replacement values; a
+  dark palette; and which components would break when ink and canvas swap.
+- *QA agent:* 60 screenshots across 14 pages, two widths and two themes; seven
+  of nine checks passed. It failed two, both real: the photo picker had **no
+  keyboard focus indicator**, and three header buttons were 40 px tall. It also
+  reported wrapped button labels and clipped placeholders. All fixed.
+- The `web-design-guidelines` skill (Vercel's Web Interface Guidelines) found: a
+  search input with its outline removed and nothing in its place; a hero that
+  autoplays for more than five seconds with no pause control; a sticky header
+  that could cover a focused element; images without dimensions; spellcheck on
+  email, ISBN and course-code fields; and no warning before leaving a
+  half-written listing. All fixed. Left as they are, deliberately: sentence case
+  rather than Title Case, and a 300 ms `filter` transition on a sold photo.
+
+**AI mistakes in this phase**
+
+- **AI renamed the product.** Following the reviewers, the header and page
+  titles became "NMIT Marketplace". The author had been explicit earlier that
+  the project is called Campus Marketplace, and a rename is not a reviewer's
+  decision or the AI's. AI noticed, said so, and reverted it before committing.
+- The first hero implementation read `public/hero` from disk on each request,
+  which works locally and returns nothing on Vercel. Caught before it was built
+  on, and moved to build time.
+- AI's own smoke test was interrupted by the unsaved-changes prompt it had just
+  added - correct behaviour, but it cost a re-run.
+
+**Verified by testing** (production build)
+
+- The QA agent's screenshot matrix and checks, as above.
+- After the QA fixes and the name revert, on the final build: publish with a
+  photo and a ₹19.99 price, then delete, completed; header controls measured at
+  44 px; the photo picker shows a 2 px outline on keyboard focus; "Scan barcode"
+  is one line; six teaser cards show to a signed-out visitor.
+- The teaser function returns card fields only, and a signed-out client is
+  still refused a direct read of the table.
+- `npm run verify:rls`: 12 of 12.
+
+**Not verified**
+
+- Colour contrast was calculated by the Designer agent, not measured with an
+  audit tool.
+- No screen reader was used. ARIA and focus order were checked by reading the
+  DOM and tabbing, not by listening.
+- The final build was checked by targeted measurements, not by repeating the
+  full 56-screenshot matrix.
+- No real phone, and no Safari or Firefox: everything ran in Chromium.
+- The hero with real photographs. Only the generated placeholders have been
+  seen.
+- The redesign on the deployed site.
+
+**Author changed / verified**
+
+- Chose the design reference and set the requirements for the home page, the
+  hero, dark mode and the SOLD treatment.
+- Applied migration 0007.
+- _Replacing the placeholder hero and demo images: **pending**._
+- _Code review of the above files: **pending author review**._
+
+---
+
+## Skills used
+
+Agent skills installed in this repository under `.claude/skills/`, and where
+each was used:
+
+| Skill | Source | Used for |
+| --- | --- | --- |
+| `playwright-cli` | microsoft/playwright-cli | Every browser check from Phase 2b on: the create/edit flow, the fake-webcam barcode test, two-session realtime tests, and all QA agent passes and screenshots |
+| `web-design-guidelines` | vercel-labs/agent-skills | One review of all pages and components in Phase 5 against Vercel's Web Interface Guidelines |
+
+`DESIGN.md` came from the `getdesign` CLI (the `airbnb` design). It is a
+reference document, not a skill.
+
+---
+
 ## Honesty note
 
 AI-generated code was not accepted unreviewed. Where a suggestion was wrong or a

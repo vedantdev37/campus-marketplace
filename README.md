@@ -182,6 +182,7 @@ Open **Supabase → SQL Editor** and run each file in `supabase/migrations/`
 | 4 | `0004_signup_domain_allowlist.sql` | Email-domain gate for sign-up |
 | 5 | `0005_seed.sql` | Pickup spots and the allowed sign-up domains |
 | 6 | `0006_condition_checks.sql` | Condition checklists, the lab category, and two extra constraints. Run it on its own |
+| 7 | `0007_listing_teasers.sql` | *Optional.* Lets the public home page show a few recent listings |
 
 They are written to be re-runnable, so running one twice is harmless.
 

@@ -24,7 +24,7 @@ It is for students only, so sign-up is restricted to approved email domains and 
 | My Listings | Built and verified |
 | Owner-only mark-sold and delete | Built and verified |
 | RLS on every table + `npm run verify:rls` | Built and verified |
-| Create / edit listing with image upload | Built and verified in a real browser (30 scripted checks, see section 9) |
+| Create / edit listing with image upload | Built and verified in a real browser (30 scripted checks, see section 10) |
 | ISBN lookup, barcode scan, autofill, live fair-price guide | Built and verified in a browser (section 6); TODO: try on a real phone |
 | Realtime sold updates | Built and verified with two browser sessions (section 7) |
 | Category-specific condition checklists | Built and verified (section 7) |
@@ -40,7 +40,7 @@ It is for students only, so sign-up is restricted to approved email domains and 
 | Supabase Auth via `@supabase/ssr` | Cookie sessions that work in Server Components, and `auth.uid()` is available inside RLS policies. |
 | Supabase Storage | Same auth token and the same policy language as the tables, so image ownership is enforced the same way as row ownership. |
 | zod 4 | One schema used by the form and by the Server Action. |
-| Tailwind CSS 4 | Fast to style without a component library. [`DESIGN.md`](../DESIGN.md) is the design reference; so far only the create and edit pages follow it. TODO: restyle the remaining pages. |
+| Tailwind CSS 4 | Fast to style without a component library. [`DESIGN.md`](../DESIGN.md) is the design reference, applied to every page (section 8). |
 | Vercel | Native Next.js hosting; pushes to `main` deploy automatically. |
 
 ## 3. Database schema
@@ -246,7 +246,40 @@ Before this phase I had an AI reviewer audit every form and page (see [`AI_USAGE
 | The price rule rejected valid prices such as 19.99 (floating-point rounding) | Decimal places are counted on the text before conversion |
 | A photo was optional, though the brief names it as a listing field | Required on create; an edit may replace a photo but not remove it |
 
-## 8. Key decisions and trade-offs
+## 8. Design
+
+The interface follows [`DESIGN.md`](../DESIGN.md), an Airbnb-inspired reference: a white canvas, near-black ink, one accent colour used sparingly, hairline borders, soft 8 px and 14 px radii, and a single shadow tier.
+
+**One colour system.** The first pages were built with a default-looking blue and slate palette, and the later ones with the reference's tokens, so for a while the app had two. Rather than rewrite every class name, I made the reference tokens the only real ones in [`globals.css`](../src/app/globals.css) and turned the old names into aliases of them. Every page moved to one palette in a single change, and because each colour is a CSS variable, dark mode is a second set of values for the same variables. No component has a `dark:` colour variant.
+
+**Where I departed from the reference, and why**
+
+| The reference says | I did | Reason |
+| --- | --- | --- |
+| White text on `#ff385c` for buttons | Buttons use `#e00b41` | White on `#ff385c` is about 3.5:1, below the 4.5:1 that WCAG AA asks of a 16 px label. `#e00b41` gives 4.9:1. The brighter red is kept for the wordmark, which is large text. |
+| 1 px `#dddddd` input borders | Inputs use `#8c8c8c` | `#dddddd` on white is 1.4:1; a control's boundary should reach 3:1. The light hairline is still used for dividers. |
+| No dark mode | A dark set for every token | The brief asks for a consistent dark mode. The values keep the same roles and AA contrast on a near-black canvas. |
+| Airbnb Cereal typeface | Plus Jakarta Sans | Cereal is proprietary. This is a geometric sans of similar character, self-hosted through `next/font`. |
+| Focus shown by an ink border only | Ink border on inputs, an ink outline everywhere else | Every interactive element needs a visible focus indicator, and it has to show on a brand-coloured button too. |
+
+**Sold listings** are marked four ways, only one of which is colour: a SOLD pill over the photo, the word "Sold" beside the price, the price struck through, and the photo desaturated. The card's accessible name also begins "Sold:". Greyscale alone would be invisible to someone who cannot perceive it and meaningless on a photo that was already grey.
+
+**The fair-price verdict** uses a word and a shape (▼ below, ● in line, ▲ above), not red and green.
+
+**Home page.** A hero, a search bar that submits to browse, recent listings, and three trust signals (NMIT-only sign-up, campus pickup spots, barcode scanning). Signed-out visitors cannot read the `listings` table, by design, so for them the recent listings come from a database function, [`recent_listing_teasers()`](../supabase/migrations/0007_listing_teasers.sql), which returns only what a card shows for at most eight available listings: no seller, no description, no arguments to vary. The table's policies are unchanged and the RLS test still asserts that a signed-out client cannot select from it. The migration is optional; without it the row appears for signed-in users only.
+
+**Hero.** Wide photographs drift slowly sideways and crossfade under a dark gradient, with the headline in white over it. The gradient, not the photo, is what guarantees the text contrast.
+
+- Someone who has asked their system to reduce motion gets the first photo, still: the CSS animation is behind `motion-safe:`, and the JavaScript slide timer does not start.
+- Because the motion starts by itself and runs for more than five seconds, there is a pause button (WCAG 2.2.2).
+- The image list is read from `public/hero/` at **build** time, in `next.config.ts`. Reading the folder per request works locally but not on Vercel, where `public/` is served by the CDN and is not on the server function's filesystem.
+- The three images there now are generated placeholders. TODO: replace them with real campus photographs ([instructions](../public/hero/README.md)).
+
+**A shared header** replaced the different ones each page had built for itself; before it, Sign out existed on one page only. On phones the rest of the navigation folds into a native `<details>` menu, keyed by the current path so it closes when you navigate.
+
+I then checked the code against Vercel's Web Interface Guidelines with the `web-design-guidelines` skill. What it found and I fixed: the home search input had its outline removed with nothing in its place; the hero had no pause control; the sticky header could cover an element scrolled or tabbed into view; preview images lacked dimensions; email, ISBN and course-code fields allowed spellcheck; there was no warning before leaving a half-written listing; and the native menu stayed open after navigating. What I left: headings and buttons use sentence case rather than Title Case, a deliberate and consistent choice; and the desaturation of a sold photo animates `filter`, which is not compositor-only, for a 300 ms one-off change.
+
+## 9. Key decisions and trade-offs
 
 - **Cache Components disabled.** `create-next-app` enabled `cacheComponents` and `partialPrefetching`. With them on, reading `cookies()` outside a `<Suspense>` boundary is a build error, and `@supabase/ssr` reads cookies on every authenticated request. A marketplace where a listing can sell at any moment also wants fresh reads. I gave up Partial Prerendering; `loading.tsx` still gives streamed loading states.
 - **`proxy.ts`, not `middleware.ts`.** Next 16 renamed the convention. Every Supabase guide still says `middleware.ts`; a file with that name would not run, and the only symptom would be sessions expiring because nothing refreshed the token.
@@ -262,7 +295,7 @@ Before this phase I had an AI reviewer audit every form and page (see [`AI_USAGE
 - **Checking affected row counts.** A write blocked by RLS does not raise an error; zero rows match. The actions and the verify script use `.select("id")` after the write and treat zero rows as "not allowed". Checking only `error` would report a refused write as success and make the RLS tests pass vacuously.
 - **The ambiguous-embed bug.** `seller:profiles(full_name)` failed at runtime because PostgREST can reach `profiles` from `listings` three ways (directly, and through `wishlist_items` and `inquiries`). `next build` and `tsc` both passed, because the select string is opaque to them. I only found it by running the query against the real database, and fixed it by naming the constraint: `profiles!listings_seller_id_fkey`. The lesson I took is that a green build says nothing about query strings.
 
-## 9. Testing and verification
+## 10. Testing and verification
 
 **Verified, and how**
 
@@ -293,13 +326,13 @@ Before this phase I had an AI reviewer audit every form and page (see [`AI_USAGE
 - The demo account passwords that were originally committed remain in git history and in the two scripts. They have been rotated, and the first `verify:rls` assertion checks the old seller password no longer works.
 - TODO: `README.md` and `docs/architecture.md` are partly out of date (feature checklist, project structure, an "Open items" section saying the migrations have not been run). Update before submitting.
 
-## 10. What I would do next
+## 11. What I would do next
 
 1. Repeat the create/edit browser pass on the deployed site.
 2. Test the barcode scanner on real Android and iOS devices.
 4. Extend `verify:rls` to cover Storage (cross-folder upload and delete) and `inquiries`.
 5. Add pagination to browse and rank search results by relevance instead of only by date.
 6. Add a small end-to-end suite for the sign-up, list, mark-sold path so regressions do not rely on manual checks.
-7. Apply `DESIGN.md` to the pages built before it (browse, detail, My Listings, auth).
+7. Replace the placeholder hero images and demo photos with real ones.
 8. Before any real use: turn email confirmation on, remove `reviewer.test` from the allowlist, and generate database types instead of hand-writing them.
 9. Either build the wishlist and inquiry UIs or drop the unused tables.
