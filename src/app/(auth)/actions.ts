@@ -42,7 +42,14 @@ function describeSignUpError(error: AuthError): string {
     case "over_request_rate_limit":
       return "Too many attempts. Wait a minute and try again.";
     default:
-      return error.message;
+      // A 4xx is the auth service refusing THIS request for a stated reason,
+      // and its message is written for the person signing up - this is the
+      // route by which the domain gate's own wording reaches the form. Anything
+      // else (a 5xx, or no status at all) is an internal failure whose text
+      // could describe the server rather than help the user, so it is replaced.
+      return typeof error.status === "number" && error.status >= 400 && error.status < 500
+        ? error.message
+        : "Sign-up is not available right now. Please try again in a moment.";
   }
 }
 

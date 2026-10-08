@@ -42,6 +42,16 @@ export default function RouteError({
           Try again
         </button>
 
+        {/* A plain link, not next/link: if the error came from the router or a
+            shared layout, a full page load is the more reliable way out. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a
+          href="/listings"
+          className="mt-3 block w-full rounded-lg border border-border px-4 py-2.5 text-base font-medium transition-colors hover:bg-surface-muted"
+        >
+          Back to browse
+        </a>
+
         {error.digest ? (
           <p className="mt-4 font-mono text-xs text-muted">Reference: {error.digest}</p>
         ) : null}

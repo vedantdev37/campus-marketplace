@@ -5,6 +5,9 @@ import {
   type ListingCategory,
   type ListingFilters,
 } from "@/lib/types/listing";
+import { isUuid } from "@/lib/uuid";
+
+const MAX_SEARCH_LENGTH = 100;
 
 type SearchParamValue = string | string[] | undefined;
 export type RawSearchParams = Record<string, SearchParamValue>;
@@ -26,7 +29,9 @@ function first(value: SearchParamValue): string | undefined {
 export function parseListingFilters(params: RawSearchParams): ListingFilters {
   const filters: ListingFilters = {};
 
-  const search = first(params.q)?.trim();
+  // Capped: a search box has no use for a 50,000-character query, and an
+  // unbounded one is a free way to make the database do pointless work.
+  const search = first(params.q)?.trim().slice(0, MAX_SEARCH_LENGTH);
   if (search) {
     filters.search = search;
   }
@@ -44,7 +49,7 @@ export function parseListingFilters(params: RawSearchParams): ListingFilters {
   // Checked against the UUID shape only; a well-formed id that does not exist
   // simply matches nothing, which is the correct outcome.
   const spot = first(params.spot)?.trim();
-  if (spot && /^[0-9a-f-]{36}$/i.test(spot)) {
+  if (isUuid(spot)) {
     filters.pickupSpotId = spot;
   }
 

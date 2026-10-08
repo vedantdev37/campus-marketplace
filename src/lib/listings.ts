@@ -101,7 +101,14 @@ export async function listListings(filters: ListingFilters = {}): Promise<Listin
     query = query.ilike("course_code", filters.courseCode.trim());
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(60);
+  // The id is a tie-breaker. Rows inserted together share one created_at, and
+  // Postgres makes no promise about the order of equal rows: without a second
+  // key, marking one of them sold and available again visibly reshuffled the
+  // grid, because the UPDATE moved the row physically.
+  const { data, error } = await query
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(60);
 
   if (error) {
     throw new Error(`Could not load listings: ${error.message}`);
@@ -140,7 +147,8 @@ export async function getMyListings(userId: string): Promise<Listing[]> {
     .from("listings")
     .select(LISTING_SELECT)
     .eq("seller_id", userId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true });
 
   if (error) {
     throw new Error(`Could not load your listings: ${error.message}`);

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ListingForm } from "@/components/listings/listing-form";
 import { requireSessionUser } from "@/lib/auth";
+import { isUuid } from "@/lib/uuid";
 import { getListing, getPickupSpots } from "@/lib/listings";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
   const user = await requireSessionUser();
   const { id } = await params;
 
-  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+  if (!isUuid(id)) {
     notFound();
   }
 
