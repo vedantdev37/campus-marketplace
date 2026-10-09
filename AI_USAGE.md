@@ -11,10 +11,10 @@ The author's statement, in his own words:
 > AI (Claude Code) wrote most of the code. I directed it: I chose the stack and
 > scope, came up with the product ideas (NITTE-only access, ISBN scan, meetups
 > in chat, rent/free/lost & found/Squad up, the deal meter), made the design
-> decisions, ran a reviewer and QA process on every phase, tested on real
+> decisions, ran a reviewer and QA process from phase 3 onward, tested on real
 > phones with real books, caught wrong turns and pushed back, and set up and
-> ran the infrastructure (Supabase, Vercel, migrations, API keys). Every prompt
-> is logged in AI_USAGE.md.
+> ran the infrastructure (Supabase, Vercel, migrations, API keys). Each phase's
+> main prompts are logged in AI_USAGE.md.
 
 The rest of this summary, and everything below it except the sections marked
 as the author's own, was written by AI.
@@ -1487,10 +1487,8 @@ direction. It is a reference document, not a skill.
 
 ## Honesty note
 
-AI-generated code was not accepted unreviewed. Where a suggestion was wrong or a
-poor fit it was changed or rejected — the Cache Components decision in
-`docs/architecture.md` is an example of a scaffolded default being deliberately
-overridden rather than left in place.
-
-Any entry above still marked _"pending author review"_ is an honest statement
-that the author has not yet personally verified that code.
+I didn't review every line myself. I reviewed the security core (the RLS
+policies, the sign-up hook, and the deal-meter logic) with the AI explaining
+each part to me; everything else was verified through automated tests (66
+security checks, 9 deal-meter tests), QA passes and my own testing on real
+phones.

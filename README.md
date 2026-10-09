@@ -43,24 +43,24 @@ that's the database saying no, not just the form.
 you can't get in unless you're from NITTE. the database itself refuses
 other emails, not just the sign up form.
 
-nobody can edit or delete your stuff. i tried. 66 attack checks, all blocked.
+nobody can edit or delete your stuff. i tried. 66 security checks, every attack blocked.
 
 it's not only buying and selling. you can rent things you only need once
 (a drafter for one ED class), give stuff away for free, post things you
 found on campus, and find teammates for a hackathon in Squad up.
 
-every listing tells you if the price is a steal or a rip off, based on
-the MRP and how used it is.
+every listing with an MRP tells you if the price is a steal or a rip off,
+based on the MRP and how used it is.
 
 things update live. if someone buys what you're looking at, it turns
 SOLD on your screen. no refresh. save something you like and you'll
 know the moment it sells.
 
-and if english feels too formal, switch it to Hinglish or Kanglish.
+and if english feels too formal, switch the headlines to Hinglish or Kanglish.
 
 ## stuff that broke
 
-Google Books gave me zero results for every Indian ISBN i tried, even
+Google Books gave me zero results for a dozen well-known ISBNs i tried, even
 with a valid key. so it falls back to Open Library now.
 
 a blocked write in Supabase doesn't throw an error. it just changes
